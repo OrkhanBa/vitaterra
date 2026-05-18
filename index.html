@@ -1672,7 +1672,8 @@
           <div class="vse-sidebar-header">
             <div class="vse-sidebar-title">Page Sections</div>
             <div style="display:flex;gap:6px;">
-              <button class="vse-tool-btn" onclick="vseSave()" title="Save">💾</button>
+              <button class="vse-tool-btn" id="vse-publish-btn" onclick="vsePublish()" title="Publish changes to live site" style="background:var(--gold);color:var(--green-dark);font-weight:700;">🚀 Publish</button>
+              <button class="vse-tool-btn" onclick="vseSave()" title="Save (local only)">💾</button>
               <button class="vse-tool-btn" onclick="vseReset()" title="Reset" style="background:rgba(192,57,43,0.12);color:var(--danger);">↺</button>
             </div>
           </div>
@@ -3404,11 +3405,78 @@ const SITE_DEFAULTS = {
   nav_company_name_az:'Vita Terra', nav_tagline_az:'Cerrado Sol Distribütoru',
 };
 
+// PUBLISHED_CONTENT holds the content fetched from /site-content.json (the deployed
+// version that all visitors see). LOCAL DRAFTS live in localStorage and overlay on top —
+// these are unpublished changes that only the admin currently editing can see.
+var PUBLISHED_CONTENT = {};
+
+async function fetchPublishedContent() {
+  try {
+    const res = await fetch('/site-content.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && typeof data === 'object') {
+      const copy = Object.assign({}, data);
+      delete copy._meta;
+      PUBLISHED_CONTENT = copy;
+    }
+  } catch (e) { /* network error - fall back to defaults */ }
+}
+
 function getSiteContent() {
-  try { const d = localStorage.getItem(SITE_CONTENT_KEY); return d ? {...SITE_DEFAULTS,...JSON.parse(d)} : {...SITE_DEFAULTS}; }
-  catch(e) { return {...SITE_DEFAULTS}; }
+  try {
+    const d = localStorage.getItem(SITE_CONTENT_KEY);
+    const drafts = d ? JSON.parse(d) : {};
+    return { ...SITE_DEFAULTS, ...PUBLISHED_CONTENT, ...drafts };
+  } catch(e) { return { ...SITE_DEFAULTS, ...PUBLISHED_CONTENT }; }
 }
 function saveSiteContent(obj) { localStorage.setItem(SITE_CONTENT_KEY, JSON.stringify(obj)); }
+
+// Returns just the diff from defaults — used to keep the published JSON small.
+function getDraftDelta() {
+  const merged = getSiteContent();
+  const delta = {};
+  for (const k of Object.keys(merged)) {
+    if (merged[k] !== SITE_DEFAULTS[k]) delta[k] = merged[k];
+  }
+  return delta;
+}
+
+// Publish: POST current edits to the Netlify function so they're committed to git.
+async function vsePublish() {
+  const pw = prompt('Enter publish password to deploy your changes to the live site:');
+  if (!pw) return;
+  const btn = document.getElementById('vse-publish-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Publishing...'; }
+  try {
+    const delta = getDraftDelta();
+    delta._meta = { publishedAt: new Date().toISOString() };
+    const res = await fetch('/.netlify/functions/publish-site', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw, content: delta })
+    });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      if (typeof showToast === 'function') {
+        showToast('✅ Published! Live site rebuilds in ~30 seconds.');
+      } else {
+        alert('Published! Live site rebuilds in ~30 seconds.');
+      }
+      // Clear the local drafts since they're now in PUBLISHED_CONTENT after rebuild.
+      // Keep them for now until visitor next loads - safe either way.
+    } else {
+      const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
+      if (typeof showToast === 'function') showToast('Publish failed: ' + msg, true);
+      else alert('Publish failed: ' + msg);
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Publish failed: ' + e.message, true);
+    else alert('Publish failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Publish'; }
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // PAGE BLOCKS SYSTEM — custom text/image/section blocks
@@ -4975,7 +5043,9 @@ function setLang(lang) {
 }
 
 // INIT
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  // Pull the latest published site content before first render.
+  await fetchPublishedContent();
   setLang(currentLang);
   var pm = document.getElementById('product-modal'); if(pm) pm.addEventListener('click', function(e){ if(e.target===this) closeProductModal(); });
   var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) closeLogin(); });
