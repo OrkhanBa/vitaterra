@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;">
 <title>Vita Terra — Cerrado Sol Exclusive Distributor</title>
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 
@@ -55,12 +56,11 @@
     display:flex; align-items:center; gap:12px; cursor:pointer;
   }
   .nav-logo-icon {
-    width:36px; height:36px;
-    background: linear-gradient(135deg, var(--gold), var(--gold-light));
-    border-radius:8px;
+    width:42px; height:42px;
     display:flex; align-items:center; justify-content:center;
-    font-size:18px;
+    flex-shrink:0;
   }
+  .nav-logo-icon img { width:100%; height:100%; display:block; }
   .nav-logo-text { font-family:'Playfair Display',serif; color:var(--white); font-size:20px; font-weight:700; letter-spacing:0.5px; }
   .nav-logo-sub { font-size:10px; color:var(--gold-light); letter-spacing:2px; text-transform:uppercase; }
   .nav-links { display:flex; align-items:center; gap:8px; }
@@ -1294,10 +1294,10 @@
   <!-- NAV -->
   <nav>
     <div class="nav-logo" onclick="scrollToTop()">
-      <div class="nav-logo-icon">🌿</div>
+      <div class="nav-logo-icon"><img src="/assets/logo-mark-gold.svg" alt="Vita Terra"/></div>
       <div>
         <div class="nav-logo-text">Vita Terra</div>
-        <div class="nav-logo-sub" data-en="Cerrado Sol Distributor" data-az="Cerrado Sol Distribütoru">Cerrado Sol Distributor</div>
+        <div class="nav-logo-sub" data-en="Your Plant Protection Partner" data-az="Bitki Mühafizə Tərəfdaşınız">Bitki Mühafizə Tərəfdaşınız</div>
       </div>
     </div>
     <div class="nav-links" id="nav-links">
@@ -1485,8 +1485,11 @@
     <div class="footer-inner">
       <div class="footer-grid">
         <div class="footer-brand">
-          <div class="footer-logo">🌿 Vita Terra</div>
-          <p class="footer-tagline" data-en="Exclusive distributor of Cerrado Sol pesticides. Bringing Spanish agricultural excellence to your region." data-az="Cerrado Sol pestisidlərinin eksklüziv distribütoru. İspan kənd təsərrüfatı üstünlüyünü reginonuza gətiririk.">Exclusive distributor of Cerrado Sol pesticides. Bringing Spanish agricultural excellence to your region.</p>
+          <div class="footer-logo" style="display:flex;align-items:center;gap:12px;">
+            <img src="/assets/logo-mark-gold.svg" alt="" style="width:28px;height:auto;"/>
+            <span>Vita Terra</span>
+          </div>
+          <p class="footer-tagline" data-en="Your Plant Protection Partner — exclusive distributor of Cerrado Sol pesticides in the region." data-az="Bitki Mühafizə Tərəfdaşınız — bölgədə Cerrado Sol pestisidlərinin eksklüziv distribütoru.">Bitki Mühafizə Tərəfdaşınız — bölgədə Cerrado Sol pestisidlərinin eksklüziv distribütoru.</p>
         </div>
         <div>
           <div class="footer-col-title" data-en="Navigation" data-az="Naviqasiya">Navigation</div>
@@ -3367,8 +3370,8 @@ function applyGlobalMarkup() {
 const SITE_CONTENT_KEY = 'vt_site_content';
 
 const SITE_DEFAULTS = {
-  nav_company_name:'Vita Terra', nav_tagline:'Cerrado Sol Distributor',
-  nav_company_name_az:'Vita Terra', nav_tagline_az:'Cerrado Sol Distribütoru',
+  nav_company_name:'Vita Terra', nav_tagline:'Your Plant Protection Partner',
+  nav_company_name_az:'Vita Terra', nav_tagline_az:'Bitki Mühafizə Tərəfdaşınız',
   hero_badge:'🇪🇸 Exclusive Distributor · Spain · Cerrado Sol',
   hero_badge_az:'🇪🇸 Eksklüziv Distribütor · İspaniya · Cerrado Sol',
   hero_title_en:'Agricultural Excellence From Spain',
@@ -3397,8 +3400,8 @@ const SITE_DEFAULTS = {
   contact_email:'info\u0040vitaterra.az\nsales\u0040vitaterra.az',
   contact_supplier:'Cerrado Sol S.L. - Spain - Exclusive Partner',
   footer_logo:'🌿 Vita Terra',
-  footer_tagline:'Exclusive distributor of Cerrado Sol pesticides. Bringing Spanish agricultural excellence to your region.',
-  footer_tagline_az:'Cerrado Sol pestisidlərinin eksklüziv distribütoru. İspan kənd təsərrüfatı üstünlüyünü reginonuza gətiririk.',
+  footer_tagline:'Your Plant Protection Partner — exclusive distributor of Cerrado Sol pesticides in the region.',
+  footer_tagline_az:'Bitki Mühafizə Tərəfdaşınız — bölgədə Cerrado Sol pestisidlərinin eksklüziv distribütoru.',
   footer_copy:'© 2025 Vita Terra. All rights reserved.',
   footer_copy_az:'© 2025 Vita Terra. Bütün hüquqlar qorunur.',
   footer_spain:'🇪🇸 Official Cerrado Sol Distributor · Spain',
