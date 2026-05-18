@@ -57,3 +57,5 @@ Change both immediately in Admin → Settings after first login.
 All data is stored in the browser's `localStorage`. This means:
 - Data persists on the same browser/device
 - For multi-device use, consider upgrading to a backend (Supabase, Firebase, etc.)
+
+<!-- deploy pipeline test: 2026-05-18T11:54:46Z -->
