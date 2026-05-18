@@ -1,0 +1,15 @@
+/* ── Sale Summary Box ── */
+.sale-summary {
+  background: var(--cream);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 4px;
+}
+.ss-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--cream-dark);
+  font-size: .88rem; color: var(--text-mid);
+}
+.ss-row:last-child { border-bottom: none; }
+.ss-row.total { font-size: 1rem; color: var(--green-dark); padding-top: 14px; }
+.ss-row.total strong { font-family: var(--font-display); font-size: 1.5rem; color: var(--green-rich); }

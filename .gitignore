@@ -1,0 +1,8 @@
+# Local-only files
+.netlify/
+.size-test.bin
+test-sync.txt
+node_modules/
+deploy-*.zip
+*.zip
+desktop.ini
