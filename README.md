@@ -59,3 +59,5 @@ All data is stored in the browser's `localStorage`. This means:
 - For multi-device use, consider upgrading to a backend (Supabase, Firebase, etc.)
 
 <!-- deploy pipeline test: 2026-05-18T11:54:46Z -->
+
+<!-- env vars set; rebuild 12:12:00 -->
