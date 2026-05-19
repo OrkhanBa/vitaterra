@@ -1261,6 +1261,96 @@
     font-size:13px; color:var(--text-mid); line-height:1.8;
   }
 
+  /* ─── PRICING TAB ─── */
+  .pricing-settings {
+    display:flex; gap:14px; flex-wrap:wrap; align-items:end;
+    background:var(--white); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .pricing-setting { display:flex; flex-direction:column; gap:6px; min-width:130px; }
+  .pricing-setting label { font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px; }
+  .pricing-setting input, .pricing-setting select {
+    border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px;
+    color:var(--text-dark); background:var(--white); transition:border-color 0.15s;
+  }
+  .pricing-setting input:focus, .pricing-setting select:focus { outline:none; border-color:var(--green-accent); }
+
+  .pricing-grid {
+    display:grid; grid-template-columns: minmax(380px, 1fr) minmax(520px, 1.4fr); gap:18px;
+  }
+  @media (max-width:1100px) { .pricing-grid { grid-template-columns:1fr; } }
+
+  .pricing-card {
+    background:var(--white); border:1px solid var(--border); border-radius:14px;
+    padding:18px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-height:500px;
+  }
+  .pricing-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:4px; flex-wrap:wrap; }
+  .pricing-card-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--green-dark); }
+  .pricing-card-sub { font-size:12px; color:var(--text-light); margin-bottom:12px; }
+
+  .pricing-mini-btn {
+    background:var(--green-dark); color:var(--white); border:none; border-radius:7px;
+    padding:7px 13px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .pricing-mini-btn:hover { background:var(--green-accent); }
+  .pricing-mini-btn-primary { background:var(--gold); color:var(--green-dark); }
+  .pricing-mini-btn-primary:hover { background:var(--green-dark); color:var(--white); }
+  .pricing-mini-btn-danger { background:rgba(192,57,43,0.12); color:var(--danger); }
+  .pricing-mini-btn-danger:hover { background:var(--danger); color:var(--white); }
+
+  .pricing-competitor-form {
+    background:var(--cream); border-radius:10px; padding:14px 16px; margin-bottom:14px;
+  }
+  .pricing-form-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px 12px; }
+  .pricing-form-grid label { display:block; font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; margin-bottom:4px; letter-spacing:0.5px; }
+  .pricing-form-grid input, .pricing-form-grid select {
+    width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:7px;
+    padding:7px 10px; font-size:13px;
+  }
+  .pricing-form-grid input:focus, .pricing-form-grid select:focus { outline:none; border-color:var(--green-accent); }
+
+  .pricing-comp-table-wrap, .pricing-main-table-wrap { flex:1; overflow:auto; border:1px solid var(--border); border-radius:10px; }
+  .pricing-comp-table, .pricing-main-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .pricing-comp-table th, .pricing-main-table th {
+    position:sticky; top:0; background:var(--cream); padding:9px 10px; text-align:left;
+    font-size:11px; text-transform:uppercase; color:var(--text-light); font-weight:700; letter-spacing:0.4px;
+    border-bottom:1px solid var(--border); z-index:1;
+  }
+  .pricing-comp-table th.num, .pricing-main-table th.num { text-align:right; }
+  .pricing-comp-table td, .pricing-main-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .pricing-comp-table td.num, .pricing-main-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pricing-comp-table tbody tr:hover, .pricing-main-table tbody tr:hover { background:rgba(62,140,88,0.04); }
+  .pricing-main-table tbody tr { cursor:pointer; }
+  .pricing-comp-table .ai-cell, .pricing-main-table .ai-cell { font-size:11.5px; color:var(--text-mid); }
+  .pricing-comp-table .del-btn { background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:14px; }
+  .pricing-comp-table .del-btn:hover { transform:scale(1.2); }
+
+  .pricing-empty { padding:32px 16px; text-align:center; font-size:13px; color:var(--text-light); font-style:italic; }
+
+  .pricing-legend { display:flex; gap:14px; font-size:11px; color:var(--text-light); flex-wrap:wrap; }
+  .pl-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .pl-strong { background:#3e8c58; }
+  .pl-medium { background:#e0a526; }
+  .pl-none { background:#ccc; }
+
+  .gap-good { color:#3e8c58; font-weight:600; }
+  .gap-bad  { color:#c0392b; font-weight:600; }
+  .gap-flat { color:var(--text-light); }
+
+  .pricing-detail-overlay {
+    display:none; position:fixed; inset:0; background:rgba(20,40,30,0.55);
+    z-index:1000; align-items:center; justify-content:center; padding:20px;
+  }
+  .pricing-detail-overlay.open { display:flex; }
+  .pricing-detail-modal {
+    background:var(--white); border-radius:14px; max-width:760px; width:100%;
+    max-height:85vh; overflow:auto; padding:22px 24px; box-shadow:0 12px 40px rgba(0,0,0,0.2);
+  }
+  .pricing-detail-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:16px; }
+  .pricing-detail-title { font-family:'Playfair Display',serif; font-size:22px; color:var(--green-dark); margin-bottom:4px; }
+  .pricing-detail-sub { font-size:13px; color:var(--text-mid); }
+
   /* ─── LANGUAGE SWITCHER ─── */
   .lang-switcher {
     display:flex; align-items:center; gap:0;
@@ -1589,6 +1679,7 @@
       <button class="dash-tab" onclick="adminTab('sales-log',this)">📊 Sales Log</button>
       <button class="dash-tab" onclick="adminTab('site-editor',this)">✏️ Site Editor</button>
       <button class="dash-tab" onclick="adminTab('pdf-labels',this)">📄 PDF Labels</button>
+      <button class="dash-tab" onclick="adminTab('pricing',this)">💰 Pricing</button>
     </div>
 
     <!-- Products Tab -->
@@ -1751,6 +1842,133 @@
           <div style="font-size:13px;color:var(--text-light);" id="pdf-apply-summary">0 labels matched and ready</div>
         </div>
         <button class="btn-apply-all" onclick="applyAllLabels()">✅ Apply All Matched Labels</button>
+      </div>
+
+    </div>
+
+    <!-- ══════════════ Pricing Tab ══════════════ -->
+    <div id="admin-tab-pricing" class="hidden">
+
+      <!-- Settings strip -->
+      <div class="pricing-settings">
+        <div class="pricing-setting">
+          <label>USD → AZN rate</label>
+          <input type="number" id="pricing-fx" step="0.01" min="0" oninput="pricingSaveSettings();pricingRenderTable();"/>
+        </div>
+        <div class="pricing-setting">
+          <label>Concentration tolerance (±%)</label>
+          <input type="number" id="pricing-tol" step="1" min="0" max="50" oninput="pricingSaveSettings();pricingRenderTable();"/>
+        </div>
+        <div class="pricing-setting" style="flex:1;">
+          <label>Search products</label>
+          <input type="text" id="pricing-search" placeholder="🔍 Trade name, active ingredient..." oninput="pricingRenderTable()"/>
+        </div>
+        <div class="pricing-setting" style="align-self:end;">
+          <button class="btn-add" onclick="pricingExportXlsx()">📥 Export to Excel</button>
+        </div>
+      </div>
+
+      <!-- Two-column layout: competitor manager (left) + pricing comparison (right) -->
+      <div class="pricing-grid">
+
+        <!-- LEFT: competitor data -->
+        <div class="pricing-card">
+          <div class="pricing-card-head">
+            <div class="pricing-card-title">📊 Competitor Prices</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <label class="pricing-mini-btn" style="cursor:pointer;">
+                📥 Import CSV/Excel
+                <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="pricingImportCompetitors(event)"/>
+              </label>
+              <button class="pricing-mini-btn" onclick="pricingOpenCompetitorForm()">+ Add row</button>
+              <button class="pricing-mini-btn pricing-mini-btn-danger" onclick="pricingClearCompetitors()">🗑 Clear all</button>
+            </div>
+          </div>
+          <div class="pricing-card-sub" id="pricing-competitor-count">0 competitor entries stored</div>
+
+          <!-- Manual entry form -->
+          <div class="pricing-competitor-form" id="pricing-competitor-form" style="display:none;">
+            <div class="pricing-form-grid">
+              <div><label>Brand</label><input type="text" id="cf-brand" placeholder="e.g. Syngenta"/></div>
+              <div><label>Trade name</label><input type="text" id="cf-trade" placeholder="e.g. Karate Zeon"/></div>
+              <div style="grid-column:span 2;"><label>Active ingredient</label><input type="text" id="cf-ai" placeholder="e.g. Lambda-cyhalothrin 100 g/l CS"/></div>
+              <div><label>Pack size</label><input type="text" id="cf-pack" placeholder="e.g. 1 l"/></div>
+              <div><label>Price</label><input type="number" id="cf-price" step="0.01" min="0" placeholder="e.g. 24.50"/></div>
+              <div><label>Currency</label><select id="cf-currency"><option value="AZN">AZN ₼</option><option value="USD">USD $</option></select></div>
+              <div><label>Source</label><input type="text" id="cf-source" placeholder="e.g. Agrolux price list"/></div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+              <button class="pricing-mini-btn" onclick="pricingCloseCompetitorForm()">Cancel</button>
+              <button class="pricing-mini-btn pricing-mini-btn-primary" onclick="pricingSaveCompetitor()">Save</button>
+            </div>
+          </div>
+
+          <!-- Competitor table -->
+          <div class="pricing-comp-table-wrap">
+            <table class="pricing-comp-table">
+              <thead>
+                <tr>
+                  <th>Brand</th>
+                  <th>Trade name</th>
+                  <th>Active ingredient</th>
+                  <th>Pack</th>
+                  <th>Price</th>
+                  <th>Source</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="pricing-comp-tbody"></tbody>
+            </table>
+            <div id="pricing-comp-empty" class="pricing-empty">No competitor data yet. Import a CSV/Excel file or add rows manually.</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: my products vs market -->
+        <div class="pricing-card">
+          <div class="pricing-card-head">
+            <div class="pricing-card-title">🌿 My Products vs Market</div>
+            <div class="pricing-legend">
+              <span><span class="pl-dot pl-strong"></span>Strong match</span>
+              <span><span class="pl-dot pl-medium"></span>Same ingredient</span>
+              <span><span class="pl-dot pl-none"></span>No match</span>
+            </div>
+          </div>
+          <div class="pricing-card-sub" id="pricing-coverage">—</div>
+
+          <div class="pricing-main-table-wrap">
+            <table class="pricing-main-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Active ingredient</th>
+                  <th class="num">Cost ₼</th>
+                  <th class="num">My price ₼</th>
+                  <th class="num">Comp. ↓</th>
+                  <th class="num">Comp. med</th>
+                  <th class="num">Comp. ↑</th>
+                  <th class="num">Gap vs ↓</th>
+                  <th class="num">#</th>
+                </tr>
+              </thead>
+              <tbody id="pricing-main-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Match detail modal -->
+      <div class="pricing-detail-overlay" id="pricing-detail-overlay" onclick="if(event.target===this)pricingCloseDetail()">
+        <div class="pricing-detail-modal">
+          <div class="pricing-detail-head">
+            <div>
+              <div class="pricing-detail-title" id="pricing-detail-title">Product</div>
+              <div class="pricing-detail-sub" id="pricing-detail-sub">Active ingredient</div>
+            </div>
+            <button class="pricing-mini-btn" onclick="pricingCloseDetail()">✕</button>
+          </div>
+          <div id="pricing-detail-body"></div>
+        </div>
       </div>
 
     </div>
@@ -3927,12 +4145,13 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
   });
   if(tab === 'site-editor') { setTimeout(vseInit, 80); }
+  if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
 }
 
 function vseLoadIframe() {
@@ -4285,12 +4504,13 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
   });
   if(tab === 'site-editor') { setTimeout(vseInit, 80); }
+  if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
 }
 
 function vseInit() {
@@ -5056,6 +5276,460 @@ document.addEventListener('DOMContentLoaded', async function() {
   var gmm = document.getElementById('global-markup-modal'); if(gmm) gmm.addEventListener('click', function(e){ if(e.target===this) closeGlobalMarkup(); });
   var esm = document.getElementById('edit-sale-modal'); if(esm) esm.addEventListener('click', function(e){ if(e.target===this) closeEditSale(); });
 });
+
+// ═══════════════════════════════════════════════════════
+// PRICING TAB — competitor analysis workbench
+// ═══════════════════════════════════════════════════════
+const PRICING_SETTINGS_KEY = 'vt_pricing_settings';
+const PRICING_COMPETITORS_KEY = 'vt_pricing_competitors';
+const PRICING_DEFAULTS = { fx: 1.70, tol: 15 };  // USD->AZN, concentration tolerance %
+
+function pricingGetSettings() {
+  try {
+    const d = localStorage.getItem(PRICING_SETTINGS_KEY);
+    return { ...PRICING_DEFAULTS, ...(d ? JSON.parse(d) : {}) };
+  } catch(e) { return { ...PRICING_DEFAULTS }; }
+}
+function pricingSaveSettings() {
+  const fx  = parseFloat(document.getElementById('pricing-fx').value);
+  const tol = parseFloat(document.getElementById('pricing-tol').value);
+  const s = pricingGetSettings();
+  if (!isNaN(fx)  && fx  > 0) s.fx  = fx;
+  if (!isNaN(tol) && tol >= 0) s.tol = tol;
+  localStorage.setItem(PRICING_SETTINGS_KEY, JSON.stringify(s));
+}
+
+function pricingGetCompetitors() {
+  try {
+    const d = localStorage.getItem(PRICING_COMPETITORS_KEY);
+    return d ? JSON.parse(d) : [];
+  } catch(e) { return []; }
+}
+function pricingSaveCompetitors(arr) {
+  localStorage.setItem(PRICING_COMPETITORS_KEY, JSON.stringify(arr));
+}
+
+// ─── Active-ingredient parser ───
+// "Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG"  →
+//   { components:[{name:'cyprodinil',conc:375},{name:'fludioxonil',conc:250}], formulation:'WG', isSolid:true }
+// "Bifenthrin 20% EC" → conc:200 (% × 10), formulation:'EC', isSolid:false
+const FORMULATION_CODES = ['SC','SL','EC','WG','WP','WDG','ME','CS','SP','WSP','OD','SE','GR','FS','DC','DP'];
+const SOLID_FORMULATIONS = new Set(['WG','WP','WDG','SP','WSP','GR','DP']);
+
+function pricingParseAI(str) {
+  if (!str) return { components:[], formulation:'', isSolid:false, raw:'' };
+  const raw = String(str).trim();
+  let s = raw;
+  // Extract trailing formulation code
+  let formulation = '';
+  const fMatch = s.match(/\b(WDG|WSP|SC|SL|EC|WG|WP|ME|CS|SP|OD|SE|GR|FS|DC|DP)\b\s*$/i);
+  if (fMatch) { formulation = fMatch[1].toUpperCase(); s = s.slice(0, fMatch.index).trim(); }
+  // Split on '+' for combos
+  const parts = s.split('+').map(p => p.trim()).filter(Boolean);
+  const components = parts.map(parsePart).filter(c => c.name);
+  return {
+    components,
+    formulation,
+    isSolid: SOLID_FORMULATIONS.has(formulation),
+    raw,
+  };
+
+  function parsePart(p) {
+    // Strip a trailing formulation if it appears in this part
+    p = p.replace(/\b(WDG|WSP|SC|SL|EC|WG|WP|ME|CS|SP|OD|SE|GR|FS|DC|DP)\b\s*$/i, '').trim();
+    // Find concentration: e.g., "375 g/kg", "480 g/l", "20%", "10 g/L"
+    let conc = null;
+    const m1 = p.match(/(\d+(?:\.\d+)?)\s*g\s*\/?\s*(?:l|kg)/i);
+    const m2 = p.match(/(\d+(?:\.\d+)?)\s*%/);
+    const m3 = p.match(/(\d+(?:\.\d+)?)\s*gr?\s*\/?\s*(?:l|kg)/i);
+    if (m1) { conc = parseFloat(m1[1]); p = p.replace(m1[0], '').trim(); }
+    else if (m3) { conc = parseFloat(m3[1]); p = p.replace(m3[0], '').trim(); }
+    else if (m2) { conc = parseFloat(m2[1]) * 10; p = p.replace(m2[0], '').trim(); }
+    // Whatever's left is the chemical name
+    const name = p.replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+    return { name, conc };
+  }
+}
+
+// Return match strength: 2=strong (same names+concs within tol), 1=same names only, 0=no match
+// Requires the chemical name SETS to be equal (combos must fully match — a single-ingredient
+// product is NOT a substitute for a 2-ingredient combo, even though one chemical overlaps).
+function pricingMatchStrength(myAI, compAI, tolPct) {
+  if (!myAI.components.length || !compAI.components.length) return 0;
+  const myNames   = new Set(myAI.components.map(c => normName(c.name)));
+  const compNames = new Set(compAI.components.map(c => normName(c.name)));
+  if (myNames.size !== compNames.size) return 0;
+  for (const n of myNames) if (!compNames.has(n)) return 0;
+  // Names identical — check concentrations
+  let concStrong = true;
+  for (const n of myNames) {
+    const myC   = myAI.components.find(c => normName(c.name) === n);
+    const compC = compAI.components.find(c => normName(c.name) === n);
+    if (myC && myC.conc != null && compC && compC.conc != null) {
+      const diffPct = Math.abs(myC.conc - compC.conc) / Math.max(myC.conc, compC.conc) * 100;
+      if (diffPct > tolPct) { concStrong = false; break; }
+    } else { concStrong = false; break; }
+  }
+  return concStrong ? 2 : 1;
+
+  function normName(s) {
+    // Normalize chemical names: lowercase, strip hyphens/dashes/periods, collapse whitespace.
+    // So "Lambda-cyhalothrin", "Lambda Cyhalothrin", "lambda  cyhalothrin" all match.
+    return String(s).toLowerCase()
+      .replace(/[-–—.]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+}
+
+// ─── Pack size parsing: "1 l", "500 g", "5 kg" → { qty, unit:'L'|'KG' } ───
+function pricingParsePack(str) {
+  if (!str) return null;
+  const s = String(str).toLowerCase();
+  const m = s.match(/(\d+(?:[.,]\d+)?)\s*(ml|l|liter|litre|g|gr|kg|gram|kilo)/);
+  if (!m) return null;
+  let qty = parseFloat(m[1].replace(',', '.'));
+  const u = m[2];
+  if (u === 'ml') return { qty: qty / 1000, unit: 'L' };
+  if (u === 'l' || u === 'liter' || u === 'litre') return { qty, unit: 'L' };
+  if (u === 'g' || u === 'gr' || u === 'gram') return { qty: qty / 1000, unit: 'KG' };
+  if (u === 'kg' || u === 'kilo') return { qty, unit: 'KG' };
+  return null;
+}
+
+// Normalize a competitor row to AZN per L (or per kg). Returns null if it can't.
+function pricingCompPricePerUnit(row, fx) {
+  const pack = pricingParsePack(row.pack);
+  if (!pack || !pack.qty || !row.price) return null;
+  const priceAzn = row.currency === 'USD' ? parseFloat(row.price) * fx : parseFloat(row.price);
+  return { perUnit: priceAzn / pack.qty, unit: pack.unit, pack };
+}
+
+// My product cost normalized to AZN per L or per kg (assumes cost is for 1 L or 1 kg already)
+function pricingMyPricePerUnit(prod, fx, ai) {
+  const cost = parseFloat(prod.cost) || 0;
+  const markup = parseFloat(prod.markup) || 0;
+  const myPrice = cost * (1 + markup / 100) * fx;
+  return { cost: cost * fx, myPrice, unit: ai.isSolid ? 'KG' : 'L' };
+}
+
+// ─── Renderers ───
+function pricingInit() {
+  const s = pricingGetSettings();
+  const fxEl  = document.getElementById('pricing-fx');
+  const tolEl = document.getElementById('pricing-tol');
+  if (fxEl  && !fxEl.value)  fxEl.value  = s.fx;
+  if (tolEl && !tolEl.value) tolEl.value = s.tol;
+  pricingRenderCompetitors();
+  pricingRenderTable();
+}
+
+function pricingRenderCompetitors() {
+  const tbody = document.getElementById('pricing-comp-tbody');
+  const empty = document.getElementById('pricing-comp-empty');
+  const countEl = document.getElementById('pricing-competitor-count');
+  if (!tbody) return;
+  const comps = pricingGetCompetitors();
+  countEl.textContent = `${comps.length} competitor ${comps.length === 1 ? 'entry' : 'entries'} stored`;
+  if (!comps.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = comps.map((c, i) => `
+    <tr>
+      <td>${esc(c.brand||'')}</td>
+      <td>${esc(c.trade||'')}</td>
+      <td class="ai-cell">${esc(c.ai||'')}</td>
+      <td>${esc(c.pack||'')}</td>
+      <td class="num">${esc(c.currency==='USD'?'$':'₼')}${(parseFloat(c.price)||0).toFixed(2)}</td>
+      <td><span style="font-size:11px;color:var(--text-light);">${esc(c.source||'')}</span></td>
+      <td><button class="del-btn" onclick="pricingDeleteCompetitor(${i})" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+  function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+}
+
+function pricingRenderTable() {
+  const tbody = document.getElementById('pricing-main-tbody');
+  if (!tbody) return;
+  const s = pricingGetSettings();
+  const search = (document.getElementById('pricing-search')?.value || '').toLowerCase().trim();
+  const products = (typeof getProducts === 'function' ? getProducts() : []);
+  const comps = pricingGetCompetitors();
+  // Pre-parse competitor AIs
+  const parsedComps = comps.map(c => ({ ...c, _ai: pricingParseAI(c.ai), _pu: pricingCompPricePerUnit(c, s.fx) }));
+
+  let strong = 0, medium = 0, none = 0;
+
+  const rows = products
+    .filter(p => {
+      if (!search) return true;
+      return (p.name||'').toLowerCase().includes(search) || (p.activeIngredient||'').toLowerCase().includes(search);
+    })
+    .map(p => {
+      const myAI = pricingParseAI(p.activeIngredient);
+      const myPu = pricingMyPricePerUnit(p, s.fx, myAI);
+      // Find matches
+      const matches = parsedComps
+        .map(c => ({ c, strength: pricingMatchStrength(myAI, c._ai, s.tol) }))
+        .filter(m => m.strength > 0 && m.c._pu && m.c._pu.unit === myPu.unit);
+      const strongMatches = matches.filter(m => m.strength === 2);
+      const useMatches = strongMatches.length ? strongMatches : matches;
+      // Stats
+      const prices = useMatches.map(m => m.c._pu.perUnit).sort((a,b) => a-b);
+      let dot = 'none';
+      if (strongMatches.length) { dot = 'strong'; strong++; }
+      else if (matches.length)  { dot = 'medium'; medium++; }
+      else                       { none++; }
+      const min = prices[0];
+      const max = prices[prices.length-1];
+      const med = prices.length ? prices[Math.floor((prices.length-1)/2)] : null;
+      const myP = myPu.myPrice;
+      let gapHtml = '<span class="gap-flat">—</span>';
+      if (min != null) {
+        const gap = (myP - min) / min * 100;
+        const cls = gap < -1 ? 'gap-good' : (gap > 1 ? 'gap-bad' : 'gap-flat');
+        const sign = gap > 0 ? '+' : '';
+        gapHtml = `<span class="${cls}">${sign}${gap.toFixed(1)}%</span>`;
+      }
+      return `
+        <tr onclick="pricingShowDetail(${p.id})">
+          <td><span class="pl-dot pl-${dot}"></span>${esc(p.name)}</td>
+          <td class="ai-cell">${esc(p.activeIngredient||'')}</td>
+          <td class="num">${myPu.cost.toFixed(2)}</td>
+          <td class="num"><strong>${myP.toFixed(2)}</strong></td>
+          <td class="num">${min!=null?min.toFixed(2):'—'}</td>
+          <td class="num">${med!=null?med.toFixed(2):'—'}</td>
+          <td class="num">${max!=null?max.toFixed(2):'—'}</td>
+          <td class="num">${gapHtml}</td>
+          <td class="num">${useMatches.length||''}</td>
+        </tr>
+      `;
+    }).join('');
+
+  tbody.innerHTML = rows || '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-light);">No products match your search.</td></tr>';
+  const cov = document.getElementById('pricing-coverage');
+  if (cov) cov.textContent = `Coverage: ${strong} strong, ${medium} ingredient-only, ${none} unmatched · prices shown in ₼ per L (liquids) or per kg (solids)`;
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+}
+
+// ─── Competitor CRUD ───
+function pricingOpenCompetitorForm() {
+  document.getElementById('pricing-competitor-form').style.display = 'block';
+  document.getElementById('cf-brand').focus();
+}
+function pricingCloseCompetitorForm() {
+  document.getElementById('pricing-competitor-form').style.display = 'none';
+  ['cf-brand','cf-trade','cf-ai','cf-pack','cf-price','cf-source'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+}
+function pricingSaveCompetitor() {
+  const row = {
+    brand:    document.getElementById('cf-brand').value.trim(),
+    trade:    document.getElementById('cf-trade').value.trim(),
+    ai:       document.getElementById('cf-ai').value.trim(),
+    pack:     document.getElementById('cf-pack').value.trim(),
+    price:    parseFloat(document.getElementById('cf-price').value),
+    currency: document.getElementById('cf-currency').value,
+    source:   document.getElementById('cf-source').value.trim(),
+    date:     new Date().toISOString().slice(0,10),
+  };
+  if (!row.ai || isNaN(row.price) || !row.pack) {
+    if (typeof showToast === 'function') showToast('Active ingredient, pack size and price are required.', true);
+    return;
+  }
+  const arr = pricingGetCompetitors();
+  arr.push(row);
+  pricingSaveCompetitors(arr);
+  pricingCloseCompetitorForm();
+  pricingRenderCompetitors();
+  pricingRenderTable();
+  if (typeof showToast === 'function') showToast('✅ Competitor row added');
+}
+function pricingDeleteCompetitor(idx) {
+  const arr = pricingGetCompetitors();
+  arr.splice(idx, 1);
+  pricingSaveCompetitors(arr);
+  pricingRenderCompetitors();
+  pricingRenderTable();
+}
+function pricingClearCompetitors() {
+  if (!pricingGetCompetitors().length) return;
+  if (!confirm('Delete ALL competitor entries? This cannot be undone.')) return;
+  pricingSaveCompetitors([]);
+  pricingRenderCompetitors();
+  pricingRenderTable();
+}
+
+// ─── CSV/Excel import ───
+function pricingImportCompetitors(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    if (typeof showToast === 'function') showToast('Excel library not loaded. Refresh and try again.', true);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      if (!rows.length) { if (typeof showToast === 'function') showToast('File is empty.', true); return; }
+      const imported = rows.map(r => mapRow(r)).filter(r => r.ai && r.pack && !isNaN(r.price));
+      if (!imported.length) {
+        if (typeof showToast === 'function') showToast('No usable rows. Need columns for Active Ingredient, Pack and Price.', true);
+        return;
+      }
+      const arr = pricingGetCompetitors().concat(imported);
+      pricingSaveCompetitors(arr);
+      pricingRenderCompetitors();
+      pricingRenderTable();
+      if (typeof showToast === 'function') showToast(`✅ Imported ${imported.length} competitor rows (skipped ${rows.length - imported.length})`);
+    } catch(err) {
+      if (typeof showToast === 'function') showToast('Import failed: ' + err.message, true);
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+
+  function mapRow(r) {
+    const norm = {};
+    Object.keys(r).forEach(k => { norm[k.toLowerCase().replace(/[^a-z]/g,'')] = r[k]; });
+    const pick = (...keys) => { for (const k of keys) if (norm[k] !== undefined && norm[k] !== '') return norm[k]; return ''; };
+    const priceRaw = pick('price','priceazn','priceusd','cost','sale','saleprice');
+    const currencyRaw = String(pick('currency','curr','ccy') || 'AZN').toUpperCase();
+    const isUsd = /usd|\$|dollar/i.test(currencyRaw) || norm.priceusd !== undefined && norm.priceusd !== '';
+    return {
+      brand:    String(pick('brand','manufacturer','company','vendor','supplier')||'').trim(),
+      trade:    String(pick('tradename','name','product','productname','tradenam')||'').trim(),
+      ai:       String(pick('activeingredient','ai','ingredient','active','composition')||'').trim(),
+      pack:     String(pick('pack','packsize','packaging','size','volume')||'').trim(),
+      price:    parseFloat(String(priceRaw).toString().replace(/[^\d.,-]/g,'').replace(',','.')),
+      currency: isUsd ? 'USD' : 'AZN',
+      source:   String(pick('source','reference','note','notes')||'').trim() || (typeof file !== 'undefined' ? file.name : ''),
+      date:     new Date().toISOString().slice(0,10),
+    };
+  }
+}
+
+// ─── Detail modal ───
+function pricingShowDetail(productId) {
+  const s = pricingGetSettings();
+  const prod = (typeof getProducts === 'function' ? getProducts() : []).find(p => p.id === productId);
+  if (!prod) return;
+  const myAI = pricingParseAI(prod.activeIngredient);
+  const myPu = pricingMyPricePerUnit(prod, s.fx, myAI);
+  const comps = pricingGetCompetitors().map(c => ({ ...c, _ai: pricingParseAI(c.ai), _pu: pricingCompPricePerUnit(c, s.fx) }));
+  const matches = comps
+    .map(c => ({ c, strength: pricingMatchStrength(myAI, c._ai, s.tol) }))
+    .filter(m => m.strength > 0)
+    .sort((a,b) => (b.strength - a.strength) || ((a.c._pu?.perUnit||1e9) - (b.c._pu?.perUnit||1e9)));
+
+  document.getElementById('pricing-detail-title').textContent = prod.name;
+  document.getElementById('pricing-detail-sub').textContent = prod.activeIngredient || '';
+  const body = document.getElementById('pricing-detail-body');
+
+  const head = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;">
+      <div style="background:var(--cream);border-radius:10px;padding:14px;">
+        <div style="font-size:11px;text-transform:uppercase;color:var(--text-light);font-weight:700;">My cost</div>
+        <div style="font-size:22px;font-weight:700;color:var(--green-dark);margin-top:4px;">₼${myPu.cost.toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--text-light);">per ${myPu.unit==='L'?'liter':'kg'}</div>
+      </div>
+      <div style="background:var(--cream);border-radius:10px;padding:14px;">
+        <div style="font-size:11px;text-transform:uppercase;color:var(--text-light);font-weight:700;">My price (${prod.markup||0}% markup)</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gold);margin-top:4px;">₼${myPu.myPrice.toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--text-light);">per ${myPu.unit==='L'?'liter':'kg'}</div>
+      </div>
+      <div style="background:var(--cream);border-radius:10px;padding:14px;">
+        <div style="font-size:11px;text-transform:uppercase;color:var(--text-light);font-weight:700;">Matched competitors</div>
+        <div style="font-size:22px;font-weight:700;color:var(--green-accent);margin-top:4px;">${matches.length}</div>
+        <div style="font-size:11px;color:var(--text-light);">${matches.filter(m=>m.strength===2).length} strong, ${matches.filter(m=>m.strength===1).length} ingredient-only</div>
+      </div>
+    </div>`;
+
+  let table;
+  if (!matches.length) {
+    table = `<div class="pricing-empty">No competitor matches found. Try lowering concentration tolerance or adding more competitor data.</div>`;
+  } else {
+    table = `
+      <table class="pricing-comp-table">
+        <thead><tr>
+          <th></th><th>Brand</th><th>Trade name</th><th>Pack</th>
+          <th class="num">Price</th><th class="num">₼/${myPu.unit==='L'?'L':'kg'}</th><th>Source</th>
+        </tr></thead>
+        <tbody>
+          ${matches.map(m => {
+            const pu = m.c._pu;
+            const strengthDot = m.strength === 2 ? 'strong' : 'medium';
+            return `<tr>
+              <td><span class="pl-dot pl-${strengthDot}"></span></td>
+              <td>${esc(m.c.brand||'')}</td>
+              <td>${esc(m.c.trade||'')}<div class="ai-cell">${esc(m.c.ai||'')}</div></td>
+              <td>${esc(m.c.pack||'')}</td>
+              <td class="num">${m.c.currency==='USD'?'$':'₼'}${(parseFloat(m.c.price)||0).toFixed(2)}</td>
+              <td class="num"><strong>${pu ? pu.perUnit.toFixed(2) : '—'}</strong></td>
+              <td><span style="font-size:11px;color:var(--text-light);">${esc(m.c.source||'')}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+  body.innerHTML = head + table;
+  document.getElementById('pricing-detail-overlay').classList.add('open');
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+}
+function pricingCloseDetail() {
+  document.getElementById('pricing-detail-overlay').classList.remove('open');
+}
+
+// ─── Export ───
+function pricingExportXlsx() {
+  if (typeof XLSX === 'undefined') { if (typeof showToast === 'function') showToast('Excel library not loaded.', true); return; }
+  const s = pricingGetSettings();
+  const products = (typeof getProducts === 'function' ? getProducts() : []);
+  const comps = pricingGetCompetitors().map(c => ({ ...c, _ai: pricingParseAI(c.ai), _pu: pricingCompPricePerUnit(c, s.fx) }));
+
+  const rows = products.map(p => {
+    const myAI = pricingParseAI(p.activeIngredient);
+    const myPu = pricingMyPricePerUnit(p, s.fx, myAI);
+    const matches = comps
+      .map(c => ({ c, strength: pricingMatchStrength(myAI, c._ai, s.tol) }))
+      .filter(m => m.strength > 0 && m.c._pu && m.c._pu.unit === myPu.unit);
+    const strongOnly = matches.filter(m => m.strength === 2);
+    const used = strongOnly.length ? strongOnly : matches;
+    const prices = used.map(m => m.c._pu.perUnit).sort((a,b)=>a-b);
+    const min = prices[0], max = prices[prices.length-1];
+    const med = prices.length ? prices[Math.floor((prices.length-1)/2)] : null;
+    return {
+      'Product': p.name,
+      'Active Ingredient': p.activeIngredient || '',
+      'Unit': myPu.unit === 'L' ? 'per L' : 'per kg',
+      'Cost (AZN)':    +myPu.cost.toFixed(2),
+      'Markup %':      parseFloat(p.markup) || 0,
+      'My Price (AZN)':+myPu.myPrice.toFixed(2),
+      'Competitor min':min!=null ? +min.toFixed(2) : '',
+      'Competitor med':med!=null ? +med.toFixed(2) : '',
+      'Competitor max':max!=null ? +max.toFixed(2) : '',
+      'Gap vs min %':  min!=null ? +(((myPu.myPrice-min)/min)*100).toFixed(1) : '',
+      'Matches':       used.length,
+      'Match type':    strongOnly.length ? 'strong' : (matches.length ? 'ingredient-only' : 'none'),
+    };
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'Pricing');
+  const ws2 = XLSX.utils.json_to_sheet(pricingGetCompetitors());
+  XLSX.utils.book_append_sheet(wb, ws2, 'Competitors');
+  const stamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `VitaTerra-Pricing-${stamp}.xlsx`);
+  if (typeof showToast === 'function') showToast('✅ Exported to Excel');
+}
 </script>
 </body>
 </html>
