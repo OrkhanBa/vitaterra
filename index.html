@@ -2601,7 +2601,7 @@ function openProductModal(id) {
       ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${isAz?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
       ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${p.formulation}</div></div>`:''}
       ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = isAz?'Qablaşdırma':'Pack Size'; const val = isAz?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
-      <div class="spec-item"><div class="spec-label">${isAz?'Mənşə':'Origin'}</div><div class="spec-value">🇪🇸 İspaniya</div></div>
+      <div class="spec-item"><div class="spec-label">${isAz?'Mənşə':'Origin'}</div><div class="spec-value">İspaniya</div></div>
     </div>` : ''}
     <div class="modal-section-title">${isAz ? 'Təhlükəsizlik və Uyğunluq' : 'Safety & Compliance'}</div>
     <div class="safety-grid">
