@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "publishedAt": "2026-05-25T00:00:00.000Z"
+  },
+  "users": [
+    {
+      "username": "sales",
+      "password": "sales123",
+      "name": "Sales Team"
+    }
+  ]
+}

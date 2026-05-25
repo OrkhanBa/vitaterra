@@ -1730,11 +1730,11 @@
     <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
     <div class="form-group">
       <label class="form-label">Username</label>
-      <input class="form-input" id="login-user" placeholder="Enter username"/>
+      <input class="form-input" id="login-user" placeholder="Enter username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"/>
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <input class="form-input" type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
     <button class="btn-secondary" style="width:100%;" onclick="cancelLogin()">Cancel</button>
@@ -1830,8 +1830,12 @@
       <div class="table-wrap" style="margin-bottom:18px;">
         <div class="table-header">
           <div class="table-title">👥 Satış Əməkdaşları</div>
-          <button class="btn-add" onclick="openSalesUserModal()">+ Yeni əməkdaş</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="publishSalesUsers()" title="Mobil və digər cihazlarda login işləsin deyə">🚀 Loginləri Publish et</button>
+            <button class="btn-add" onclick="openSalesUserModal()">+ Yeni əməkdaş</button>
+          </div>
         </div>
+        <div id="sales-users-publish-status" style="display:none;padding:0 18px 10px;font-size:12px;color:var(--text-light);"></div>
         <div style="padding:0 4px;">
           <div id="sales-users-list" style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;"></div>
         </div>
@@ -2414,12 +2418,54 @@ const DEFAULT_SALES_USERS = [
   { username: 'sales',  password: 'sales123', name: 'Sales Team' },
 ];
 
+// Published server snapshot (same pattern as products.json).
+var PUBLISHED_SALES_USERS = null;
+
+function sanitizeSalesUser(u) {
+  return {
+    username: String(u.username || '').trim(),
+    password: String(u.password || '').trim(),
+    name: String(u.name || u.username || '').trim()
+  };
+}
+
+function getSalesUsersForLogin() {
+  if (Array.isArray(PUBLISHED_SALES_USERS) && PUBLISHED_SALES_USERS.length) {
+    return PUBLISHED_SALES_USERS.map(sanitizeSalesUser).filter(u => u.username && u.password);
+  }
+  return DEFAULT_SALES_USERS.map(sanitizeSalesUser);
+}
+
+function usesLocalSalesUserDraft() {
+  return (typeof currentView !== 'undefined' && currentView === 'admin');
+}
+
 function getSalesUsers() {
   try {
-    const d = localStorage.getItem(SALES_USERS_KEY);
-    return d ? JSON.parse(d) : DEFAULT_SALES_USERS.slice();
+    if (usesLocalSalesUserDraft()) {
+      const d = localStorage.getItem(SALES_USERS_KEY);
+      if (d) return JSON.parse(d).map(sanitizeSalesUser).filter(u => u.username);
+    }
+    return getSalesUsersForLogin();
   } catch(e) { return DEFAULT_SALES_USERS.slice(); }
 }
+
+function getSalesUsersForPublish() {
+  const users = usesLocalSalesUserDraft() ? getSalesUsers() : getSalesUsersForLogin();
+  return users.map(sanitizeSalesUser).filter(u => u.username && u.password);
+}
+
+async function fetchPublishedSalesUsers() {
+  try {
+    const res = await fetch('/sales-users.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && Array.isArray(data.users) && data.users.length) {
+      PUBLISHED_SALES_USERS = data.users.map(sanitizeSalesUser).filter(u => u.username && u.password);
+    }
+  } catch (e) { /* fall back to DEFAULT_SALES_USERS */ }
+}
+
 function saveSalesUsers(arr) { localStorage.setItem(SALES_USERS_KEY, JSON.stringify(arr)); }
 function getCurrentSalesUser() {
   try { return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null'); }
@@ -2774,8 +2820,9 @@ function setLoginRole(role, btn) {
 }
 function doLogin() {
   const user = document.getElementById('login-user').value.trim();
-  const pass = document.getElementById('login-pass').value;
+  const pass = document.getElementById('login-pass').value.trim();
   const err  = document.getElementById('login-error');
+  err.classList.remove('show');
 
   if(loginTargetRole === 'admin') {
     if(user === 'admin' && pass === 'admin123') {
@@ -2789,8 +2836,10 @@ function doLogin() {
   }
 
   if(loginTargetRole === 'sales') {
-    const users = getSalesUsers();
-    const match = users.find(u => u.username === user && u.password === pass);
+    const users = getSalesUsersForLogin();
+    const match = users.find(u =>
+      u.username.toLowerCase() === user.toLowerCase() && u.password === pass
+    );
     if(match) {
       setCurrentSalesUser({ username: match.username, name: match.name || match.username });
       closeLogin();
@@ -3573,10 +3622,31 @@ function renderSalesTotalsByUser(sales) {
 }
 
 // ─── Sales users management ────────────────────────────────
+function renderSalesUsersPublishStatus() {
+  const el = document.getElementById('sales-users-publish-status');
+  if (!el) return;
+  const draft = getSalesUsersForPublish();
+  const live  = getSalesUsersForLogin();
+  const draftKey = JSON.stringify(draft.map(u => [u.username, u.password, u.name]));
+  const liveKey  = JSON.stringify(live.map(u => [u.username, u.password, u.name]));
+  if (draftKey !== liveKey) {
+    el.style.display = 'block';
+    el.style.color = 'var(--green-dark)';
+    el.innerHTML = '⚠️ Yeni loginlər yalnız bu brauzerdədir. Mobil üçün <strong>🚀 Loginləri Publish et</strong> basın.';
+  } else if (live.length) {
+    el.style.display = 'block';
+    el.style.color = 'var(--text-light)';
+    el.textContent = '✅ ' + live.length + ' satıcı login-i canlı saytda aktivdir (mobil daxil olur).';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function renderSalesUsers() {
   const wrap = document.getElementById('sales-users-list');
   if(!wrap) return;
   const users = getSalesUsers();
+  renderSalesUsersPublishStatus();
   if(!users.length){
     wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;">Hələ əməkdaş yoxdur. Yeni əməkdaş əlavə edin.</div>';
     return;
@@ -3612,7 +3682,7 @@ function openSalesUserModal(idx) {
   if(editing) users[idx] = entry; else users.push(entry);
   saveSalesUsers(users);
   renderSalesUsers();
-  showToast(editing ? 'Əməkdaş yeniləndi.' : 'Əməkdaş əlavə edildi.');
+  showToast((editing ? 'Əməkdaş yeniləndi.' : 'Əməkdaş əlavə edildi.') + ' Mobil üçün Loginləri Publish edin.');
 }
 
 function deleteSalesUser(idx) {
@@ -3622,7 +3692,7 @@ function deleteSalesUser(idx) {
   users.splice(idx, 1);
   saveSalesUsers(users);
   renderSalesUsers();
-  showToast('Əməkdaş silindi.');
+  showToast('Əməkdaş silindi. Dəyişiklik üçün Loginləri Publish edin.');
 }
 
 // ─── Edit sale entry ───────────────────────────────────────
@@ -4844,6 +4914,7 @@ async function publishToLiveSite(options) {
   delta._meta = { publishedAt: new Date().toISOString() };
 
   const productsSnapshot = options.products != null ? options.products : getProductsForPublish();
+  const salesUsersSnapshot = options.salesUsers != null ? options.salesUsers : getSalesUsersForPublish();
   const usageCount = countProductsWithUsageAz(productsSnapshot);
   if (!options.skipUsageWarn && usageCount === 0) {
     const proceed = confirm(
@@ -4858,7 +4929,7 @@ async function publishToLiveSite(options) {
   const res = await fetch('/.netlify/functions/publish-site', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot })
+    body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot, salesUsers: salesUsersSnapshot })
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {
@@ -4867,10 +4938,35 @@ async function publishToLiveSite(options) {
   }
 
   PUBLISHED_PRODUCTS = productsSnapshot;
+  PUBLISHED_SALES_USERS = salesUsersSnapshot;
   saveProducts(productsSnapshot);
+  saveSalesUsers(salesUsersSnapshot);
   if (typeof renderPublicProducts === 'function') renderPublicProducts();
   if (typeof renderAdminDash === 'function') renderAdminDash();
   return { ok: true, usageCount, data };
+}
+
+async function publishSalesUsers() {
+  const draft = getSalesUsersForPublish();
+  if (!draft.length) {
+    showToast('Heç bir satıcı login-i yoxdur. Əvvəl əməkdaş əlavə edin.', true);
+    return;
+  }
+  const live = getSalesUsersForLogin();
+  const same = JSON.stringify(draft) === JSON.stringify(live);
+  if (same && PUBLISHED_SALES_USERS) {
+    showToast('Loginlər artıq publish olunub — mobil də işləməlidir.');
+    return;
+  }
+  if (!confirm('Satıcı loginləri canlı sayta yüklənsin?\n\n' + draft.length + ' əməkdaş · mobil /sales daxil olacaq')) return;
+  try {
+    showToast('⏳ Loginlər publish edilir...');
+    const result = await publishToLiveSite({ salesUsers: draft, skipUsageWarn: true });
+    if (result.cancelled) return;
+    showToast('✅ Satıcı loginləri publish olundu! ~30 saniyə sonra mobildən daxil olun.');
+  } catch (e) {
+    showToast('Publish uğursuz: ' + e.message, true);
+  }
 }
 
 async function publishProductsCatalog() {
@@ -6543,7 +6639,7 @@ function handleRouteFromPath() {
 document.addEventListener('DOMContentLoaded', async function() {
   // Pull the latest published site content + product catalog in parallel
   // before first render so non-admin visitors see the right data immediately.
-  await Promise.all([fetchPublishedContent(), fetchPublishedProducts()]);
+  await Promise.all([fetchPublishedContent(), fetchPublishedProducts(), fetchPublishedSalesUsers()]);
   setLang(currentLang);
   var pm = document.getElementById('product-modal'); if(pm) pm.addEventListener('click', function(e){ if(e.target===this) closeProductModal(); });
   var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) cancelLogin(); });
