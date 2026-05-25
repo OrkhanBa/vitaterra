@@ -2420,7 +2420,7 @@ function sanitizeProduct(p, idx) {
     cost:            parseFloat(p.cost)  || 0,
     markup:          parseFloat(p.markup)|| 30,
     stock:           parseInt(p.stock)   || 0,
-    unit:            p.unit              || 'unit',
+    unit:            p.unit              || '',
     desc:            p.desc              || '',
     usage:           p.usage             || '',
     activeIngredient:p.activeIngredient  || '',
@@ -3013,7 +3013,9 @@ function openProductForm(id) {
       document.getElementById('fp-desc-az').value   = p.desc_az||'';
       document.getElementById('fp-usage-az').value  = p.usage_az||'';
       document.getElementById('fp-target-az').value = p.target_az||'';
-      document.getElementById('fp-unit').value      = p.unit||'';
+      // If unit is empty, fall back to packaging from PRODUCTS_DATA as a placeholder
+      const unitFallback = (typeof PRODUCTS_DATA !== 'undefined' && PRODUCTS_DATA.find(x=>x.id===p.id)?.packaging) || '';
+      document.getElementById('fp-unit').value      = (p.unit && p.unit !== 'unit') ? p.unit : unitFallback;
       document.getElementById('fp-stock').value     = p.stock;
       document.getElementById('fp-cost').value      = p.cost;
       document.getElementById('fp-markup').value    = p.markup;
