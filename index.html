@@ -1772,6 +1772,7 @@
 
     <!-- Products Tab -->
     <div id="admin-tab-products">
+      <div id="catalog-publish-status" style="display:none;margin-bottom:14px;padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.5;"></div>
       <div class="table-wrap">
         <div class="table-header">
           <div class="table-title">Product Inventory</div>
@@ -1782,6 +1783,7 @@
               <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importExcel(event)"/>
             </label>
             <button class="btn-markup" onclick="openGlobalMarkup()">📊 Global Markup</button>
+            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="publishProductsCatalog()" title="Label mətnlərini vitaterra.az-a yükləyir">🚀 Kataloqu Publish et</button>
             <button class="btn-markup" onclick="clearAllProductImages()" title="Bütün məhsulların şəkillərini siler">🗑️ Şəkilləri sıfırla</button>
             <button class="btn-add" onclick="openProductForm()">+ Add Product</button>
           </div>
@@ -2514,15 +2516,23 @@ function sanitizeProduct(p, idx) {
 // is a draft overlay that only the editing admin sees until they hit Publish.
 var PUBLISHED_PRODUCTS = null;
 
+// Admin + sales portal may use the in-browser draft (localStorage).
+// Public vitaterra.az visitors always read products.json so they see the
+// same catalog on every domain — not whatever happens to be in one browser.
+function usesLocalProductDraft() {
+  return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales'));
+}
+
 function getProducts() {
   try {
     const d = localStorage.getItem(PRODUCTS_KEY);
     var arr;
-    if (d) {
-      arr = JSON.parse(d);
-      arr = mergePublishedLabelFields(arr);
+    if (usesLocalProductDraft() && d) {
+      arr = mergePublishedLabelFields(JSON.parse(d));
     } else if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
       arr = PUBLISHED_PRODUCTS;
+    } else if (d) {
+      arr = mergePublishedLabelFields(JSON.parse(d));
     } else {
       arr = DEFAULT_PRODUCTS;
     }
@@ -3006,6 +3016,32 @@ function renderAdminDash() {
   renderAdminKPIs();
   renderAdminTable();
   renderSalesLog();
+  renderCatalogPublishStatus();
+}
+
+function renderCatalogPublishStatus() {
+  const el = document.getElementById('catalog-publish-status');
+  if (!el) return;
+  const draftUsage = countProductsWithUsageAz(getProducts());
+  const liveUsage  = countProductsWithUsageAz(PUBLISHED_PRODUCTS || []);
+  if (draftUsage === 0 && liveUsage === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  if (draftUsage > liveUsage) {
+    el.style.background = 'rgba(201,168,76,0.15)';
+    el.style.border = '1px solid rgba(201,168,76,0.45)';
+    el.style.color = 'var(--green-dark)';
+    el.innerHTML = '⚠️ <strong>vitaterra.az ziyarətçiləri label mətnlərini görmür.</strong> Sizin draft-da '
+      + draftUsage + ' məhsulun istifadə qaydası var, canlı saytda isə ' + liveUsage + '. '
+      + '<button class="btn-add" style="margin-left:8px;padding:4px 12px;font-size:12px;background:var(--gold);color:var(--green-dark);" onclick="publishProductsCatalog()">🚀 Kataloqu Publish et</button>';
+  } else {
+    el.style.background = 'rgba(46,125,50,0.08)';
+    el.style.border = '1px solid rgba(46,125,50,0.25)';
+    el.style.color = 'var(--green-dark)';
+    el.innerHTML = '✅ Canlı saytda ' + liveUsage + ' məhsulun istifadə qaydası publish olunub.';
+  }
 }
 
 function renderAdminKPIs() {
@@ -4381,6 +4417,11 @@ function applyLabelToProduct(item) {
   if(p.target_az)       products[idx].target_az       = p.target_az;
   // Note: label PDF page is NOT used as product image (separate 3D images upload)
   saveProducts(products);
+  const liveUsage = countProductsWithUsageAz(PUBLISHED_PRODUCTS || []);
+  const draftUsage = countProductsWithUsageAz(products);
+  if (draftUsage > liveUsage) {
+    showToast('Label yazıldı. vitaterra.az üçün Products → 🚀 Kataloqu Publish et.');
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4782,54 +4823,81 @@ function getDraftDelta() {
 }
 
 // Publish: POST current edits to the Netlify function so they're committed to git.
+async function publishToLiveSite(options) {
+  options = options || {};
+  const pw = options.password || prompt('Publish şifrəsini daxil edin (canlı sayta yükləmək üçün):');
+  if (!pw) return { cancelled: true };
+
+  const delta = options.contentDelta != null ? options.contentDelta : getDraftDelta();
+  delta._meta = { publishedAt: new Date().toISOString() };
+
+  const productsSnapshot = options.products != null ? options.products : getProductsForPublish();
+  const usageCount = countProductsWithUsageAz(productsSnapshot);
+  if (!options.skipUsageWarn && usageCount === 0) {
+    const proceed = confirm(
+      'Diqqət: heç bir məhsulda AZ istifadə qaydası (usage_az) yoxdur.\n\n' +
+      'Publish etsəniz, vitaterra.az ziyarətçiləri label mətnlərini görməyəcək.\n\n' +
+      'Əvvəl PDF label-ləri "Tətbiq et" ilə yazın, sonra Publish edin.\n\n' +
+      'Yenə də publish edilsin?'
+    );
+    if (!proceed) return { cancelled: true };
+  }
+
+  const res = await fetch('/.netlify/functions/publish-site', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) {
+    const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
+    throw new Error(msg);
+  }
+
+  PUBLISHED_PRODUCTS = productsSnapshot;
+  saveProducts(productsSnapshot);
+  if (typeof renderPublicProducts === 'function') renderPublicProducts();
+  if (typeof renderAdminDash === 'function') renderAdminDash();
+  return { ok: true, usageCount, data };
+}
+
+async function publishProductsCatalog() {
+  const draftCount = countProductsWithUsageAz(getProducts());
+  const liveCount = countProductsWithUsageAz(PUBLISHED_PRODUCTS || []);
+  if (draftCount === 0) {
+    showToast('Heç bir məhsulda istifadə qaydası (usage_az) yoxdur. Əvvəl PDF label tətbiq edin.', true);
+    return;
+  }
+  if (draftCount > liveCount) {
+    if (!confirm(
+      'Draft-da ' + draftCount + ' məhsulun istifadə qaydası var, canlı saytda isə ' + liveCount + '.\n\n' +
+      'Publish edilsin? (~30 saniyə sonra vitaterra.az-da görünəcək)'
+    )) return;
+  }
+  try {
+    showToast('⏳ Publish edilir...');
+    const result = await publishToLiveSite({});
+    if (result.cancelled) return;
+    const usageMsg = result.usageCount ? (' · ' + result.usageCount + ' məhsul istifadə qaydası') : '';
+    showToast('✅ Kataloq publish olundu! vitaterra.az ~30 saniyəyə yenilənir.' + usageMsg);
+  } catch (e) {
+    showToast('Publish uğursuz: ' + e.message, true);
+  }
+}
+
 async function vsePublish() {
   const pw = prompt('Enter publish password to deploy your changes to the live site:');
   if (!pw) return;
   const btn = document.getElementById('vse-publish-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Publishing...'; }
   try {
-    const delta = getDraftDelta();
-    delta._meta = { publishedAt: new Date().toISOString() };
-
-    // Snapshot the full sanitized product catalog so it lands in products.json
-    // on the server. We always send it (even if admin only edited site text) so
-    // products.json stays in sync with whatever the admin currently sees.
-    const productsSnapshot = getProductsForPublish();
-    const usageCount = countProductsWithUsageAz(productsSnapshot);
-    if (usageCount === 0) {
-      const proceed = confirm(
-        'Diqqət: heç bir məhsulda AZ istifadə qaydası (usage_az) yoxdur.\n\n' +
-        'Publish etsəniz, vitaterra.az və mobil ziyarətçilər label mətnlərini görməyəcək ' +
-        '(yalnız "Etiketə bax" fallback qalacaq).\n\n' +
-        'Əvvəl label-ləri "Tətbiq et" ilə məhsullara yazın, sonra Publish edin.\n\n' +
-        'Yenə də publish edilsin?'
-      );
-      if (!proceed) return;
-    }
-
-    const res = await fetch('/.netlify/functions/publish-site', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot })
-    });
-    const data = await res.json();
-    if (res.ok && data.ok) {
-      // Keep in-memory + local catalog aligned with what we just published so
-      // a reload on vitaterra.az does not fall back to stale label text.
-      PUBLISHED_PRODUCTS = productsSnapshot;
-      saveProducts(productsSnapshot);
-      if (typeof renderPublicProducts === 'function') renderPublicProducts();
-      if (typeof renderAdminDash === 'function') renderAdminDash();
-      const usageMsg = usageCount ? (' · ' + usageCount + ' məhsul istifadə qaydası') : '';
-      if (typeof showToast === 'function') {
-        showToast('✅ Published! Canlı sayt ~30 saniyəyə yenilənir.' + usageMsg);
-      } else {
-        alert('Published! Live site rebuilds in ~30 seconds.' + usageMsg);
-      }
+    const result = await publishToLiveSite({ password: pw });
+    if (result.cancelled) return;
+    const usageMsg = result.usageCount ? (' · ' + result.usageCount + ' məhsul istifadə qaydası') : '';
+    if (typeof showToast === 'function') {
+      showToast('✅ Published! Canlı sayt ~30 saniyəyə yenilənir.' + usageMsg);
     } else {
-      const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
-      if (typeof showToast === 'function') showToast('Publish failed: ' + msg, true);
-      else alert('Publish failed: ' + msg);
+      alert('Published! Live site rebuilds in ~30 seconds.' + usageMsg);
     }
   } catch (e) {
     if (typeof showToast === 'function') showToast('Publish failed: ' + e.message, true);
