@@ -2583,7 +2583,7 @@ function renderPublicProducts(filter) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
+        <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
@@ -2652,7 +2652,7 @@ function filterProducts(cat, btn) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
+        <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
@@ -2704,14 +2704,18 @@ function openProductModal(id) {
   if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
 
   const isAz = currentLang === 'az';
+  // Helper: detect Azerbaijani text (contains AZ-specific letters)
+  const isAzText = (s) => /[əüöşçğıİ]/.test(s || '');
   const descText = isAz
-    ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient || p.name}.`)
+    ? (p.desc_az || (isAzText(p.desc) ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient || p.name}.`))
     : (p.desc || `Premium Cerrado Sol formulation. Active ingredient: ${p.activeIngredient || p.name}.`);
   const usageRaw = isAz
-    ? (p.usage_az || p.usage || 'Etiket göstərişlərinə əməl edin. Tövsiyə edilən normada tətbiq edin. Tətbiq zamanı tam qoruyucu avadanlıqdan istifadə edin. Orijinal qabda, sərin və quru yerdə saxlayın.')
+    ? (p.usage_az || (isAzText(p.usage) ? p.usage : 'Etiket göstərişlərinə əməl edin. Tövsiyə edilən normada tətbiq edin. Tətbiq zamanı tam qoruyucu avadanlıqdan istifadə edin. Orijinal qabda, sərin və quru yerdə saxlayın.'))
     : (p.usage || 'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place.');
   const usageSteps = usageRaw.split(/\.\s+|\n/).map(s => s.trim()).filter(s => s.length > 4);
-  const targetLine = isAz ? (p.target_az || p.target || '') : (p.target || '');
+  const targetLine = isAz
+    ? (p.target_az || (isAzText(p.target) ? p.target : ''))
+    : (p.target || '');
 
   document.getElementById('m-body').innerHTML = `
     <div class="modal-section-title">${isAz ? 'Məhsul Haqqında' : 'About this Product'}</div>
