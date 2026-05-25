@@ -2619,6 +2619,18 @@ function formatPackAz(str) {
     .replace(/pallets?/gi, '').trim().replace(/,\s*$/, '').trim();
 }
 
+// Display label for pack size on product cards (not the legacy "unit" string).
+function packLabelForProduct(p, lang) {
+  const raw = packagingForProduct(p);
+  if (!raw) return '';
+  return lang === 'az' ? formatPackAz(raw) : raw;
+}
+
+function productPackMetaHtml(p, lang) {
+  const pk = packLabelForProduct(p, lang);
+  return pk ? `<span class="product-meta-item">📦 ${pk}</span>` : '';
+}
+
 // Parses the first quantity+unit from a packaging string and returns
 // a multiplier relative to the base unit (1 kg or 1 L).
 // e.g. "500 g"  → 0.5,  "5 kg" → 5,  "1 l" → 1,  "0.5 L bottle" → 0.5
@@ -2834,7 +2846,7 @@ function renderPublicProducts(filter) {
       <div class="product-card-body">
         <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
-          ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
+          ${productPackMetaHtml(p, currentLang)}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
           ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
@@ -2903,7 +2915,7 @@ function filterProducts(cat, btn) {
       <div class="product-card-body">
         <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
-          ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
+          ${productPackMetaHtml(p, currentLang)}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
           ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
