@@ -2318,14 +2318,32 @@ function formatPackAz(str) {
     .replace(/pallets?/gi, '').trim().replace(/,\s*$/, '');
 }
 
+// Parses the first quantity+unit from a packaging string and returns
+// a multiplier relative to the base unit (1 kg or 1 L).
+// e.g. "500 g"  → 0.5,  "5 kg" → 5,  "1 l" → 1,  "0.5 L bottle" → 0.5
+function packMultiplier(packStr) {
+  if (!packStr) return 1;
+  const m = packStr.match(/(\d+(?:[.,]\d+)?)\s*(ml|l|liter|litre|g|gr|gram|kg|kilo)/i);
+  if (!m) return 1;
+  const qty  = parseFloat(m[1].replace(',', '.'));
+  const unit = m[2].toLowerCase();
+  if (unit === 'ml')                          return qty / 1000;
+  if (unit === 'l' || unit === 'liter' || unit === 'litre') return qty;
+  if (unit === 'g' || unit === 'gr' || unit === 'gram')     return qty / 1000;
+  if (unit === 'kg' || unit === 'kilo')       return qty;
+  return 1;
+}
+
 function priceStripHTML(p, lang) {
-  const azn = salePriceAZN(p);
-  const rawPack = packagingForProduct(p);
-  const packStr = lang === 'az' ? formatPackAz(rawPack) : rawPack;
-  const per = packStr ? ' / ' + packStr : '';
-  if (azn <= 0) return `<div class="product-price-strip"><span class="pp-contact">${lang==='az'?'Qiymət üçün əlaqə saxlayın':'Contact for price'}</span></div>`;
+  const unitAzn  = salePriceAZN(p);              // price per kg or per litre
+  const rawPack  = packagingForProduct(p);
+  const mult     = packMultiplier(rawPack);
+  const totalAzn = unitAzn * mult;
+  const packStr  = lang === 'az' ? formatPackAz(rawPack) : rawPack;
+  const per      = packStr ? ' / ' + packStr : '';
+  if (totalAzn <= 0) return `<div class="product-price-strip"><span class="pp-contact">${lang==='az'?'Qiymət üçün əlaqə saxlayın':'Contact for price'}</span></div>`;
   const lbl = lang === 'az' ? 'Qiymət' : 'Price';
-  return `<div class="product-price-strip"><div><div class="pp-label">${lbl}</div><div class="pp-amount">₼${azn.toFixed(2)}<span class="pp-per">${per}</span></div></div></div>`;
+  return `<div class="product-price-strip"><div><div class="pp-label">${lbl}</div><div class="pp-amount">₼${totalAzn.toFixed(2)}<span class="pp-per">${per}</span></div></div></div>`;
 }
 
 function stockBadge(qty) {
@@ -2545,12 +2563,14 @@ function openProductModal(id) {
       <div class="modal-title" id="m-name">${p.name}</div>
       <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, Spain</div>`;
   }
-  // Price badge in modal header
-  const modalAzn   = salePriceAZN(p);
-  const modalRawPk = packagingForProduct(p);
-  const modalPkStr = currentLang === 'az' ? formatPackAz(modalRawPk) : modalRawPk;
-  const modalPriceBadge = modalAzn > 0
-    ? `<div class="modal-price-badge">₼${modalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span></div>`
+  // Price badge in modal header — multiply unit price by pack size
+  const modalUnitAzn  = salePriceAZN(p);
+  const modalRawPk    = packagingForProduct(p);
+  const modalMult     = packMultiplier(modalRawPk);
+  const modalTotalAzn = modalUnitAzn * modalMult;
+  const modalPkStr    = currentLang === 'az' ? formatPackAz(modalRawPk) : modalRawPk;
+  const modalPriceBadge = modalTotalAzn > 0
+    ? `<div class="modal-price-badge">₼${modalTotalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span></div>`
     : '';
   const mCatEl = document.getElementById('m-category');
   if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
