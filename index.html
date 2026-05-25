@@ -2220,7 +2220,7 @@
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-size:13px;color:var(--text-light);" data-en="Subtotal" data-az="Cəm">Subtotal</div>
-              <div id="sale-subtotal-display" style="font-size:15px;font-weight:600;color:var(--text);">$0.00</div>
+              <div id="sale-subtotal-display" style="font-size:15px;font-weight:600;color:var(--text);">₼0.00</div>
             </div>
 
             <!-- Discount control (capped at 7%) -->
@@ -2243,12 +2243,12 @@
                 <span data-en="Discount" data-az="Endirim">Endirim</span>
                 (<span id="sale-discount-pct-display">0</span>%)
               </span>
-              <span id="sale-discount-amount-display">-$0.00</span>
+              <span id="sale-discount-amount-display">-₼0.00</span>
             </div>
 
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);">
               <div style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Order Total</div>
-              <div class="sale-total" id="sale-total-display">$0.00</div>
+              <div class="sale-total" id="sale-total-display">₼0.00</div>
             </div>
           </div>
 
@@ -2538,6 +2538,21 @@ function saveSales(arr) { localStorage.setItem(SALES_KEY, JSON.stringify(arr)); 
 
 function salePrice(p) { return (parseFloat(p.cost)||0) * (1 + (parseFloat(p.markup)||0)/100); }
 function salePriceAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+
+// AZN sale price for one physical pack (uses packaging multiplier, same as public site).
+function salePackPriceAZN(p) {
+  return salePriceAZN(p) * packMultiplier(packagingForProduct(p));
+}
+
+// Human-readable pack label for sales UI (AZ by default).
+function salePackLabel(p, lang) {
+  lang = lang || 'az';
+  const rawPack = packagingForProduct(p);
+  if (!rawPack) return lang === 'az' ? 'ədəd' : 'unit';
+  return lang === 'az' ? formatPackAz(rawPack) : rawPack;
+}
+
+function formatAzn(n) { return '₼' + (+n).toFixed(2); }
 
 // Returns raw packaging string for a product, looking up products-data.js first
 function packagingForProduct(p) {
@@ -3661,7 +3676,7 @@ function addToCart(id) {
   const p = getProducts().find(x => x.id === id);
   if(!p || p.stock === 0) return;
   if(!cartItems[id]) {
-    cartItems[id] = { qty: 1, customPrice: parseFloat(salePrice(p).toFixed(2)) };
+    cartItems[id] = { qty: 1, customPrice: parseFloat(salePackPriceAZN(p).toFixed(2)) };
   } else {
     cartItems[id].qty = Math.min(p.stock, cartItems[id].qty + 1);
   }
@@ -3678,7 +3693,8 @@ function renderSaleProducts(filter) {
   if(!grid) return;
 
   grid.innerHTML = filtered.map(p => {
-    const sp      = salePrice(p);
+    const spAzn   = salePackPriceAZN(p);
+    const packLbl = salePackLabel(p, 'az');
     const inCart  = !!cartItems[p.id];
     const disabled = p.stock === 0;
     return `<div class="sale-product-item${inCart?' in-cart':''}"
@@ -3690,7 +3706,7 @@ function renderSaleProducts(filter) {
         ${inCart?'&#10003;':'&#43;'}
       </button>
       <div class="sale-product-name">${CATEGORY_ICONS[p.category]||'📦'} ${p.name}</div>
-      <div class="sale-product-price">$${sp.toFixed(2)} / ${p.unit||'unit'}</div>
+      <div class="sale-product-price">${formatAzn(spAzn)} / ${packLbl}</div>
       <div class="sale-product-stock">${p.stock===0?'Out of Stock':p.stock+' available'}</div>
     </div>`;
   }).join('');
@@ -3742,7 +3758,7 @@ function refreshCartItemSubtotal(id) {
   const item = cartItems[id];
   if(!item) return;
   const el = document.getElementById('cs-' + id);
-  if(el) el.textContent = 'Subtotal: $' + (item.customPrice * item.qty).toFixed(2);
+  if(el) el.textContent = 'Subtotal: ' + formatAzn(item.customPrice * item.qty);
 }
 
 function refreshCartTotals() {
@@ -3762,14 +3778,14 @@ function refreshCartTotals() {
   const pctEl     = document.getElementById('sale-discount-pct-display');
   const amtEl     = document.getElementById('sale-discount-amount-display');
 
-  if(subEl)   subEl.textContent   = '$' + subtotal.toFixed(2);
-  if(totalEl) totalEl.textContent = '$' + grandTotal.toFixed(2);
+  if(subEl)   subEl.textContent   = formatAzn(subtotal);
+  if(totalEl) totalEl.textContent = formatAzn(grandTotal);
   if(countEl) countEl.textContent = totalQty + ' item' + (totalQty !== 1 ? 's' : '');
 
   if(cartDiscount > 0 && subtotal > 0) {
     if(lineEl) lineEl.style.display = 'flex';
     if(pctEl)  pctEl.textContent    = String(cartDiscount);
-    if(amtEl)  amtEl.textContent    = '-$' + discountAmt.toFixed(2);
+    if(amtEl)  amtEl.textContent    = '-' + formatAzn(discountAmt);
   } else if(lineEl) {
     lineEl.style.display = 'none';
   }
@@ -3830,6 +3846,7 @@ function renderCart() {
     if(!p) return '';
     const item     = cartItems[id];
     const subtotal = item.customPrice * item.qty;
+    const packLbl  = salePackLabel(p, 'az');
     return `<div class="cart-item" id="cart-item-${id}">
       <div class="cart-item-header">
         <div>
@@ -3849,12 +3866,12 @@ function renderCart() {
           </div>
         </div>
         <div>
-          <div class="cart-item-label">Sale Price / unit</div>
+          <div class="cart-item-label" data-en="Sale Price / pack" data-az="Satış qiyməti / qablaşdırma">Satış qiyməti / ${packLbl}</div>
           <input class="cart-price-input" id="cp-${id}" type="number" value="${item.customPrice.toFixed(2)}"
             min="0" step="0.01" onchange="updateCartPrice(${id},this.value)" placeholder="0.00"/>
         </div>
       </div>
-      <div class="cart-item-subtotal" id="cs-${id}">Subtotal: $${subtotal.toFixed(2)}</div>
+      <div class="cart-item-subtotal" id="cs-${id}">Subtotal: ${formatAzn(subtotal)}</div>
     </div>`;
   });
 
@@ -3920,7 +3937,7 @@ function confirmSale() {
 
   const grandTotal = sales.slice(-confirmed).reduce((s, x) => s + x.total, 0);
   const discountMsg = discountPct > 0 ? (' (−' + discountPct + '%)') : '';
-  showToast('Sale confirmed! $' + grandTotal.toFixed(2) + discountMsg + ' · ' + confirmed + ' product' + (confirmed > 1 ? 's' : ''));
+  showToast('Sale confirmed! ' + formatAzn(grandTotal) + discountMsg + ' · ' + confirmed + ' product' + (confirmed > 1 ? 's' : ''));
 
   cartItems = {};
   cartDiscount = 0;
@@ -3957,7 +3974,7 @@ function renderMySales() {
     return `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;">${s.productName}</div>
-        <div style="font-size:11px;color:var(--text-light);">Qty: ${s.qty} &middot; $${s.total.toFixed(2)} &middot; ${new Date(s.ts).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text-light);">Qty: ${s.qty} &middot; ${formatAzn(s.total)} &middot; ${new Date(s.ts).toLocaleString()}</div>
         ${s.customer ? `<div style="font-size:11px;color:var(--text-light);">${s.customer}</div>` : ''}
         ${discBadge}${editedBadge}
       </div>
