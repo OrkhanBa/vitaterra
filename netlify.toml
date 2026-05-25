@@ -38,12 +38,12 @@
 [[headers]]
   for = "/site-content.json"
   [headers.values]
-    Cache-Control = "public, max-age=30, must-revalidate"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/products.json"
   [headers.values]
-    Cache-Control = "public, max-age=30, must-revalidate"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # Force browsers to re-check index.html on every visit so deploys
 # show up immediately on desktop and mobile (no stale HTML cache).

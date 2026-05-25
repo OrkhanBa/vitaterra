@@ -2520,6 +2520,7 @@ function getProducts() {
     var arr;
     if (d) {
       arr = JSON.parse(d);
+      arr = mergePublishedLabelFields(arr);
     } else if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
       arr = PUBLISHED_PRODUCTS;
     } else {
@@ -2528,6 +2529,38 @@ function getProducts() {
     return arr.map((p,i) => sanitizeProduct(p, i));
   }
   catch(e) { return DEFAULT_PRODUCTS.map((p,i) => sanitizeProduct(p,i)); }
+}
+
+// If localStorage lost label text fields, back-fill from the last published
+// products.json snapshot so admin edits are not silently wiped after reload.
+function mergePublishedLabelFields(products) {
+  if (!Array.isArray(PUBLISHED_PRODUCTS) || !PUBLISHED_PRODUCTS.length) return products;
+  var pubById = {};
+  PUBLISHED_PRODUCTS.forEach(function(p) { pubById[p.id] = p; });
+  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category'];
+  return products.map(function(p) {
+    var pub = pubById[p.id];
+    if (!pub) return p;
+    var out = Object.assign({}, p);
+    labelKeys.forEach(function(k) {
+      if ((!out[k] || out[k] === '') && pub[k]) out[k] = pub[k];
+    });
+    return out;
+  });
+}
+
+// Full catalog snapshot for Publish — keeps all label/translation fields.
+function getProductsForPublish() {
+  return getProducts().map(function(p, i) {
+    var s = sanitizeProduct(p, i);
+    // Keep products.json lean; large base64 images stay in admin localStorage.
+    if (s.image && s.image.indexOf('data:') === 0) s.image = '';
+    return s;
+  });
+}
+
+function countProductsWithUsageAz(products) {
+  return products.filter(function(p) { return (p.usage_az || '').trim().length > 20; }).length;
 }
 function saveProducts(arr) { localStorage.setItem(PRODUCTS_KEY, JSON.stringify(arr)); }
 function getSales() {
@@ -4704,7 +4737,7 @@ var PUBLISHED_CONTENT = {};
 
 async function fetchPublishedContent() {
   try {
-    const res = await fetch('/site-content.json', { cache: 'no-cache' });
+    const res = await fetch('/site-content.json?_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     if (data && typeof data === 'object') {
@@ -4720,7 +4753,7 @@ async function fetchPublishedContent() {
 // admin localStorage still wins so unsaved drafts are visible before publish.
 async function fetchPublishedProducts() {
   try {
-    const res = await fetch('/products.json', { cache: 'no-cache' });
+    const res = await fetch('/products.json?_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     if (data && Array.isArray(data.products) && data.products.length) {
@@ -4761,7 +4794,18 @@ async function vsePublish() {
     // Snapshot the full sanitized product catalog so it lands in products.json
     // on the server. We always send it (even if admin only edited site text) so
     // products.json stays in sync with whatever the admin currently sees.
-    const productsSnapshot = getProducts();
+    const productsSnapshot = getProductsForPublish();
+    const usageCount = countProductsWithUsageAz(productsSnapshot);
+    if (usageCount === 0) {
+      const proceed = confirm(
+        'Diqqət: heç bir məhsulda AZ istifadə qaydası (usage_az) yoxdur.\n\n' +
+        'Publish etsəniz, vitaterra.az və mobil ziyarətçilər label mətnlərini görməyəcək ' +
+        '(yalnız "Etiketə bax" fallback qalacaq).\n\n' +
+        'Əvvəl label-ləri "Tətbiq et" ilə məhsullara yazın, sonra Publish edin.\n\n' +
+        'Yenə də publish edilsin?'
+      );
+      if (!proceed) return;
+    }
 
     const res = await fetch('/.netlify/functions/publish-site', {
       method: 'POST',
@@ -4770,13 +4814,18 @@ async function vsePublish() {
     });
     const data = await res.json();
     if (res.ok && data.ok) {
+      // Keep in-memory + local catalog aligned with what we just published so
+      // a reload on vitaterra.az does not fall back to stale label text.
+      PUBLISHED_PRODUCTS = productsSnapshot;
+      saveProducts(productsSnapshot);
+      if (typeof renderPublicProducts === 'function') renderPublicProducts();
+      if (typeof renderAdminDash === 'function') renderAdminDash();
+      const usageMsg = usageCount ? (' · ' + usageCount + ' məhsul istifadə qaydası') : '';
       if (typeof showToast === 'function') {
-        showToast('✅ Published! Live site rebuilds in ~30 seconds.');
+        showToast('✅ Published! Canlı sayt ~30 saniyəyə yenilənir.' + usageMsg);
       } else {
-        alert('Published! Live site rebuilds in ~30 seconds.');
+        alert('Published! Live site rebuilds in ~30 seconds.' + usageMsg);
       }
-      // Clear the local drafts since they're now in PUBLISHED_CONTENT after rebuild.
-      // Keep them for now until visitor next loads - safe either way.
     } else {
       const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
       if (typeof showToast === 'function') showToast('Publish failed: ' + msg, true);
