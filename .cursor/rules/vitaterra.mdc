@@ -1,0 +1,27 @@
+---
+description: VitaTerra project architecture and coding conventions
+alwaysApply: true
+---
+
+# VitaTerra Project Rules
+
+## Architecture
+
+- **Single-file**: `index.html` holds ALL HTML, CSS, and JS for both the public site and admin panel. Never split it out.
+- **Admin panel** lives at `/admin-view` inside `index.html`, gated by a login modal.
+- `/js/main.js` is public-site only; `/js/data.js` holds the product catalog.
+- `/netlify/functions/publish-site.js` commits in-browser editor changes to `site-content.json` on GitHub.
+- Deployment: auto-deploy from GitHub `main` → Netlify (`vitaterra.az` / `vitaterra.netlify.app`).
+
+## Data & Storage
+
+- Products: `localStorage` key `vt_products`; fallback to `DEFAULT_PRODUCTS` defined in `index.html`.
+- Pricing settings: `vt_pricing_settings` and `vt_pricing_competitors` in `localStorage`.
+- Prices: cost in USD, sale prices displayed in AZN. FX rate ~1.70 stored in pricing settings.
+
+## Coding Style
+
+- 2-space indentation.
+- Single quotes for strings.
+- `var`-style JS — no ES modules, no transpilation step.
+- All admin/Pricing UI changes go in `index.html` — do NOT extract to separate files (breaks deploy model).

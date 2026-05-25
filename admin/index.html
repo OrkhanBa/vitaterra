@@ -37,6 +37,7 @@
         <a href="#" class="snav" data-tab="products">📦 Products</a>
         <a href="#" class="snav" data-tab="add-product">➕ Add Product</a>
         <a href="#" class="snav" data-tab="import">⬆ Import Excel</a>
+        <a href="#" class="snav" data-tab="price-list">💰 Price List</a>
         <a href="#" class="snav" data-tab="sales-log">🧾 Sales Log</a>
         <a href="#" class="snav" data-tab="settings">⚙ Settings</a>
       </nav>
@@ -66,7 +67,7 @@
         </div>
         <div class="table-wrap">
           <table class="dash-table" id="productTable">
-            <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Cost (₼)</th><th>Sale Price (₼)</th><th>Stock</th><th>Actions</th></tr></thead>
+            <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Cost (USD)</th><th>Sale Price (AZN)</th><th>Stock</th><th>Actions</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -97,7 +98,8 @@
             <div class="form-group"><label>Formulation</label><input class="dash-input" id="pf-formulation"/></div>
             <div class="form-group"><label>Unit Size</label><input class="dash-input" id="pf-unitSize"/></div>
             <div class="form-group"><label>Emoji Icon</label><input class="dash-input" id="pf-image" placeholder="🌿" maxlength="4"/></div>
-            <div class="form-group"><label>Cost Price (₼) — Internal Only</label><input class="dash-input" id="pf-costPrice" type="number" step="0.01" min="0" required/></div>
+            <div class="form-group"><label>Cost Price (USD) — Internal Only</label><input class="dash-input" id="pf-costPrice" type="number" step="0.01" min="0" required/></div>
+            <div class="form-group"><label>Sale Price (USD) — Leave blank to use markup</label><input class="dash-input" id="pf-salePriceUSD" type="number" step="0.01" min="0" placeholder="e.g. 55.00"/></div>
             <div class="form-group"><label>Stock (units)</label><input class="dash-input" id="pf-stock" type="number" min="0" required/></div>
           </div>
           <div class="form-actions">
@@ -120,6 +122,28 @@
         <div id="importResult"></div>
       </section>
 
+      <!-- PRICE LIST -->
+      <section class="tab-panel" id="tab-price-list">
+        <h1 class="dash-title">Upload Price List</h1>
+        <div class="import-box">
+          <div class="import-icon">💰</div>
+          <p>Upload an <strong>.xlsx</strong> or <strong>.csv</strong> file with your USD prices.</p>
+          <p style="margin-top:8px;font-size:.82rem;color:var(--text-mid)">
+            The file must have at least 3 columns: <strong>product identifier</strong> (SKU, name, or active ingredient), <strong>cost</strong>, and <strong>sales price</strong>.<br/>
+            Column headers can appear in any row — the importer auto-detects <em>cost</em> and <em>sales price</em> headers even in merged-header files.
+          </p>
+          <p style="margin-top:8px;font-size:.82rem;color:var(--text-light)">
+            Matching order: <strong>SKU</strong> → <strong>name</strong> → <strong>active ingredient</strong>.<br/>
+            If a row has no match, a new product is automatically created (stock = 0 — fill in details afterward).<br/>
+            Prices are stored in <strong>USD</strong> and shown to customers and sales in <strong>AZN</strong> using your exchange rate.
+          </p>
+          <input type="file" id="priceFile" accept=".xlsx,.xls,.csv" style="display:none"/>
+          <button class="btn-primary" style="margin-top:16px" onclick="document.getElementById('priceFile').click()">Choose File</button>
+          <div id="pricePreview" style="margin-top:24px"></div>
+        </div>
+        <div id="priceResult"></div>
+      </section>
+
       <!-- SALES LOG -->
       <section class="tab-panel" id="tab-sales-log">
         <h1 class="dash-title">Sales Log</h1>
@@ -129,7 +153,7 @@
         </div>
         <div class="table-wrap">
           <table class="dash-table" id="salesLogTable">
-            <thead><tr><th>Date</th><th>Product</th><th>SKU</th><th>Qty</th><th>Cost (₼)</th><th>Sale Price (₼)</th><th>Margin (₼)</th><th>Rep</th><th>Notes</th></tr></thead>
+            <thead><tr><th>Date</th><th>Product</th><th>SKU</th><th>Qty</th><th>Cost (USD)</th><th>Sale Price (AZN)</th><th>Margin (AZN)</th><th>Rep</th><th>Notes</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -140,8 +164,19 @@
         <h1 class="dash-title">Settings</h1>
         <div class="settings-grid">
           <div class="settings-card">
-            <h3>Global Markup</h3>
-            <p>Applied to all product cost prices to generate sale prices for the sales team.</p>
+            <h3>USD → AZN Exchange Rate</h3>
+            <p>All product prices are stored in USD. This rate converts them to AZN for the sales team and customers.</p>
+            <div class="markup-row">
+              <span style="font-size:.85rem;color:var(--text-mid)">1 USD =</span>
+              <input class="dash-input" id="usdRateInput" type="number" step="0.01" min="0.01" style="max-width:100px"/>
+              <span>AZN</span>
+              <button class="btn-primary" onclick="saveUsdRate()">Save</button>
+            </div>
+            <p class="settings-hint" id="usdRateHint"></p>
+          </div>
+          <div class="settings-card">
+            <h3>Global Markup %</h3>
+            <p>Fallback markup applied when a product has no explicit sale price set. Sale price = cost × (1 + markup%) × rate.</p>
             <div class="markup-row">
               <input class="dash-input" id="markupInput" type="number" min="0" max="500" style="max-width:100px"/>
               <span>%</span>

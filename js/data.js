@@ -3,15 +3,23 @@
 // Keys:
 //   vt_products   → array of product objects
 //   vt_sales      → array of sale records
-//   vt_markup     → number (default markup %)
+//   vt_markup     → number (default markup % — fallback when no salePriceUSD set)
+//   vt_usd_rate   → number (USD → AZN exchange rate, e.g. 1.70)
 //   vt_admin_pass → string
 //   vt_sales_pass → string
+//
+// Pricing model:
+//   costPrice     — stored in USD on each product (internal only)
+//   salePriceUSD  — explicit USD sale price set via price-list upload or product form
+//   If salePriceUSD is set: AZN sale price = salePriceUSD × usdRate
+//   Otherwise:              AZN sale price = costPrice × (1 + markup%) × usdRate
 
 const VT = (() => {
   const KEYS = {
     products : 'vt_products',
     sales    : 'vt_sales',
     markup   : 'vt_markup',
+    usdRate  : 'vt_usd_rate',
     adminPass: 'vt_admin_pass',
     salesPass: 'vt_sales_pass',
   };
@@ -175,9 +183,10 @@ const VT = (() => {
   }
 
   function init() {
-    if (!load(KEYS.products, null)) save(KEYS.products, SAMPLE_PRODUCTS);
-    if (!load(KEYS.sales, null))    save(KEYS.sales, []);
-    if (!load(KEYS.markup, null))   save(KEYS.markup, 30);
+    if (!load(KEYS.products, null))  save(KEYS.products, SAMPLE_PRODUCTS);
+    if (!load(KEYS.sales, null))     save(KEYS.sales, []);
+    if (!load(KEYS.markup, null))    save(KEYS.markup, 30);
+    if (!load(KEYS.usdRate, null))   save(KEYS.usdRate, 1.70);
     if (!load(KEYS.adminPass, null)) save(KEYS.adminPass, 'admin2025');
     if (!load(KEYS.salesPass, null)) save(KEYS.salesPass, 'sales2025');
   }
@@ -188,13 +197,26 @@ const VT = (() => {
   function saveSales(arr)             { save(KEYS.sales, arr); }
   function getMarkup()                { return load(KEYS.markup, 30); }
   function saveMarkup(n)              { save(KEYS.markup, n); }
+  function getUsdRate()               { return load(KEYS.usdRate, 1.70); }
+  function saveUsdRate(r)             { save(KEYS.usdRate, +r); }
   function getAdminPass()             { return load(KEYS.adminPass, 'admin2025'); }
   function getSalesPass()             { return load(KEYS.salesPass, 'sales2025'); }
   function saveAdminPass(p)           { save(KEYS.adminPass, p); }
   function saveSalesPass(p)           { save(KEYS.salesPass, p); }
 
-  function salePrice(costPrice) {
-    return +(costPrice * (1 + getMarkup() / 100)).toFixed(2);
+  // Returns AZN sale price for a product.
+  // Uses explicit salePriceUSD if set; otherwise falls back to cost × markup, then × rate.
+  function salePriceAZN(product) {
+    const rate = getUsdRate();
+    if (product.salePriceUSD && +product.salePriceUSD > 0) {
+      return +(+product.salePriceUSD * rate).toFixed(2);
+    }
+    return +(+product.costPrice * (1 + getMarkup() / 100) * rate).toFixed(2);
+  }
+
+  // Legacy helper kept for any old call sites — computes from cost only, no explicit price
+  function salePrice(costPriceUSD) {
+    return +(+costPriceUSD * (1 + getMarkup() / 100) * getUsdRate()).toFixed(2);
   }
 
   function addProduct(p) {
@@ -220,6 +242,105 @@ const VT = (() => {
     updateProduct(saleObj.productId, {
       stock: Math.max(0, (getProducts().find(p => p.id === saleObj.productId)?.stock || 0) - saleObj.qty)
     });
+  }
+
+  // Auto-detects column layout (handles named columns AND merged-header XLSX files
+  // where cost/sales price labels sit in a secondary header row).
+  // Matches products by SKU → name → activeIngredient.
+  // Unmatched rows are created as new minimal products so the catalog is populated.
+  // Returns { updated, created }.
+  function importPriceList(rows) {
+    const products = getProducts();
+    let updated = 0, created = 0;
+
+    // ── Step 1: detect which column key holds which data ───────────────────────
+    let idKey = null, cpKey = null, spKey = null;
+
+    // Look for a row whose values include 'cost' and something like 'sale*price'
+    const headerRow = rows.find(r => {
+      const vals = Object.values(r).map(v => String(v).toLowerCase().trim());
+      return vals.some(v => v === 'cost' || v === 'cost price') &&
+             vals.some(v => /sales?\s*price/.test(v));
+    });
+
+    if (headerRow) {
+      const entries = Object.entries(headerRow);
+      cpKey = (entries.find(([, v]) => /^cost(\s*price)?$/i.test(String(v).trim())) || [])[0];
+      spKey = (entries.find(([, v]) => /sales?\s*price/i.test(String(v).trim()))    || [])[0];
+      // Identifier = the column immediately before cost
+      const cpIdx = entries.findIndex(([k]) => k === cpKey);
+      if (cpIdx > 0) idKey = entries[cpIdx - 1][0];
+    }
+
+    // Fallback to standard named columns
+    if (!idKey || !cpKey || !spKey) {
+      const keys = rows.length ? Object.keys(rows[0]) : [];
+      if (!idKey) idKey = keys.find(k => /^sku$/i.test(k.trim())) ||
+                          keys.find(k => /^name$/i.test(k.trim())) ||
+                          keys.find(k => /active|ingredient|composition|t[əe]rkib/i.test(k.trim()));
+      if (!cpKey) cpKey = keys.find(k => /cost/i.test(k.trim()));
+      if (!spKey) spKey = keys.find(k => /sale/i.test(k.trim()) && /price/i.test(k.trim()));
+    }
+
+    if (!idKey || !cpKey || !spKey) return { updated: 0, created: 0, error: 'Could not detect columns. Expected headers: sku/name/ingredient, cost, salePrice.' };
+
+    // ── Step 2: skip header rows (rows whose values contain known header words) ─
+    const isHeaderRow = r => {
+      const vals = Object.values(r).map(v => String(v).toLowerCase().trim());
+      return vals.some(v => ['cost','cost price','sales price','sale price','sku','name','№'].includes(v));
+    };
+
+    rows.forEach(r => {
+      if (isHeaderRow(r)) return;
+
+      const idVal = String(r[idKey] || '').trim();
+      const cpVal = r[cpKey];
+      const spVal = r[spKey];
+
+      if (!idVal || idVal === '' || idVal === '0') return;
+      if ((cpVal === '' || isNaN(+cpVal)) && (spVal === '' || isNaN(+spVal))) return;
+
+      const idLower = idVal.toLowerCase();
+
+      // ── Try exact match by SKU or name ──
+      let match = products.find(p =>
+        (p.sku  && p.sku.toLowerCase()  === idLower) ||
+        (p.name && p.name.toLowerCase() === idLower)
+      );
+
+      // ── Try activeIngredient: first chemical word appears in both ──
+      if (!match) {
+        const firstWord = idLower.split(/[\s,+()[\]]/)[0];
+        match = products.find(p =>
+          p.activeIngredient && firstWord.length > 3 &&
+          p.activeIngredient.toLowerCase().includes(firstWord)
+        );
+      }
+
+      if (match) {
+        if (cpVal !== '' && !isNaN(+cpVal)) match.costPrice    = +cpVal;
+        if (spVal !== '' && !isNaN(+spVal)) match.salePriceUSD = +spVal;
+        updated++;
+      } else {
+        // Create a minimal product entry so the catalog is populated
+        products.push({
+          id: 'pl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          sku: '', name: idVal, nameAz: idVal,
+          category: 'Other',
+          description: '', descriptionAz: '',
+          usage: '', usageAz: '',
+          activeIngredient: idVal,
+          targetPest: '', crop: '', formulation: '', unitSize: '', unitSizeAz: '',
+          costPrice:    cpVal !== '' && !isNaN(+cpVal) ? +cpVal : 0,
+          salePriceUSD: spVal !== '' && !isNaN(+spVal) ? +spVal : 0,
+          stock: 0, image: '🌿', tags: ['other'],
+        });
+        created++;
+      }
+    });
+
+    saveProducts(products);
+    return { updated, created };
   }
 
   function importFromExcel(rows) {
@@ -260,9 +381,11 @@ const VT = (() => {
 
   return {
     getProducts, saveProducts, getSales, saveSales,
-    getMarkup, saveMarkup, getAdminPass, getSalesPass,
-    saveAdminPass, saveSalesPass,
-    salePrice, addProduct, updateProduct, deleteProduct,
-    recordSale, importFromExcel, CATEGORIES: ['All','Herbicide','Fungicide','Insecticide','Biofungicide','Fertilizer','Other']
+    getMarkup, saveMarkup, getUsdRate, saveUsdRate,
+    getAdminPass, getSalesPass, saveAdminPass, saveSalesPass,
+    salePrice, salePriceAZN,
+    addProduct, updateProduct, deleteProduct,
+    recordSale, importFromExcel, importPriceList,
+    CATEGORIES: ['All','Herbicide','Fungicide','Insecticide','Biofungicide','Fertilizer','Other']
   };
 })();

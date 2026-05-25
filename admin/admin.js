@@ -45,6 +45,7 @@ function switchTab(tab) {
   if (tab === 'sales-log')   renderSalesLog();
   if (tab === 'settings')    renderSettings();
   if (tab === 'add-product') resetProductForm();
+  if (tab === 'price-list')  initPriceList();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -54,15 +55,18 @@ function initDash() {
   renderSalesLog();
   renderSettings();
   initImport();
+  initPriceList();
   initSearch();
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
 function renderOverview() {
-  const prods = VT.getProducts();
-  const sales = VT.getSales();
+  const prods  = VT.getProducts();
+  const sales  = VT.getSales();
+  const rate   = VT.getUsdRate();
+  // salePrice in records is stored in AZN; costPrice is USD
   const revenue = sales.reduce((s, x) => s + (x.salePrice * x.qty), 0);
-  const margin  = sales.reduce((s, x) => s + ((x.salePrice - x.costPrice) * x.qty), 0);
+  const margin  = sales.reduce((s, x) => s + ((x.salePrice - x.costPrice * rate) * x.qty), 0);
   const lowStock= prods.filter(p => p.stock < 20).length;
 
   document.getElementById('kpiGrid').innerHTML = `
@@ -101,14 +105,18 @@ function renderProductTable(filter = '', cat = 'All') {
   const tbody = document.querySelector('#productTable tbody');
   if (!prods.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:24px">No products found.</td></tr>'; return; }
   tbody.innerHTML = prods.map(p => {
-    const sp = VT.salePrice(p.costPrice);
+    const sp = VT.salePriceAZN(p);
+    const hasFix = p.salePriceUSD && +p.salePriceUSD > 0;
+    const priceNote = hasFix
+      ? `<span style="font-size:.72rem;color:var(--gold)">(fixed $${(+p.salePriceUSD).toFixed(2)})</span>`
+      : `<span style="font-size:.72rem;color:var(--green-light)">(+${markup}%)</span>`;
     const stockBadge = p.stock < 10 ? 'red' : p.stock < 25 ? 'gold' : 'green';
     return `<tr>
       <td><code style="font-size:.78rem;background:var(--cream-dark);padding:2px 6px;border-radius:3px">${p.sku || '—'}</code></td>
       <td><strong>${p.name}</strong><br/><span style="font-size:.75rem;color:var(--text-light)">${p.category}</span></td>
       <td>${p.category}</td>
-      <td><strong>₼${(+p.costPrice).toFixed(2)}</strong></td>
-      <td>₼${sp.toFixed(2)} <span style="font-size:.72rem;color:var(--green-light)">(+${markup}%)</span></td>
+      <td><strong>$${(+p.costPrice).toFixed(2)}</strong></td>
+      <td>₼${sp.toFixed(2)} ${priceNote}</td>
       <td><span class="badge ${stockBadge}">${p.stock} units</span></td>
       <td>
         <button class="btn-stock" onclick="openStockModal('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.stock})">Stock</button>
@@ -153,7 +161,7 @@ function saveStock() {
 }
 
 // ── PRODUCT FORM ──────────────────────────────────────────────────────────────
-const PF_FIELDS = ['id','name','nameAz','sku','category','description','descriptionAz','usage','usageAz','activeIngredient','targetPest','crop','formulation','unitSize','image','costPrice','stock'];
+const PF_FIELDS = ['id','name','nameAz','sku','category','description','descriptionAz','usage','usageAz','activeIngredient','targetPest','crop','formulation','unitSize','image','costPrice','salePriceUSD','stock'];
 
 document.getElementById('productForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -163,8 +171,9 @@ document.getElementById('productForm').addEventListener('submit', e => {
     const el = document.getElementById('pf-' + f);
     data[f] = el ? el.value : '';
   });
-  data.costPrice = +data.costPrice;
-  data.stock     = +data.stock;
+  data.costPrice    = +data.costPrice;
+  data.salePriceUSD = data.salePriceUSD ? +data.salePriceUSD : 0;
+  data.stock        = +data.stock;
   data.tags      = [data.category.toLowerCase()];
 
   if (id) {
@@ -254,17 +263,19 @@ function renderSalesLog(filter = '') {
     (s.productName || '').toLowerCase().includes(filter.toLowerCase()) ||
     (s.rep || '').toLowerCase().includes(filter.toLowerCase())
   );
+  const rate  = VT.getUsdRate();
   const tbody = document.querySelector('#salesLogTable tbody');
   if (!sales.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-light);padding:24px">No sales recorded yet.</td></tr>'; return; }
   tbody.innerHTML = sales.map(s => {
     const p = VT.getProducts().find(x => x.id === s.productId);
-    const margin = ((s.salePrice - s.costPrice) * s.qty).toFixed(2);
+    // salePrice is AZN; costPrice is USD — convert to AZN for margin
+    const margin = ((s.salePrice - s.costPrice * rate) * s.qty).toFixed(2);
     return `<tr>
       <td>${new Date(s.date).toLocaleString()}</td>
       <td>${p ? p.name : s.productName || '—'}</td>
       <td><code style="font-size:.75rem;background:var(--cream-dark);padding:2px 6px;border-radius:3px">${p ? p.sku : '—'}</code></td>
       <td>${s.qty}</td>
-      <td>₼${(+s.costPrice).toFixed(2)}</td>
+      <td>$${(+s.costPrice).toFixed(2)}</td>
       <td>₼${(+s.salePrice).toFixed(2)}</td>
       <td style="color:var(--green-rich);font-weight:500">₼${margin}</td>
       <td>${s.rep || '—'}</td>
@@ -278,10 +289,11 @@ function exportSalesCSV() {
   const sales = VT.getSales();
   if (!sales.length) { showToast('No sales to export.', 'error'); return; }
   const prods = VT.getProducts();
-  const header = 'Date,Product,SKU,Qty,CostPrice,SalePrice,Margin,Rep,Notes';
+  const rate   = VT.getUsdRate();
+  const header = 'Date,Product,SKU,Qty,CostPrice_USD,SalePrice_AZN,Margin_AZN,Rep,Notes';
   const rows = sales.map(s => {
     const p = prods.find(x => x.id === s.productId);
-    const margin = ((s.salePrice - s.costPrice) * s.qty).toFixed(2);
+    const margin = ((s.salePrice - s.costPrice * rate) * s.qty).toFixed(2);
     return [new Date(s.date).toLocaleString(), p ? p.name : s.productId, p ? p.sku : '', s.qty, s.costPrice, s.salePrice, margin, s.rep || '', s.notes || ''].map(v => `"${v}"`).join(',');
   });
   const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
@@ -293,15 +305,30 @@ function exportSalesCSV() {
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 function renderSettings() {
-  document.getElementById('markupInput').value = VT.getMarkup();
+  document.getElementById('markupInput').value  = VT.getMarkup();
+  document.getElementById('usdRateInput').value = VT.getUsdRate();
   updateMarkupHint();
+  updateUsdRateHint();
 }
 
 function updateMarkupHint() {
-  const m = +document.getElementById('markupInput').value || 0;
-  document.getElementById('markupHint').textContent = `Example: ₼42.00 cost → ₼${(42 * (1 + m/100)).toFixed(2)} sale price`;
+  const m    = +document.getElementById('markupInput').value  || 0;
+  const rate = +document.getElementById('usdRateInput').value || VT.getUsdRate();
+  const azn  = (42 * (1 + m / 100) * rate).toFixed(2);
+  document.getElementById('markupHint').textContent =
+    `Example: $42.00 cost → ₼${azn} sale price (at ₼${rate.toFixed(2)}/USD)`;
 }
 document.getElementById('markupInput').addEventListener('input', updateMarkupHint);
+
+function updateUsdRateHint() {
+  const rate = +document.getElementById('usdRateInput').value || VT.getUsdRate();
+  document.getElementById('usdRateHint').textContent =
+    `$100.00 = ₼${(100 * rate).toFixed(2)}`;
+}
+document.getElementById('usdRateInput').addEventListener('input', () => {
+  updateUsdRateHint();
+  updateMarkupHint();
+});
 
 function saveMarkup() {
   const m = +document.getElementById('markupInput').value;
@@ -309,6 +336,17 @@ function saveMarkup() {
   showToast('Markup saved!', 'success');
   updateMarkupHint();
   renderProductTable();
+}
+
+function saveUsdRate() {
+  const r = +document.getElementById('usdRateInput').value;
+  if (!r || r <= 0) { showToast('Enter a valid exchange rate.', 'error'); return; }
+  VT.saveUsdRate(r);
+  showToast(`Exchange rate saved: ₼${r.toFixed(2)}/USD`, 'success');
+  updateUsdRateHint();
+  updateMarkupHint();
+  renderProductTable();
+  renderOverview();
 }
 
 function changeAdminPass() {
@@ -325,6 +363,67 @@ function changeSalesPass() {
   VT.saveSalesPass(p);
   document.getElementById('newSalesPass').value = '';
   showToast('Sales password updated!', 'success');
+}
+
+// ── PRICE LIST UPLOAD ─────────────────────────────────────────────────────────
+function initPriceList() {
+  const inp = document.getElementById('priceFile');
+  if (!inp || inp._initialized) return;
+  inp._initialized = true;
+  inp.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const data = await file.arrayBuffer();
+    const wb   = XLSX.read(data);
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!rows.length) { showToast('No data found in file.', 'error'); return; }
+
+    const preview = document.getElementById('pricePreview');
+    const cols    = Object.keys(rows[0]);
+    preview.innerHTML = `
+      <p style="margin-bottom:12px;color:var(--text-mid)">Found <strong>${rows.length} rows</strong>. Preview (first 5):</p>
+      <div class="table-wrap" style="margin-bottom:20px">
+        <table class="dash-table">
+          <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+          <tbody>${rows.slice(0,5).map(r => `<tr>${cols.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <button class="btn-primary" id="confirmPriceBtn">Apply Prices to ${rows.length} rows</button>
+    `;
+    window._priceRows = rows;
+    preview.querySelector('#confirmPriceBtn').onclick = () => confirmPriceImport(window._priceRows);
+  });
+}
+
+function confirmPriceImport(rows) {
+  const result = VT.importPriceList(rows);
+
+  if (result.error) {
+    document.getElementById('priceResult').innerHTML = `
+      <div style="margin-top:20px;padding:16px 20px;background:rgba(192,57,43,.1);border-radius:var(--radius);color:#c0392b">
+        ✕ ${result.error}
+      </div>`;
+    return;
+  }
+
+  const { updated, created } = result;
+  const lines = [];
+  if (updated) lines.push(`<strong>${updated}</strong> existing product${updated !== 1 ? 's' : ''} updated`);
+  if (created) lines.push(`<strong>${created}</strong> new product${created !== 1 ? 's' : ''} added to catalog`);
+
+  document.getElementById('priceResult').innerHTML = `
+    <div style="margin-top:20px;padding:16px 20px;background:rgba(61,107,31,.1);border-radius:var(--radius);color:var(--green-rich)">
+      ✓ ${lines.join(' · ')}
+      ${created ? `<br/><span style="font-size:.82rem;color:var(--text-light)">New products were created with stock = 0. Go to Products to fill in SKU, category, description, and stock.</span>` : ''}
+    </div>
+  `;
+  document.getElementById('pricePreview').innerHTML = '';
+  document.getElementById('priceFile').value = '';
+  window._priceRows = null;
+  renderProductTable();
+  renderOverview();
+  showToast(`Done: ${updated} updated, ${created} created`, 'success');
 }
 
 // ── TOAST ──────────────────────────────────────────────────────────────────────

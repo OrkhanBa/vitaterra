@@ -1863,7 +1863,11 @@
           <label>Search products</label>
           <input type="text" id="pricing-search" placeholder="🔍 Trade name, active ingredient..." oninput="pricingRenderTable()"/>
         </div>
-        <div class="pricing-setting" style="align-self:end;">
+        <div class="pricing-setting" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap;">
+          <label class="btn-add" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            📊 Import Costs & Prices
+            <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="pricingImportCostsAndPrices(event)"/>
+          </label>
           <button class="btn-add" onclick="pricingExportXlsx()">📥 Export to Excel</button>
         </div>
       </div>
@@ -5823,6 +5827,191 @@ function pricingShowDetail(productId) {
 }
 function pricingCloseDetail() {
   document.getElementById('pricing-detail-overlay').classList.remove('open');
+}
+
+// ─── Import own costs + sales prices from Excel ──────────────────────────
+// File shape: a column for active ingredient + a "cost" column (USD) +
+// a "sales price" column (AZN). Each row is matched to a product by
+// active ingredient. Updates product.cost (USD) and back-calculates
+// product.markup % so the displayed sale price equals the imported AZN price
+// (converted via the FX rate from Pricing settings).
+function pricingImportCostsAndPrices(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    if (typeof showToast === 'function') showToast('Excel library not loaded.', true);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+      let detected = null;
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const grid = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', blankrows:false });
+        const r = pricingDetectCostPriceColumns(grid);
+        if (r && !r.error) { detected = { ...r, sheetName }; break; }
+      }
+      if (!detected) {
+        if (typeof showToast === 'function') showToast('Could not find active ingredient + cost + sales-price columns in this file.', true);
+        evt.target.value = '';
+        return;
+      }
+      pricingApplyCostPriceImport(detected, file.name);
+    } catch(err) {
+      if (typeof showToast === 'function') showToast('Import failed: ' + err.message, true);
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Returns { rows:[{ai,cost,price}], aiCol, costCol, priceCol } or { error }.
+function pricingDetectCostPriceColumns(grid) {
+  if (!grid || !grid.length) return null;
+  const numCols = grid.reduce((m, r) => Math.max(m, r ? r.length : 0), 0);
+  const headerSpan = Math.min(grid.length, 8);
+  const cell = (r, c) => (grid[r] && grid[r][c] != null) ? String(grid[r][c]).trim() : '';
+
+  // AI column
+  let aiCol = -1, aiHeaderRow = -1;
+  outer: for (let r = 0; r < headerSpan; r++) {
+    for (let c = 0; c < numCols; c++) {
+      if (PR_AI_PATTERN.test(cell(r, c))) { aiCol = c; aiHeaderRow = r; break outer; }
+    }
+  }
+  if (aiCol === -1) {
+    let best = -1, bestScore = 0;
+    for (let c = 0; c < numCols; c++) {
+      let score = 0;
+      for (let r = 0; r < grid.length; r++) if (PR_AI_CONTENT.test(cell(r, c))) score++;
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    if (bestScore >= 2) { aiCol = best; aiHeaderRow = 0; }
+  }
+  if (aiCol === -1) return { error:'No active-ingredient column found' };
+
+  // Walk all header-band cells to classify cost vs sales-price columns
+  let costCol = -1, priceCol = -1;
+  const COST_RE  = /^\s*(cost|maya|al[ıi]ş|alis|landed|cif|fob|purchase|gəlir|gelir|import)\s*$|cost\s*price|al[ıi]ş\s*qiy/i;
+  const SALES_RE = /^\s*(sales?\s*price|sale|sat[ıi][şs]\s*qiy|sat[ıi][şs]|sat[ıi]ci|sell\s*price)\s*$|sales?\s*price|sat[ıi][şs]/i;
+  for (let c = 0; c < numCols; c++) {
+    if (c === aiCol) continue;
+    for (let r = 0; r < headerSpan; r++) {
+      const v = cell(r, c);
+      if (!v) continue;
+      if (costCol === -1 && COST_RE.test(v))  { costCol = c; break; }
+      if (priceCol === -1 && SALES_RE.test(v)) { priceCol = c; break; }
+    }
+  }
+  // Fallback: 2 numeric columns adjacent to AI → assume [cost, price]
+  if (costCol === -1 || priceCol === -1) {
+    const numericCols = [];
+    for (let c = 0; c < numCols; c++) {
+      if (c === aiCol) continue;
+      let n = 0;
+      for (let r = aiHeaderRow + 1; r < grid.length; r++) {
+        const v = parseFloat(String(cell(r, c)).replace(/[^\d.,-]/g,'').replace(',', '.'));
+        if (!isNaN(v) && v > 0) n++;
+      }
+      if (n >= 3) numericCols.push({ c, n });
+    }
+    numericCols.sort((a,b) => a.c - b.c);
+    if (numericCols.length >= 2) {
+      if (costCol === -1)  costCol  = numericCols[0].c;
+      if (priceCol === -1) priceCol = numericCols.find(nc => nc.c !== costCol).c;
+    }
+  }
+  if (costCol === -1 || priceCol === -1) {
+    return { error:`Need both a cost column and a sales-price column. Found AI col=${aiCol+1}, cost col=${costCol+1}, sales col=${priceCol+1}` };
+  }
+
+  const rows = [];
+  for (let r = aiHeaderRow + 1; r < grid.length; r++) {
+    const ai = cell(r, aiCol);
+    if (!ai) continue;
+    if (!/\d/.test(ai) && !/[a-zəıüöçş]/i.test(ai)) continue;
+    const cost  = parseFloat(String(cell(r, costCol)).replace(/[^\d.,-]/g,'').replace(',', '.'));
+    const price = parseFloat(String(cell(r, priceCol)).replace(/[^\d.,-]/g,'').replace(',', '.'));
+    if (!ai || (isNaN(cost) && isNaN(price))) continue;
+    rows.push({ ai, cost: isNaN(cost) ? null : cost, price: isNaN(price) ? null : price });
+  }
+  return { rows, aiCol, costCol, priceCol };
+}
+
+// Match parsed rows to products and apply updates (with preview confirm)
+function pricingApplyCostPriceImport(detected, fileName) {
+  const products = (typeof getProducts === 'function' ? getProducts() : []);
+  const fx = pricingGetSettings().fx;
+  const matches = [];
+  const unmatched = [];
+  for (const row of detected.rows) {
+    const rowAI = pricingParseAI(row.ai);
+    let best = null, bestStrength = 0;
+    for (const p of products) {
+      const pAI = pricingParseAI(p.activeIngredient);
+      const s = pricingMatchStrength(rowAI, pAI, 10);
+      if (s > bestStrength) { bestStrength = s; best = p; if (s === 2) break; }
+    }
+    if (best) matches.push({ product: best, row, strength: bestStrength });
+    else unmatched.push(row);
+  }
+  if (!matches.length) {
+    if (typeof showToast === 'function') showToast(`No products matched from ${fileName}. Check that active-ingredient strings line up.`, true);
+    return;
+  }
+
+  // Build preview body
+  const sampleN = Math.min(matches.length, 8);
+  const sampleRows = matches.slice(0, sampleN).map(m => {
+    const oldCost = (parseFloat(m.product.cost)||0).toFixed(2);
+    const oldMk   = (parseFloat(m.product.markup)||0).toFixed(0);
+    const newCost = m.row.cost != null ? m.row.cost.toFixed(2) : '—';
+    let newMk = '—';
+    if (m.row.price != null && m.row.price > 0 && m.row.cost && m.row.cost > 0) {
+      const priceUsd = m.row.price / fx;
+      newMk = (((priceUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
+    }
+    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '₼'+m.row.price.toFixed(2) : '—'}</td></tr>`;
+  }).join('');
+  const moreNote = matches.length > sampleN ? `<div style="text-align:center;color:var(--text-light);padding:8px;font-size:12px;">…and ${matches.length - sampleN} more</div>` : '';
+  const unmatchedNote = unmatched.length
+    ? `<div style="margin-top:14px;padding:10px;background:rgba(192,57,43,0.08);border-radius:8px;font-size:12px;color:var(--danger);"><strong>${unmatched.length} unmatched row${unmatched.length===1?'':'s'}:</strong> ${unmatched.slice(0,4).map(r => esc(r.ai)).join(' · ')}${unmatched.length>4?' …':''}</div>` : '';
+
+  const body = document.getElementById('pricing-detail-body');
+  document.getElementById('pricing-detail-title').textContent = '📊 Import Costs & Prices — Preview';
+  document.getElementById('pricing-detail-sub').textContent   = `${fileName} · FX rate ₼${fx}/USD · would update ${matches.length} of your ${products.length} products`;
+  body.innerHTML = `
+    <table class="pricing-comp-table" style="margin-bottom:14px;">
+      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Imported price (AZN)</th></tr></thead>
+      <tbody>${sampleRows}</tbody>
+    </table>
+    ${moreNote}
+    ${unmatchedNote}
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="pricing-mini-btn" onclick="pricingCloseDetail()">Cancel</button>
+      <button class="pricing-mini-btn pricing-mini-btn-primary" id="pricing-import-confirm-btn">✅ Apply to ${matches.length} products</button>
+    </div>`;
+  document.getElementById('pricing-detail-overlay').classList.add('open');
+
+  document.getElementById('pricing-import-confirm-btn').onclick = function() {
+    for (const m of matches) {
+      const p = m.product;
+      if (m.row.cost != null && m.row.cost > 0) p.cost = m.row.cost;
+      if (m.row.price != null && m.row.price > 0 && p.cost > 0) {
+        const priceUsd = m.row.price / fx;
+        p.markup = +(((priceUsd - p.cost) / p.cost) * 100).toFixed(1);
+      }
+    }
+    if (typeof saveProducts === 'function') saveProducts(products);
+    if (typeof renderAdminDash === 'function') renderAdminDash();
+    pricingRenderTable();
+    pricingCloseDetail();
+    if (typeof showToast === 'function') showToast(`✅ Updated ${matches.length} products (${unmatched.length} unmatched)`);
+  };
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 }
 
 // ─── Export ───

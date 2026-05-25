@@ -6,3 +6,5 @@ node_modules/
 deploy-*.zip
 *.zip
 desktop.ini
+# Weirdly named artifact directory
+{css,js,admin,sales}/

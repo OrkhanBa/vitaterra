@@ -67,7 +67,7 @@ function renderCatalog(filter = '', cat = 'All') {
     return;
   }
   tbody.innerHTML = prods.map(p => {
-    const sp = VT.salePrice(p.costPrice);
+    const sp = VT.salePriceAZN(p);
     const stockBadge = p.stock < 10 ? 'red' : p.stock < 25 ? 'gold' : 'green';
     return `<tr>
       <td><code style="font-size:.78rem;background:var(--cream-dark);padding:2px 6px;border-radius:3px">${p.sku || '—'}</code></td>
@@ -126,7 +126,7 @@ function updateSaleSummary() {
   const qty = +document.getElementById('saleQty').value || 1;
   const p   = VT.getProducts().find(x => x.id === id);
   if (!p) return;
-  const sp = VT.salePrice(p.costPrice);
+  const sp = VT.salePriceAZN(p);
   document.getElementById('saleSummaryBox').style.display = 'block';
   document.getElementById('ss-price').textContent = `₼${sp.toFixed(2)}`;
   document.getElementById('ss-qty').textContent   = qty;
@@ -155,7 +155,7 @@ function recordSale() {
     productName: p.name,
     qty,
     costPrice: p.costPrice,
-    salePrice: VT.salePrice(p.costPrice),
+    salePrice: VT.salePriceAZN(p),
     rep: currentRep,
     notes: customer ? `Customer: ${customer}${notes ? ' | ' + notes : ''}` : notes,
   });
