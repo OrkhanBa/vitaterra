@@ -266,8 +266,18 @@
   .product-desc { font-size:14px; color:var(--text-mid); line-height:1.6; margin-bottom:16px; }
   .product-meta { display:flex; gap:16px; flex-wrap:wrap; }
   .product-meta-item { font-size:12px; color:var(--text-light); display:flex; align-items:center; gap:5px; }
+  .product-price-strip {
+    padding: 10px 28px 14px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .product-price-strip .pp-label { font-size:11px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:2px; }
+  .product-price-strip .pp-amount { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; color:var(--green-dark); }
+  .product-price-strip .pp-per { font-size:11px; color:var(--text-light); }
+  .product-price-strip .pp-contact { font-size:12px; color:var(--text-light); font-style:italic; }
+
   .product-card-footer {
-    padding:16px 28px 24px;
+    padding:12px 28px 22px;
     display:flex; gap:10px;
   }
   .btn-learn {
@@ -277,6 +287,16 @@
     transition:all 0.2s; font-family:'DM Sans',sans-serif;
   }
   .btn-learn:hover { background:var(--green-accent); }
+
+  /* ─── MODAL PRICE BADGE ─── */
+  .modal-price-badge {
+    display:inline-flex; align-items:baseline; gap:6px;
+    background:rgba(201,168,76,0.18); border:1px solid rgba(201,168,76,0.4);
+    color:var(--gold-light); border-radius:8px;
+    padding:6px 14px; margin-top:14px;
+    font-family:'Playfair Display',serif; font-size:22px; font-weight:700;
+  }
+  .modal-price-badge .mpb-per { font-size:12px; font-family:'DM Sans',sans-serif; opacity:0.8; font-weight:400; }
 
   /* ─── PRODUCT DETAIL MODAL ─── */
   .modal-overlay {
@@ -2274,6 +2294,14 @@ function getSales() {
 function saveSales(arr) { localStorage.setItem(SALES_KEY, JSON.stringify(arr)); }
 
 function salePrice(p) { return (parseFloat(p.cost)||0) * (1 + (parseFloat(p.markup)||0)/100); }
+function salePriceAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+function priceStripHTML(p, lang) {
+  const azn = salePriceAZN(p);
+  if (azn <= 0) return `<div class="product-price-strip"><span class="pp-contact">${lang==='az'?'Qiymət üçün əlaqə saxlayın':'Contact for price'}</span></div>`;
+  const per = p.unit ? ' / ' + p.unit : '';
+  const lbl = lang==='az' ? 'Qiymət' : 'Price';
+  return `<div class="product-price-strip"><div><div class="pp-label">${lbl}</div><div class="pp-amount">₼${azn.toFixed(2)}<span class="pp-per">${per}</span></div></div></div>`;
+}
 
 function stockBadge(qty) {
   qty = parseInt(qty) || 0;
@@ -2395,6 +2423,7 @@ function renderPublicProducts(filter) {
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
         </div>
       </div>
+      ${priceStripHTML(p, currentLang)}
       <div class="product-card-footer">
         <button class="btn-learn" data-en="View Details" data-az="Ətraflı Bax">${currentLang==='az'?'Ətraflı Bax':'View Details'}</button>
       </div>
@@ -2461,6 +2490,7 @@ function filterProducts(cat, btn) {
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
         </div>
       </div>
+      ${priceStripHTML(p, currentLang)}
       <div class="product-card-footer">
         <button class="btn-learn" data-en="View Details" data-az="Ətraflı Bax">${currentLang==='az'?'Ətraflı Bax':'View Details'}</button>
       </div>
@@ -2490,6 +2520,14 @@ function openProductModal(id) {
       <div class="modal-title" id="m-name">${p.name}</div>
       <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, Spain</div>`;
   }
+  // Price badge in modal header
+  const modalAzn = salePriceAZN(p);
+  const modalPriceBadge = modalAzn > 0
+    ? `<div class="modal-price-badge">₼${modalAzn.toFixed(2)}<span class="mpb-per"> / ${p.unit||'unit'}</span></div>`
+    : '';
+  const mCatEl = document.getElementById('m-category');
+  if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
+
   document.getElementById('m-body').innerHTML = `
     <div class="modal-section-title">About this Product</div>
     <p class="modal-text">${p.desc||'Premium agricultural product from Cerrado Sol, Spain.'}</p>
