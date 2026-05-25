@@ -80,6 +80,34 @@
   }
   .btn-portal:hover { background:var(--gold); color:var(--green-dark); }
 
+  /* ─── LIGHTBOX ─── */
+  .lightbox-overlay {
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:rgba(0,0,0,0.92); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; cursor:zoom-out;
+  }
+  .lightbox-overlay.open { display:flex; }
+  .lightbox-img {
+    max-width:90vw; max-height:90vh;
+    object-fit:contain; border-radius:12px;
+    box-shadow:0 24px 80px rgba(0,0,0,0.5);
+    cursor:default;
+    animation: lbZoomIn 0.22s ease;
+  }
+  @keyframes lbZoomIn {
+    from { opacity:0; transform:scale(0.88); }
+    to   { opacity:1; transform:scale(1); }
+  }
+  .lightbox-close {
+    position:fixed; top:20px; right:28px;
+    font-size:36px; color:rgba(255,255,255,0.7); cursor:pointer;
+    line-height:1; background:none; border:none; transition:color 0.15s;
+    z-index:10000;
+  }
+  .lightbox-close:hover { color:var(--white); }
+  /* Zoom cursor on product images */
+  .product-card-img { cursor:zoom-in; }
+
   /* ─── HERO ─── */
   .hero {
     min-height: 100vh;
@@ -1881,6 +1909,13 @@
     <!-- PDF Labels Tab -->
     <div id="admin-tab-pdf-labels" class="hidden">
 
+      <div style="background:rgba(62,140,88,0.08);border:1px solid rgba(62,140,88,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--text-mid);line-height:1.7;">
+        <strong style="color:var(--green-dark);">📌 PDF label fayllarınızı buraya yükləyin — yalnız məlumat üçün.</strong><br/>
+        Sistem hər PDFi oxuyur (rus/ingilis dilindən) və <strong>Azərbaycan dilində</strong> aşağıdakıları çıxarır:<br/>
+        🌿 Hansı bitkilər üçündür &nbsp;·&nbsp; 📋 Məhsulun təyinatı &nbsp;·&nbsp; ⚗️ İstifadə qaydası &nbsp;·&nbsp; ⏱ Məhsul toplama intervalı<br/>
+        <span style="color:var(--text-light);">Məhsul şəkilləri ayrıca hissədən yüklənir (Products → redaktə).</span>
+      </div>
+
       <!-- Upload zone -->
       <div class="pdf-upload-zone" id="pdf-drop-zone"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -1888,8 +1923,8 @@
            ondrop="handlePdfDrop(event)">
         <label style="cursor:pointer;display:block;">
           <div class="pdf-upload-icon">📄</div>
-          <div class="pdf-upload-title">Upload Product Label PDFs</div>
-          <div class="pdf-upload-sub">Drag & drop multiple PDFs here, or click to browse<br/>The system will read each label and match it to your products automatically</div>
+          <div class="pdf-upload-title">PDF Label Fayllarını Yükləyin</div>
+          <div class="pdf-upload-sub">Bir neçə PDF faylını bura sürükləyin və ya klikləyin<br/>AI hər labeli oxuyub Azərbaycan dilinə çevirəcək + şəkil avtomatik çıxarılacaq</div>
           <input type="file" accept=".pdf" multiple style="display:none;" onchange="handlePdfFiles(event)"/>
         </label>
       </div>
@@ -1897,7 +1932,7 @@
       <!-- Processing progress bar -->
       <div class="processing-bar" id="pdf-processing-bar">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:14px;font-weight:600;color:var(--green-dark);">Reading labels with AI...</span>
+          <span style="font-size:14px;font-weight:600;color:var(--green-dark);">Labellər AI ilə oxunur...</span>
           <span id="pdf-progress-text" style="font-size:13px;color:var(--text-light);">0 / 0</span>
         </div>
         <div class="progress-track"><div class="progress-fill" id="pdf-progress-fill"></div></div>
@@ -1909,18 +1944,18 @@
       <!-- Apply all button -->
       <div id="pdf-apply-all-bar" style="display:none;padding:20px;background:var(--white);border-radius:14px;border:1px solid var(--border);box-shadow:var(--shadow);display:none;align-items:center;justify-content:space-between;gap:16px;">
         <div>
-          <div style="font-weight:600;font-size:15px;color:var(--green-dark);">Ready to apply</div>
-          <div style="font-size:13px;color:var(--text-light);" id="pdf-apply-summary">0 labels matched and ready</div>
+          <div style="font-weight:600;font-size:15px;color:var(--green-dark);">Tətbiqə hazırdır</div>
+          <div style="font-size:13px;color:var(--text-light);" id="pdf-apply-summary">0 label uyğunlaşdırılıb</div>
         </div>
-        <button class="btn-apply-all" onclick="applyAllLabels()">✅ Apply All Matched Labels</button>
+        <button class="btn-apply-all" onclick="applyAllLabels()">✅ Hamısını Tətbiq Et</button>
       </div>
 
-      <!-- ─── IMAGE LABELS SECTION ─── -->
-      <div class="img-labels-divider">🖼️ Məhsul Şəkil Labelləri</div>
+      <!-- ─── IMAGE LABELS SECTION (JPG/PNG only) ─── -->
+      <div class="img-labels-divider">🖼️ Yalnız Şəkil Faylları (JPG / PNG)</div>
 
       <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--text-mid);line-height:1.6;">
-        <strong style="color:var(--green-dark);">Rus/İngilis dilindəki label şəkillərini yükləyin.</strong>
-        Şəkillər avtomatik olaraq məhsul adına görə uyğunlaşdırılacaq. Düzgün uyğunlaşmadıqda özünüz seçə bilərsiniz. Tətbiq etdikdən sonra həmin şəkil məhsulun kataloq fotosuna çevriləcək.
+        <strong style="color:var(--green-dark);">3D məhsul şəkilləri hazır olanda buradan toplu yükləyin.</strong>
+        Şəkil birbaşa məhsulun kataloq fotosuna çevrilir. Fayl adı məhsul adına uyğun olsun (məs. <em>Biosuper.png</em>).
       </div>
 
       <!-- Upload zone -->
@@ -1930,9 +1965,9 @@
            ondrop="handleImgLblDrop(event)">
         <label style="cursor:pointer;display:block;">
           <div class="pdf-upload-icon">🖼️</div>
-          <div class="pdf-upload-title">Label Fayllarını Yükləyin</div>
-          <div class="pdf-upload-sub">PDF, JPG, PNG, WebP fayllarını bura sürükləyin və ya klikləyin<br/>Bir neçə faylı eyni anda seçə bilərsiniz — PDF-in ilk səhifəsi şəkilə çevriləcək</div>
-          <input type="file" accept="image/*,.pdf" multiple style="display:none;" onchange="handleImgLblFiles(event)"/>
+          <div class="pdf-upload-title">Şəkil Faylları (JPG, PNG, WebP)</div>
+          <div class="pdf-upload-sub">Şəkilləri bura sürükləyin və ya klikləyin<br/>Bir neçə faylı eyni anda seçə bilərsiniz</div>
+          <input type="file" accept="image/*" multiple style="display:none;" onchange="handleImgLblFiles(event)"/>
         </label>
       </div>
 
@@ -2199,16 +2234,18 @@
     </div>
     <div class="form-modal-body">
       <input type="hidden" id="form-product-id"/>
-      <div class="form-group">
-        <label class="form-label">Product Image</label>
-        <label class="img-upload-zone" id="fp-img-zone">
+
+      <!-- ── 3D Product Image ── -->
+      <div style="background:rgba(62,140,88,0.07);border:1px solid rgba(62,140,88,0.25);border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green-accent);margin-bottom:10px;">🖼️ Məhsul Şəkli (3D / Foto)</div>
+        <label class="img-upload-zone" id="fp-img-zone" style="margin-bottom:0;">
           <input type="file" accept="image/*" id="fp-img-input" style="display:none;" onchange="handleProductImageUpload(event)"/>
           <div class="img-upload-placeholder" id="fp-img-placeholder">
             <span>🖼️</span>
-            <p>Click to upload image (JPG, PNG, WebP)</p>
-            <p style="font-size:11px;">Recommended: 600×400px or wider</p>
+            <p style="font-weight:600;">Şəkil yükləyin (JPG, PNG, WebP)</p>
+            <p style="font-size:11px;color:var(--text-light);">Tövsiyə: 600×400px və ya daha geniş · 3D render üçün şəffaf fon (PNG)</p>
           </div>
-          <img id="fp-img-preview" style="display:none;width:100%;height:180px;object-fit:cover;border-radius:8px;"/>
+          <img id="fp-img-preview" style="display:none;width:100%;height:200px;object-fit:cover;border-radius:8px;"/>
           <button type="button" class="img-remove-btn" id="fp-img-remove" style="display:none;" onclick="removeProductImage(event)">×</button>
         </label>
       </div>
@@ -2533,7 +2570,8 @@ function renderPublicProducts(filter) {
   grid.innerHTML = filtered.map(p => `
     <div class="product-card" onclick="openProductModal(${p.id})">
       <div class="product-card-header${p.image?' has-img':''}">
-        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"/>
+        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
+          onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
         <div class="product-img-overlay">
           ${stockBadge(p.stock)}
           <div class="product-name">${p.name}</div>
@@ -2545,11 +2583,12 @@ function renderPublicProducts(filter) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.` : (p.desc||'Premium Cerrado Sol formulation.')}</p>
+        <p class="product-desc">${currentLang==='az' ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
+          ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
         </div>
       </div>
       ${priceStripHTML(p, currentLang)}
@@ -2600,7 +2639,8 @@ function filterProducts(cat, btn) {
   grid.innerHTML = filtered.map(p => `
     <div class="product-card" onclick="openProductModal(${p.id})">
       <div class="product-card-header${p.image?' has-img':''}">
-        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"/>
+        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
+          onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
         <div class="product-img-overlay">
           ${stockBadge(p.stock)}
           <div class="product-name">${p.name}</div>
@@ -2612,11 +2652,12 @@ function filterProducts(cat, btn) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.` : (p.desc||'Premium Cerrado Sol formulation.')}</p>
+        <p class="product-desc">${currentLang==='az' ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
           ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
+          ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
         </div>
       </div>
       ${priceStripHTML(p, currentLang)}
@@ -2634,7 +2675,8 @@ function openProductModal(id) {
   if(p.image) {
     mHeader.classList.add('has-img');
     mHeader.innerHTML = `
-      <img class="modal-header-img" src="${p.image}" alt="${p.name}"/>
+      <img class="modal-header-img" src="${p.image}" alt="${p.name}" title="${currentLang==='az'?'Böyütmək üçün klikləyin':'Click to zoom'}"
+        style="cursor:zoom-in;" onclick="openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
       <div class="modal-header-content">
         <button class="modal-close" onclick="closeProductModal()" style="position:absolute;top:12px;right:12px;">×</button>
         <div class="modal-icon" id="m-icon" style="display:none;"></div>
@@ -2663,15 +2705,20 @@ function openProductModal(id) {
 
   const isAz = currentLang === 'az';
   const descText = isAz
-    ? `Premium formula. Aktiv maddə: ${p.activeIngredient || p.name}.`
+    ? (p.desc_az || p.desc || `Premium formula. Aktiv maddə: ${p.activeIngredient || p.name}.`)
     : (p.desc || `Premium Cerrado Sol formulation. Active ingredient: ${p.activeIngredient || p.name}.`);
-  const usageSteps = isAz
-    ? ['Etiket göstərişlərinə əməl edin', 'Tövsiyə edilən normada tətbiq edin', 'Tətbiq zamanı tam qoruyucu avadanlıqdan istifadə edin', 'Orijinal qabda, sərin və quru yerdə saxlayın']
-    : (p.usage || 'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place.').split('. ').filter(s => s.trim());
+  const usageRaw = isAz
+    ? (p.usage_az || p.usage || 'Etiket göstərişlərinə əməl edin. Tövsiyə edilən normada tətbiq edin. Tətbiq zamanı tam qoruyucu avadanlıqdan istifadə edin. Orijinal qabda, sərin və quru yerdə saxlayın.')
+    : (p.usage || 'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place.');
+  const usageSteps = usageRaw.split(/\.\s+|\n/).map(s => s.trim()).filter(s => s.length > 4);
+  const targetLine = isAz ? (p.target_az || p.target || '') : (p.target || '');
 
   document.getElementById('m-body').innerHTML = `
     <div class="modal-section-title">${isAz ? 'Məhsul Haqqında' : 'About this Product'}</div>
     <p class="modal-text">${descText}</p>
+    ${targetLine ? `
+    <div class="modal-section-title">${isAz ? '🌿 Hansı bitkilər / hədəf zərərvericilər' : '🌿 Target Crops / Pests'}</div>
+    <p class="modal-text">${targetLine}</p>` : ''}
     <div class="modal-section-title">${isAz ? 'İstifadə Qaydası' : 'How to Use'}</div>
     <div class="usage-steps">
       ${usageSteps.map((s,i) => `
@@ -3462,7 +3509,7 @@ function renderPdfQueue() {
 
   const products = getProducts();
   container.innerHTML = pdfQueue.map(item => {
-    const statusLabels = { waiting:'⏳ Waiting...', reading:'🔄 Reading label...', matched:'✅ Matched', nomatch:'❌ No match found', applying:'💾 Applying...', done:'✅ Applied' };
+    const statusLabels = { waiting:'⏳ Gözlənilir...', reading:'🔄 Label oxunur...', matched:'✅ Uyğunlaşdırıldı', nomatch:'❌ Uyğunlaşma tapılmadı', applying:'💾 Tətbiq edilir...', done:'✅ Tətbiq edildi' };
     const statusClass  = { waiting:'pdf-status-waiting', reading:'pdf-status-reading', matched:'pdf-status-matched', nomatch:'pdf-status-nomatch', applying:'pdf-status-reading', done:'pdf-status-matched' };
     const canApply = item.status === 'matched' && item.matchedProductId;
 
@@ -3470,25 +3517,35 @@ function renderPdfQueue() {
       `<option value="${p.id}" ${item.matchedProductId === p.id ? 'selected' : ''}>${p.name}</option>`
     ).join('');
 
-    return `<div class="pdf-queue-item" id="pdf-item-${item.id}">
-      <div class="pdf-queue-icon">📄</div>
+    const p = item.parsedData;
+    const thumbHtml = item.pageImage
+      ? `<img src="${item.pageImage}" style="width:90px;height:66px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);"/>`
+      : `<div style="width:90px;height:66px;border-radius:8px;flex-shrink:0;border:1px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:28px;">📄</div>`;
+
+    const infoHtml = p ? `<div style="margin-top:10px;background:var(--cream);border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.7;">
+      <div><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">Məhsul adı</span><br/><strong>${p.name || '—'}</strong></div>
+      <div style="margin-top:6px;"><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">Aktiv maddə</span><br/>${p.activeIngredient || '—'}</div>
+      ${p.target_az ? `<div style="margin-top:6px;"><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">🌿 Hansı bitkilər üçün / hədəf</span><br/>${p.target_az}</div>` : ''}
+      ${p.desc_az ? `<div style="margin-top:6px;"><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">📋 Təyinat</span><br/>${p.desc_az}</div>` : ''}
+      ${p.usage_az ? `<div style="margin-top:6px;"><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">⚗️ İstifadə qaydası</span><br/>${p.usage_az}</div>` : ''}
+      ${p.safetyInterval ? `<div style="margin-top:6px;"><span style="color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;font-size:10px;font-weight:700;">⏱ Məhsul toplama intervalı</span><br/>${p.safetyInterval}</div>` : ''}
+    </div>` : '';
+
+    return `<div class="pdf-queue-item" id="pdf-item-${item.id}" style="align-items:flex-start;">
+      ${thumbHtml}
       <div style="flex:1;min-width:0;">
         <div class="pdf-queue-name">${item.name}</div>
         <div class="pdf-queue-status ${statusClass[item.status] || ''}">${statusLabels[item.status] || item.status}</div>
-        ${item.parsedData ? `<div class="label-preview" style="display:block;">
-          <strong>Product:</strong> ${item.parsedData.name || 'N/A'}<br/>
-          <strong>Type:</strong> ${item.parsedData.category || 'N/A'}<br/>
-          <strong>Active:</strong> ${item.parsedData.activeIngredient || 'N/A'}<br/>
-          <strong>Description:</strong> ${(item.parsedData.desc || '').slice(0,120)}...
-        </div>` : ''}
+        ${infoHtml}
       </div>
-      <div class="pdf-queue-actions">
-        ${item.status === 'matched' || item.status === 'nomatch' ? `
-          <select class="pdf-match-select" onchange="overrideMatch(${item.id}, this.value)">
-            <option value="">-- Manual match --</option>
+      <div class="pdf-queue-actions" style="flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+        ${item.status === 'matched' || item.status === 'nomatch' || item.status === 'done' ? `
+          <select class="pdf-match-select" onchange="overrideMatch(${item.id}, this.value)" ${item.status==='done'?'disabled':''}>
+            <option value="">— Məhsul seçin —</option>
             ${productOptions}
           </select>` : ''}
-        ${canApply ? `<button class="btn-apply-label" onclick="applySingleLabel(${item.id})">Apply</button>` : ''}
+        ${canApply ? `<button class="btn-apply-label" onclick="applySingleLabel(${item.id})">✅ Tətbiq et</button>` : ''}
+        ${item.status === 'done' ? `<span style="font-size:12px;color:var(--success);font-weight:600;">✅ Tətbiq edildi</span>` : ''}
         <button class="btn-del" style="padding:5px 10px;" onclick="removePdfItem(${item.id})">✕</button>
       </div>
     </div>`;
@@ -3533,8 +3590,14 @@ async function processPdfQueue() {
     updatePdfProgress(done, total);
 
     try {
-      // Read PDF as base64
-      const base64 = await fileToBase64(item.file);
+      // Render first page as image (parallel with AI extraction)
+      const [base64, pageImage] = await Promise.all([
+        fileToBase64(item.file),
+        pdfRenderFirstPageAsJpeg(item.file)
+      ]);
+
+      item.pageImage = pageImage; // base64 jpeg of page 1
+
       // Send to Claude API to extract label info
       const parsed = await extractLabelWithAI(base64, item.name);
       item.parsedData = parsed;
@@ -3559,6 +3622,38 @@ async function processPdfQueue() {
   }
 }
 
+function pdfRenderFirstPageAsJpeg(file) {
+  return new Promise(function(resolve) {
+    if(typeof pdfjsLib === 'undefined') { resolve(null); return; }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      pdfjsLib.getDocument({ data: new Uint8Array(ev.target.result) }).promise
+        .then(function(pdf) { return pdf.getPage(1); })
+        .then(function(page) {
+          var vp = page.getViewport({ scale: 1.6 });
+          var canvas = document.createElement('canvas');
+          canvas.width = vp.width; canvas.height = vp.height;
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+            .then(function() { return canvas; });
+        })
+        .then(function(canvas) {
+          var maxW = 800, maxH = 600;
+          var w = canvas.width, h = canvas.height;
+          var out = document.createElement('canvas');
+          if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+          if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+          out.width = w; out.height = h;
+          out.getContext('2d').drawImage(canvas, 0, 0, w, h);
+          resolve(out.toDataURL('image/jpeg', 0.85));
+        })
+        .catch(function() { resolve(null); });
+    };
+    reader.onerror = function() { resolve(null); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 function updatePdfProgress(done, total) {
   const fill = document.getElementById('pdf-progress-fill');
   const text = document.getElementById('pdf-progress-text');
@@ -3576,16 +3671,19 @@ function fileToBase64(file) {
 }
 
 async function extractLabelWithAI(base64, filename) {
-  const prompt = `You are analyzing a pesticide product label PDF. Extract the following information and respond ONLY with valid JSON, no markdown, no extra text:
+  const prompt = `You are analyzing a pesticide/agrochemical product label PDF (may be in Russian or English). Extract the following information and respond ONLY with valid JSON, no markdown, no extra text:
 {
   "name": "trade name / product name from label",
   "activeIngredient": "active ingredient(s) with concentration",
   "category": "one of: Herbicide, Insecticide, Fungicide, Growth Regulator, Fertilizer, Specialty",
   "formulation": "formulation type e.g. SC, EC, WG, SL",
-  "desc": "2-3 sentence product description based on the label",
-  "usage": "key usage instructions from the label in 2-3 sentences",
-  "target": "target pests or crops mentioned",
+  "desc": "2-3 sentence product description in English based on the label",
+  "usage": "key usage instructions in English in 2-3 sentences",
+  "target": "target pests or crops mentioned (English)",
   "safetyInterval": "pre-harvest interval if mentioned",
+  "desc_az": "2-3 cümlə ilə Azərbaycan dilində məhsulun təsviri — nə üçün nəzərdə tutulduğunu və necə işlədiyini izah et",
+  "usage_az": "Azərbaycan dilində istifadə qaydası — doza, vaxt, metod — 2-3 cümlə",
+  "target_az": "Azərbaycan dilində: hansı bitkilər üçün nəzərdə tutulub və hansı zərərvericiləri/xəstəlikləri məhv edir",
   "rawText": "first 200 chars of extracted text for reference"
 }`;
 
@@ -3659,7 +3757,7 @@ function applySingleLabel(itemId) {
   renderPdfQueue();
   renderAdminDash();
   renderPublicProducts();
-  showToast('Label applied to product!');
+  showToast('Label məhsula tətbiq edildi!');
 }
 
 function applyAllLabels() {
@@ -3673,7 +3771,7 @@ function applyAllLabels() {
   renderPdfQueue();
   renderAdminDash();
   renderPublicProducts();
-  showToast(`Applied ${ready.length} labels to products!`);
+  showToast(`${ready.length} label məhsullara tətbiq edildi!`);
 }
 
 function applyLabelToProduct(item) {
@@ -3681,6 +3779,7 @@ function applyLabelToProduct(item) {
   const idx = products.findIndex(p => p.id === item.matchedProductId);
   if(idx < 0) return;
   const p = item.parsedData;
+  // English fields
   if(p.desc)            products[idx].desc            = p.desc;
   if(p.usage)           products[idx].usage           = p.usage;
   if(p.category && p.category !== 'Other') products[idx].category = p.category;
@@ -3688,6 +3787,11 @@ function applyLabelToProduct(item) {
   if(p.formulation)     products[idx].formulation     = p.formulation;
   if(p.target)          products[idx].target          = p.target;
   if(p.safetyInterval)  products[idx].safetyInterval  = p.safetyInterval;
+  // Azerbaijani fields
+  if(p.desc_az)         products[idx].desc_az         = p.desc_az;
+  if(p.usage_az)        products[idx].usage_az        = p.usage_az;
+  if(p.target_az)       products[idx].target_az       = p.target_az;
+  // Note: label PDF page is NOT used as product image (separate 3D images upload)
   saveProducts(products);
 }
 
@@ -5557,6 +5661,27 @@ function applySiteContent(c) {
 // ═══════════════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// LIGHTBOX
+// ═══════════════════════════════════════════════════════
+function openLightbox(src, alt) {
+  var lb = document.getElementById('lightbox');
+  var img = document.getElementById('lightbox-img');
+  if(!lb || !img || !src) return;
+  img.src = src;
+  img.alt = alt || '';
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  var lb = document.getElementById('lightbox');
+  if(lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+  if(e.key === 'Escape') closeLightbox();
+});
+
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
@@ -6467,5 +6592,10 @@ function pricingExportXlsx() {
   if (typeof showToast === 'function') showToast('✅ Exported to Excel');
 }
 </script>
+<!-- LIGHTBOX -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="" onclick="event.stopPropagation()"/>
+</div>
 </body>
 </html>
