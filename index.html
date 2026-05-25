@@ -2325,19 +2325,29 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">🔒 Cost Price (₼) — Admin Only *</label>
+          <label class="form-label">🔒 Maya dəyəri (USD $) — Admin Only *</label>
           <input class="form-input" type="number" id="fp-cost" min="0" step="0.01" placeholder="0.00" oninput="updatePriceCalc()"/>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">1 kq / 1 L üçün USD-də</div>
         </div>
         <div class="form-group">
           <label class="form-label">Markup % *</label>
           <input class="form-input" type="number" id="fp-markup" min="0" step="0.1" placeholder="30" oninput="updatePriceCalc()"/>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Və ya aşağıda ₼ satış qiymətini yazsanız markup avtomatik hesablanacaq</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">💰 Satış qiyməti (₼) — istəyə bağlı</label>
+          <input class="form-input" type="number" id="fp-sale-azn" min="0" step="0.01" placeholder="məs. 12.50" oninput="syncMarkupFromSale()"/>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Birbaşa AZN-də qiymət yazın — sistem maya × markup ilə eyni nəticəyə tənzimləyəcək</div>
         </div>
       </div>
       <div class="price-calc" id="price-calc">
         <div class="price-calc-title">💰 Qiymət Hesabı (vahid: 1 kq / 1 L)</div>
-        <div class="price-row"><span class="price-label">Maya dəyəri</span><span class="price-val" id="calc-cost">$0.00</span></div>
+        <div class="price-row"><span class="price-label">Maya dəyəri (USD)</span><span class="price-val" id="calc-cost">$0.00</span></div>
         <div class="price-row"><span class="price-label">Markup məbləği</span><span class="price-val" id="calc-markup-amt">$0.00</span></div>
-        <div class="price-row total"><span class="price-label">Satış qiyməti / vahid</span><span class="price-val" id="calc-sale">$0.00</span></div>
+        <div class="price-row total"><span class="price-label">Satış qiyməti (USD)</span><span class="price-val" id="calc-sale">$0.00</span></div>
+        <div class="price-row total" id="calc-sale-azn-row" style="background:rgba(46,125,50,0.08);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" style="font-weight:600;color:var(--green-dark);">Satış qiyməti (₼)</span><span class="price-val" id="calc-sale-azn-val" style="color:var(--green-dark);font-size:17px;">₼0.00</span></div>
         <div class="price-row total" id="calc-pack-row" style="display:none;background:rgba(201,168,76,0.1);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" id="calc-pack-label" style="font-weight:600;color:var(--green-dark);">Paket üzrə</span><span class="price-val" id="calc-pack-val" style="color:var(--green-dark);font-size:17px;">$0.00</span></div>
       </div>
     </div>
@@ -3123,6 +3133,8 @@ function openProductForm(id) {
     document.getElementById('fp-stock').value='0';
     document.getElementById('fp-cost').value='';
     document.getElementById('fp-markup').value='30';
+    const saleAznEl = document.getElementById('fp-sale-azn');
+    if(saleAznEl) saleAznEl.value = '';
     updatePriceCalc();
     setProductImagePreview('');
   }
@@ -3135,23 +3147,46 @@ function updatePriceCalc() {
   const markup = parseFloat(document.getElementById('fp-markup').value)||0;
   const unit   = document.getElementById('fp-unit').value || '';
   const mult   = packMultiplier(unit) || 1;
+  const fx     = (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : 1.70) || 1.70;
   const markupAmt = cost * markup / 100;
   const sale = cost + markupAmt;
+  const saleAzn = sale * fx;
   // Per kg/L (base unit)
   document.getElementById('calc-cost').textContent       = '$' + cost.toFixed(2);
   document.getElementById('calc-markup-amt').textContent = '$' + markupAmt.toFixed(2);
   document.getElementById('calc-sale').textContent       = '$' + sale.toFixed(2);
+  const saleAznEl = document.getElementById('calc-sale-azn-val');
+  if(saleAznEl) saleAznEl.textContent = '₼' + saleAzn.toFixed(2);
+  // Reflect into the AZN-override field if it hasn't been manually focused
+  const saleAznInput = document.getElementById('fp-sale-azn');
+  if(saleAznInput && document.activeElement !== saleAznInput) {
+    saleAznInput.value = saleAzn ? saleAzn.toFixed(2) : '';
+  }
   // Per package (if defined and != 1)
   const packEl = document.getElementById('calc-pack-row');
   if(packEl) {
     if(unit && mult && mult !== 1) {
       packEl.style.display = 'flex';
       document.getElementById('calc-pack-label').textContent = 'Paket üzrə (' + unit + ')';
-      document.getElementById('calc-pack-val').textContent   = '$' + (sale * mult).toFixed(2);
+      document.getElementById('calc-pack-val').textContent   = '$' + (sale * mult).toFixed(2) + ' / ₼' + (saleAzn * mult).toFixed(2);
     } else {
       packEl.style.display = 'none';
     }
   }
+}
+
+// When admin types an AZN sale price directly, back-calculate the markup %
+// so cost × (1 + markup/100) × fx ≈ sale_azn.
+function syncMarkupFromSale() {
+  const cost    = parseFloat(document.getElementById('fp-cost').value) || 0;
+  const saleAzn = parseFloat(document.getElementById('fp-sale-azn').value);
+  if (!(cost > 0) || isNaN(saleAzn) || saleAzn <= 0) return;
+  const fx = (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : 1.70) || 1.70;
+  const saleUsd = saleAzn / fx;
+  const markup = ((saleUsd - cost) / cost) * 100;
+  const markupEl = document.getElementById('fp-markup');
+  if (markupEl) markupEl.value = markup.toFixed(1);
+  updatePriceCalc();
 }
 
 function saveProduct() {
@@ -3185,6 +3220,11 @@ function saveProduct() {
   closeProductForm();
   renderAdminDash();
   renderPublicProducts();
+  // Refresh the Pricing tab if it's currently mounted so My Cost / My Price
+  // reflect the new cost+markup immediately without a manual tab switch.
+  if (typeof pricingRenderTable === 'function' && document.getElementById('pricing-main-tbody')) {
+    pricingRenderTable();
+  }
   showToast(editingId ? 'Məhsul yeniləndi!' : 'Məhsul əlavə edildi!');
 }
 
@@ -6426,12 +6466,13 @@ function pricingRenderTable() {
         const sign = gap > 0 ? '+' : '';
         gapHtml = `<span class="${cls}">${sign}${gap.toFixed(1)}%</span>`;
       }
+      const costUsd = parseFloat(p.cost) || 0;
       return `
         <tr onclick="pricingShowDetail(${p.id})">
           <td><span class="pl-dot pl-${dot}"></span>${esc(p.name)}</td>
           <td class="ai-cell">${esc(p.activeIngredient||'')}</td>
-          <td class="num">${myPu.cost.toFixed(2)}</td>
-          <td class="num"><strong>${myP.toFixed(2)}</strong></td>
+          <td class="num" title="USD ${costUsd.toFixed(2)} × ${s.fx} = AZN ${myPu.cost.toFixed(2)}">${myPu.cost.toFixed(2)}<div style="font-size:10px;color:var(--text-light);font-weight:400;">$${costUsd.toFixed(2)}</div></td>
+          <td class="num" title="${prod_markupTooltip(p)}"><strong>${myP.toFixed(2)}</strong><div style="font-size:10px;color:var(--text-light);font-weight:400;">${(p.markup||0).toFixed ? (parseFloat(p.markup)||0).toFixed(0) : (p.markup||0)}% markup</div></td>
           <td class="num">${min!=null?min.toFixed(2):'—'}</td>
           <td class="num">${med!=null?med.toFixed(2):'—'}</td>
           <td class="num">${max!=null?max.toFixed(2):'—'}</td>
@@ -6443,9 +6484,15 @@ function pricingRenderTable() {
 
   tbody.innerHTML = rows || '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-light);">No products match your search.</td></tr>';
   const cov = document.getElementById('pricing-coverage');
-  if (cov) cov.textContent = `Coverage: ${strong} strong, ${medium} ingredient-only, ${none} unmatched · prices shown in ₼ per L (liquids) or per kg (solids)`;
+  if (cov) cov.textContent = `Coverage: ${strong} strong, ${medium} ingredient-only, ${none} unmatched · ₼ per kq/L (USD cost in small text) · FX ${s.fx}`;
 
   function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+}
+
+function prod_markupTooltip(p) {
+  const c = parseFloat(p.cost)||0;
+  const m = parseFloat(p.markup)||0;
+  return `$${c.toFixed(2)} cost × (1 + ${m}%) = $${(c*(1+m/100)).toFixed(2)} sale (USD)`;
 }
 
 // ─── Competitor CRUD ───
@@ -6891,6 +6938,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
   }
 
   // Build preview body
+  // Cost column is USD, Sale price column is AZN (per documented file shape).
   const sampleN = Math.min(matches.length, 8);
   const sampleRows = matches.slice(0, sampleN).map(m => {
     const oldCost = (parseFloat(m.product.cost)||0).toFixed(2);
@@ -6898,11 +6946,10 @@ function pricingApplyCostPriceImport(detected, fileName) {
     const newCost = m.row.cost != null ? m.row.cost.toFixed(2) : '—';
     let newMk = '—';
     if (m.row.price != null && m.row.price > 0 && m.row.cost && m.row.cost > 0) {
-      const priceUsd = m.row.price; // sale price is in USD
-      newMk = (((priceUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
+      const saleUsd = m.row.price / fx;
+      newMk = (((saleUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
     }
-    const saleAzn = m.row.price != null ? '₼'+(m.row.price * fx).toFixed(2) : '—';
-    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '$'+m.row.price.toFixed(2)+' → '+saleAzn : '—'}</td></tr>`;
+    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '₼'+m.row.price.toFixed(2) : '—'}</td></tr>`;
   }).join('');
   const moreNote = matches.length > sampleN ? `<div style="text-align:center;color:var(--text-light);padding:8px;font-size:12px;">…and ${matches.length - sampleN} more</div>` : '';
   const unmatchedNote = unmatched.length
@@ -6913,7 +6960,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
   document.getElementById('pricing-detail-sub').textContent   = `${fileName} · FX rate ₼${fx}/USD · would update ${matches.length} of your ${products.length} products`;
   body.innerHTML = `
     <table class="pricing-comp-table" style="margin-bottom:14px;">
-      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Sale (USD → AZN)</th></tr></thead>
+      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Sale (₼)</th></tr></thead>
       <tbody>${sampleRows}</tbody>
     </table>
     ${moreNote}
@@ -6929,8 +6976,11 @@ function pricingApplyCostPriceImport(detected, fileName) {
       const p = m.product;
       if (m.row.cost != null && m.row.cost > 0) p.cost = m.row.cost;
       if (m.row.price != null && m.row.price > 0 && p.cost > 0) {
-        const priceUsd = m.row.price; // sale price is in USD
-        p.markup = +(((priceUsd - p.cost) / p.cost) * 100).toFixed(1);
+        // Sale price column is AZN per the documented file shape; convert
+        // to USD via the configured FX rate before back-calculating markup
+        // so cost × (1 + markup/100) × fx ≈ sale_azn.
+        const saleUsd = m.row.price / fx;
+        p.markup = +(((saleUsd - p.cost) / p.cost) * 100).toFixed(1);
       }
     }
     if (typeof saveProducts === 'function') saveProducts(products);
