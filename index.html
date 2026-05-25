@@ -5970,10 +5970,11 @@ function pricingApplyCostPriceImport(detected, fileName) {
     const newCost = m.row.cost != null ? m.row.cost.toFixed(2) : '—';
     let newMk = '—';
     if (m.row.price != null && m.row.price > 0 && m.row.cost && m.row.cost > 0) {
-      const priceUsd = m.row.price / fx;
+      const priceUsd = m.row.price; // sale price is in USD
       newMk = (((priceUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
     }
-    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '₼'+m.row.price.toFixed(2) : '—'}</td></tr>`;
+    const saleAzn = m.row.price != null ? '₼'+(m.row.price * fx).toFixed(2) : '—';
+    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '$'+m.row.price.toFixed(2)+' → '+saleAzn : '—'}</td></tr>`;
   }).join('');
   const moreNote = matches.length > sampleN ? `<div style="text-align:center;color:var(--text-light);padding:8px;font-size:12px;">…and ${matches.length - sampleN} more</div>` : '';
   const unmatchedNote = unmatched.length
@@ -5984,7 +5985,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
   document.getElementById('pricing-detail-sub').textContent   = `${fileName} · FX rate ₼${fx}/USD · would update ${matches.length} of your ${products.length} products`;
   body.innerHTML = `
     <table class="pricing-comp-table" style="margin-bottom:14px;">
-      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Imported price (AZN)</th></tr></thead>
+      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Sale (USD → AZN)</th></tr></thead>
       <tbody>${sampleRows}</tbody>
     </table>
     ${moreNote}
@@ -6000,7 +6001,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
       const p = m.product;
       if (m.row.cost != null && m.row.cost > 0) p.cost = m.row.cost;
       if (m.row.price != null && m.row.price > 0 && p.cost > 0) {
-        const priceUsd = m.row.price / fx;
+        const priceUsd = m.row.price; // sale price is in USD
         p.markup = +(((priceUsd - p.cost) / p.cost) * 100).toFixed(1);
       }
     }
