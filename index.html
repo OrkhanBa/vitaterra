@@ -1835,19 +1835,23 @@
     <div id="admin-tab-sales-log" class="hidden">
       <div class="table-wrap">
         <div class="table-header">
-          <div class="table-title">Sales History</div>
-          <button class="btn-add" onclick="clearSalesLog()">Clear Log</button>
+          <div class="table-title">Satış Tarixçəsi</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="restoreOriginalStock()">🔄 Stock-u sıfırla</button>
+            <button class="btn-add" onclick="clearSalesLog()">Hamısını sil</button>
+          </div>
         </div>
         <div style="overflow-x:auto;">
           <table>
             <thead>
               <tr>
-                <th>Date & Time</th>
-                <th>Product</th>
-                <th>Qty Sold</th>
-                <th>Unit Price (₼)</th>
-                <th>Total (₼)</th>
-                <th>Sales Person</th>
+                <th>Tarix</th>
+                <th>Məhsul</th>
+                <th>Sayı</th>
+                <th>Vahid Qiyməti (₼)</th>
+                <th>Cəmi (₼)</th>
+                <th>Satıcı / Müştəri</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="sales-log-tbody"></tbody>
@@ -2303,8 +2307,8 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Unit (e.g. L, kg, 5L bottle)</label>
-          <input class="form-input" id="fp-unit" placeholder="e.g. 1L bottle"/>
+          <label class="form-label">Paketləmə (məs. 1 l, 500 g, 5 kg)</label>
+          <input class="form-input" id="fp-unit" placeholder="məs. 1 l və ya 500 g" oninput="updatePriceCalc()"/>
         </div>
         <div class="form-group">
           <label class="form-label">Stock Quantity *</label>
@@ -2322,10 +2326,11 @@
         </div>
       </div>
       <div class="price-calc" id="price-calc">
-        <div class="price-calc-title">💰 Pricing Preview</div>
-        <div class="price-row"><span class="price-label">Cost Price</span><span class="price-val" id="calc-cost">₼0.00</span></div>
-        <div class="price-row"><span class="price-label">Markup Amount</span><span class="price-val" id="calc-markup-amt">₼0.00</span></div>
-        <div class="price-row total"><span class="price-label">Sale Price</span><span class="price-val" id="calc-sale">₼0.00</span></div>
+        <div class="price-calc-title">💰 Qiymət Hesabı (vahid: 1 kq / 1 L)</div>
+        <div class="price-row"><span class="price-label">Maya dəyəri</span><span class="price-val" id="calc-cost">$0.00</span></div>
+        <div class="price-row"><span class="price-label">Markup məbləği</span><span class="price-val" id="calc-markup-amt">$0.00</span></div>
+        <div class="price-row total"><span class="price-label">Satış qiyməti / vahid</span><span class="price-val" id="calc-sale">$0.00</span></div>
+        <div class="price-row total" id="calc-pack-row" style="display:none;background:rgba(201,168,76,0.1);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" id="calc-pack-label" style="font-weight:600;color:var(--green-dark);">Paket üzrə</span><span class="price-val" id="calc-pack-val" style="color:var(--green-dark);font-size:17px;">$0.00</span></div>
       </div>
     </div>
     <div class="form-modal-footer">
@@ -2826,10 +2831,16 @@ function renderAdminTable(filter) {
   const tbody = document.getElementById('admin-tbody');
   if(!tbody) return;
   tbody.innerHTML = filtered.map(p => {
-    const sp = salePrice(p);
-    const cost   = parseFloat(p.cost)   || 0;
-    const markup = parseFloat(p.markup) || 0;
-    const stock  = parseInt(p.stock)    || 0;
+    const cost     = parseFloat(p.cost)   || 0;  // per kg/L (base unit)
+    const markup   = parseFloat(p.markup) || 0;
+    const stock    = parseInt(p.stock)    || 0;
+    const spUnit   = salePrice(p);                // sale price per kg/L
+    const rawPack  = packagingForProduct(p);
+    const mult     = packMultiplier(rawPack);     // e.g. 0.5 for "500 g"
+    const packCost = cost * mult;                 // per package
+    const packSale = spUnit * mult;               // per package
+    const packLbl  = (p.unit && p.unit !== 'unit') ? p.unit : (rawPack || '');
+    const perPack  = packLbl ? ` <span style="font-size:10px;color:var(--text-light);font-weight:400;">/ ${packLbl}</span>` : '';
     return `<tr id="row-${p.id}">
       <td style="width:40px;">
         <div class="cb-wrap">
@@ -2843,10 +2854,10 @@ function renderAdminTable(filter) {
       </td>
       <td><strong>${p.name||'\u2014'}</strong></td>
       <td>${CATEGORY_ICONS[p.category]||'📦'} ${p.category||'Other'}</td>
-      <td style="color:var(--text-light);font-style:italic;">$${cost.toFixed(2)}</td>
+      <td style="color:var(--text-light);font-style:italic;" title="Vahid: $${cost.toFixed(2)} / ${mult > 0 ? (mult >= 1 ? mult + ' kq/L' : (mult*1000) + ' q/ml') : 'unit'}">$${packCost.toFixed(2)}${perPack}</td>
       <td>${markup}%</td>
-      <td><strong>$${sp.toFixed(2)}</strong></td>
-      <td>${(p.unit && p.unit !== 'unit') ? p.unit : (packagingForProduct(p) || '\u2014')}</td>
+      <td><strong title="Vahid: $${spUnit.toFixed(2)}">$${packSale.toFixed(2)}${perPack}</strong></td>
+      <td>${packLbl || '\u2014'}</td>
       <td>${stock}</td>
       <td>${statusBadge(stock)}</td>
       <td><div class="action-btns">
@@ -3037,10 +3048,25 @@ function closeProductForm() { document.getElementById('product-form-modal').clas
 function updatePriceCalc() {
   const cost   = parseFloat(document.getElementById('fp-cost').value)||0;
   const markup = parseFloat(document.getElementById('fp-markup').value)||0;
+  const unit   = document.getElementById('fp-unit').value || '';
+  const mult   = packMultiplier(unit) || 1;
   const markupAmt = cost * markup / 100;
+  const sale = cost + markupAmt;
+  // Per kg/L (base unit)
   document.getElementById('calc-cost').textContent       = '$' + cost.toFixed(2);
   document.getElementById('calc-markup-amt').textContent = '$' + markupAmt.toFixed(2);
-  document.getElementById('calc-sale').textContent       = '$' + (cost + markupAmt).toFixed(2);
+  document.getElementById('calc-sale').textContent       = '$' + sale.toFixed(2);
+  // Per package (if defined and != 1)
+  const packEl = document.getElementById('calc-pack-row');
+  if(packEl) {
+    if(unit && mult && mult !== 1) {
+      packEl.style.display = 'flex';
+      document.getElementById('calc-pack-label').textContent = 'Paket üzrə (' + unit + ')';
+      document.getElementById('calc-pack-val').textContent   = '$' + (sale * mult).toFixed(2);
+    } else {
+      packEl.style.display = 'none';
+    }
+  }
 }
 
 function saveProduct() {
@@ -3176,7 +3202,7 @@ function renderSalesLog() {
   const sales = getSales();
   const tbody = document.getElementById('sales-log-tbody');
   if(!tbody) return;
-  if(!sales.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:32px;">No sales recorded yet.</td></tr>';return;}
+  if(!sales.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:32px;">Hələ satış qeydə alınmayıb.</td></tr>';return;}
   tbody.innerHTML=[...sales].reverse().map(s=>`<tr>
     <td>${new Date(s.ts).toLocaleString()}</td>
     <td><strong>${s.productName}</strong></td>
@@ -3184,15 +3210,68 @@ function renderSalesLog() {
     <td>$${s.unitPrice.toFixed(2)}</td>
     <td><strong>$${s.total.toFixed(2)}</strong></td>
     <td>${s.customer||s.salesperson||'\u2014'}</td>
+    <td><button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button></td>
   </tr>`).join('');
 }
 
+// Delete a single sale from admin log AND restore the product stock
+function adminDeleteSale(ts) {
+  const sales = getSales();
+  const idx = sales.findIndex(x => String(x.ts) === String(ts));
+  if(idx < 0) return;
+  const s = sales[idx];
+  if(!confirm(`Bu satışı silmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
+
+  // Restore stock
+  const products = getProducts();
+  const pIdx = products.findIndex(p => p.id === s.productId);
+  if(pIdx >= 0) { products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0); saveProducts(products); }
+
+  sales.splice(idx, 1);
+  saveSales(sales);
+  renderSalesLog();
+  renderAdminDash();
+  renderPublicProducts();
+  showToast(`Satış silindi. ${s.qty} ədəd stock-a qaytarıldı.`);
+}
+
 function clearSalesLog() {
-  if(!confirm('Clear all sales history?')) return;
+  const sales = getSales();
+  if(!sales.length) return;
+  if(!confirm(`Bütün satış tarixçəsini silmək və ${sales.length} satışdan stock-ları geri qaytarmaq?`)) return;
+
+  // Restore stock for every sale
+  const products = getProducts();
+  sales.forEach(s => {
+    const pIdx = products.findIndex(p => p.id === s.productId);
+    if(pIdx >= 0) products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0);
+  });
+  saveProducts(products);
   saveSales([]);
   renderSalesLog();
-  renderAdminKPIs();
-  showToast('Sales log cleared.');
+  renderAdminDash();
+  renderPublicProducts();
+  showToast(`Sales log təmizləndi. Bütün stock-lar geri qaytarıldı.`);
+}
+
+// One-off recovery: restore stock to original PRODUCTS_DATA quantity
+// (only for products where current stock differs from baseline).
+function restoreOriginalStock() {
+  if(typeof PRODUCTS_DATA === 'undefined') { showToast('PRODUCTS_DATA tapılmadı.', true); return; }
+  if(!confirm('Bütün məhsulları PRODUCTS_DATA-dakı orijinal stock dəyərlərinə qaytarmaq?\n\nBu mövcud satışları silməyəcək, yalnız stock-u sıfırlayacaq.')) return;
+  const products = getProducts();
+  let restored = 0;
+  PRODUCTS_DATA.forEach(d => {
+    const idx = products.findIndex(p => p.id === d.id);
+    if(idx >= 0 && d.quantity != null && products[idx].stock !== d.quantity) {
+      products[idx].stock = d.quantity;
+      restored++;
+    }
+  });
+  saveProducts(products);
+  renderAdminDash();
+  renderPublicProducts();
+  showToast(`${restored} məhsulun stock-u orijinal dəyərinə qaytarıldı.`);
 }
 
 // ═══════════════════════════════════════════════════════
