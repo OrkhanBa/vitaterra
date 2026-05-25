@@ -618,7 +618,8 @@
   .sale-form-card { background:var(--white); border-radius:14px; border:1px solid var(--border); padding:28px; box-shadow:var(--shadow); margin-bottom:24px; }
   .sale-form-title { font-family:'Playfair Display',serif; font-size:20px; color:var(--green-dark); margin-bottom:20px; }
   .sale-product-select {
-    display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; max-height:360px; overflow-y:auto;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; margin-bottom:20px;
+    max-height:calc(100vh - 280px); overflow-y:auto; padding-right:8px;
   }
   .sale-product-item {
     border:2px solid var(--border); border-radius:10px; padding:14px;
@@ -1116,6 +1117,7 @@
     .vse-sidebar { max-height:50vh; }
   }
   .sales-layout-grid { display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start; }
+  #sales-view .dash-body { max-width:none; padding:24px 32px; }
   .editor-layout-grid { display:grid; grid-template-columns:220px 1fr; gap:24px; align-items:start; }
   .sale-summary-sticky { position:sticky; top:80px; }
 
@@ -1749,8 +1751,8 @@
     </div>
     <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
     <button class="btn-secondary" style="width:100%;" onclick="closeLogin()">Cancel</button>
-    <p style="text-align:center;font-size:12px;color:var(--text-light);margin-top:16px;">
-      Demo: admin / admin123 &nbsp;|&nbsp; sales / sales123
+    <p id="login-hint" style="text-align:center;font-size:12px;color:var(--text-light);margin-top:16px;">
+      Admin: admin / admin123
     </p>
   </div>
 </div>
@@ -1834,25 +1836,43 @@
 
     <!-- Sales Log Tab -->
     <div id="admin-tab-sales-log" class="hidden">
-      <div class="table-wrap">
+
+      <!-- Salespeople management -->
+      <div class="table-wrap" style="margin-bottom:18px;">
         <div class="table-header">
+          <div class="table-title">👥 Satış Əməkdaşları</div>
+          <button class="btn-add" onclick="openSalesUserModal()">+ Yeni əməkdaş</button>
+        </div>
+        <div style="padding:0 4px;">
+          <div id="sales-users-list" style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;"></div>
+        </div>
+      </div>
+
+      <!-- Sales log -->
+      <div class="table-wrap">
+        <div class="table-header" style="flex-wrap:wrap;gap:10px;">
           <div class="table-title">Satış Tarixçəsi</div>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="sales-log-filter" class="search-input" style="min-width:180px;" onchange="renderSalesLog()">
+              <option value="">Bütün satıcılar</option>
+            </select>
             <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="restoreOriginalStock()">🔄 Stock-u sıfırla</button>
             <button class="btn-add" onclick="clearSalesLog()">Hamısını sil</button>
           </div>
         </div>
+        <div id="sales-totals-by-user" style="padding:14px 22px 4px;display:flex;flex-wrap:wrap;gap:14px;"></div>
         <div style="overflow-x:auto;">
           <table>
             <thead>
               <tr>
                 <th>Tarix</th>
+                <th>Satıcı</th>
                 <th>Məhsul</th>
                 <th>Sayı</th>
-                <th>Vahid Qiyməti (₼)</th>
-                <th>Cəmi (₼)</th>
-                <th>Satıcı / Müştəri</th>
-                <th></th>
+                <th>Vahid Qiyməti</th>
+                <th>Cəmi</th>
+                <th>Müştəri</th>
+                <th>Əməliyyatlar</th>
               </tr>
             </thead>
             <tbody id="sales-log-tbody"></tbody>
@@ -2165,7 +2185,7 @@
       <div class="dash-role-badge" data-en="Sales Portal" data-az="Satış Portalı">Sales Portal</div>
     </div>
     <div class="dash-nav-right">
-      <span class="dash-user">👤 Sales Team</span>
+      <span class="dash-user" id="sales-user-name">👤 Sales Team</span>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
   </div>
@@ -2357,8 +2377,31 @@ var vseRefreshTimer = null;
 // ═══════════════════════════════════════════════════════
 // DATA STORE
 // ═══════════════════════════════════════════════════════
-const PRODUCTS_KEY = 'vt_products';
-const SALES_KEY    = 'vt_sales';
+const PRODUCTS_KEY    = 'vt_products';
+const SALES_KEY       = 'vt_sales';
+const SALES_USERS_KEY = 'vt_sales_users';
+const CURRENT_USER_KEY = 'vt_current_user';
+
+// Default sales users — admin can add more from the Sales Log tab.
+const DEFAULT_SALES_USERS = [
+  { username: 'sales',  password: 'sales123', name: 'Sales Team' },
+];
+
+function getSalesUsers() {
+  try {
+    const d = localStorage.getItem(SALES_USERS_KEY);
+    return d ? JSON.parse(d) : DEFAULT_SALES_USERS.slice();
+  } catch(e) { return DEFAULT_SALES_USERS.slice(); }
+}
+function saveSalesUsers(arr) { localStorage.setItem(SALES_USERS_KEY, JSON.stringify(arr)); }
+function getCurrentSalesUser() {
+  try { return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null'); }
+  catch(e) { return null; }
+}
+function setCurrentSalesUser(u) {
+  if(u) sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
+  else  sessionStorage.removeItem(CURRENT_USER_KEY);
+}
 
 const CATEGORY_ICONS = {
   'Herbicide':        '🌿',
@@ -2532,6 +2575,7 @@ function showView(v) {
   document.getElementById(v+'-view').classList.add('active');
   currentView = v;
   window.scrollTo(0,0);
+  if(v === 'sales') updateSalesHeader();
 }
 function scrollTo_(id) {
   const el = document.querySelector(id);
@@ -2577,26 +2621,64 @@ function openLogin(role) {
   document.getElementById('login-error').classList.remove('show');
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
+  updateLoginHint(role);
 }
 function closeLogin() { document.getElementById('login-modal').classList.remove('open'); }
+function updateLoginHint(role) {
+  const hint = document.getElementById('login-hint');
+  if(!hint) return;
+  if(role === 'admin') hint.textContent = 'Admin: admin / admin123';
+  else hint.textContent = 'Satıcı girişi — şəxsi istifadəçi adınızı və şifrənizi daxil edin.';
+}
 function setLoginRole(role, btn) {
   loginTargetRole = role;
   document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('login-role-label').textContent = role === 'admin' ? 'Admin Dashboard Access' : 'Sales Team Access';
+  updateLoginHint(role);
 }
 function doLogin() {
   const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value;
   const err  = document.getElementById('login-error');
-  if((loginTargetRole==='admin'&&user==='admin'&&pass==='admin123')||
-     (loginTargetRole==='sales'&&user==='sales'&&pass==='sales123')) {
-    closeLogin();
-    if(loginTargetRole==='admin') { showView('admin'); renderAdminDash(); }
-    else { showView('sales'); renderSalesView(); }
-  } else { err.classList.add('show'); }
+
+  if(loginTargetRole === 'admin') {
+    if(user === 'admin' && pass === 'admin123') {
+      closeLogin();
+      showView('admin');
+      renderAdminDash();
+      return;
+    }
+    err.classList.add('show');
+    return;
+  }
+
+  if(loginTargetRole === 'sales') {
+    const users = getSalesUsers();
+    const match = users.find(u => u.username === user && u.password === pass);
+    if(match) {
+      setCurrentSalesUser({ username: match.username, name: match.name || match.username });
+      closeLogin();
+      showView('sales');
+      renderSalesView();
+      updateSalesHeader();
+      return;
+    }
+    err.classList.add('show');
+    return;
+  }
 }
-function logout() { showView('public'); }
+function logout() {
+  setCurrentSalesUser(null);
+  showView('public');
+}
+
+// Update the salesperson name + avatar in the sales portal header
+function updateSalesHeader() {
+  const u = getCurrentSalesUser();
+  const nameEl = document.getElementById('sales-user-name');
+  if(nameEl && u) nameEl.textContent = '👤 ' + (u.name || u.username);
+}
 
 // ═══════════════════════════════════════════════════════
 // PUBLIC WEBSITE \u2014 PRODUCTS
@@ -3216,16 +3298,176 @@ function renderSalesLog() {
   const sales = getSales();
   const tbody = document.getElementById('sales-log-tbody');
   if(!tbody) return;
-  if(!sales.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:32px;">Hələ satış qeydə alınmayıb.</td></tr>';return;}
-  tbody.innerHTML=[...sales].reverse().map(s=>`<tr>
+
+  renderSalesUsers();
+  populateSalesFilter();
+  renderSalesTotalsByUser(sales);
+
+  const filterEl = document.getElementById('sales-log-filter');
+  const filterUser = filterEl ? filterEl.value : '';
+  const filtered = filterUser
+    ? sales.filter(s => (s.salespersonUsername || s.salesperson || '') === filterUser)
+    : sales;
+
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">Hələ satış qeydə alınmayıb.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = [...filtered].reverse().map(s => `<tr>
     <td>${new Date(s.ts).toLocaleString()}</td>
-    <td><strong>${s.productName}</strong></td>
+    <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(s.salesperson || 'Sales Team')}</span></td>
+    <td><strong>${escapeHtml(s.productName)}</strong></td>
     <td>${s.qty}</td>
-    <td>$${s.unitPrice.toFixed(2)}</td>
-    <td><strong>$${s.total.toFixed(2)}</strong></td>
-    <td>${s.customer||s.salesperson||'\u2014'}</td>
-    <td><button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button></td>
+    <td>$${(+s.unitPrice).toFixed(2)}</td>
+    <td><strong>$${(+s.total).toFixed(2)}</strong></td>
+    <td>${escapeHtml(s.customer || '\u2014')}</td>
+    <td style="white-space:nowrap;">
+      <button class="btn-add" style="padding:5px 10px;font-size:12px;" onclick="adminEditSale('${s.ts}')">✏️ Redaktə</button>
+      <button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button>
+    </td>
   </tr>`).join('');
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function populateSalesFilter() {
+  const sel = document.getElementById('sales-log-filter');
+  if(!sel) return;
+  const sales = getSales();
+  const seen = {};
+  sales.forEach(s => {
+    const key = s.salespersonUsername || s.salesperson || '';
+    if(key && !seen[key]) seen[key] = s.salesperson || key;
+  });
+  const prev = sel.value;
+  const opts = ['<option value="">Bütün satıcılar</option>']
+    .concat(Object.keys(seen).map(k => `<option value="${escapeHtml(k)}">${escapeHtml(seen[k])}</option>`));
+  sel.innerHTML = opts.join('');
+  if(prev && seen[prev]) sel.value = prev;
+}
+
+function renderSalesTotalsByUser(sales) {
+  const wrap = document.getElementById('sales-totals-by-user');
+  if(!wrap) return;
+  const totals = {};
+  sales.forEach(s => {
+    const key = s.salespersonUsername || s.salesperson || 'sales';
+    const name = s.salesperson || key;
+    if(!totals[key]) totals[key] = { name, count: 0, total: 0 };
+    totals[key].count += (+s.qty) || 0;
+    totals[key].total += (+s.total) || 0;
+  });
+  const keys = Object.keys(totals);
+  if(!keys.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = keys.map(k => `
+    <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:160px;">
+      <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(totals[k].name)}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--green-dark);">$${totals[k].total.toFixed(2)}</div>
+      <div style="font-size:12px;color:var(--text-light);">${totals[k].count} satış vahidi</div>
+    </div>`).join('');
+}
+
+// ─── Sales users management ────────────────────────────────
+function renderSalesUsers() {
+  const wrap = document.getElementById('sales-users-list');
+  if(!wrap) return;
+  const users = getSalesUsers();
+  if(!users.length){
+    wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;">Hələ əməkdaş yoxdur. Yeni əməkdaş əlavə edin.</div>';
+    return;
+  }
+  wrap.innerHTML = users.map((u, i) => `
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--green-dark);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
+      <div>
+        <div style="font-weight:600;color:var(--green-dark);">${escapeHtml(u.name || u.username)}</div>
+        <div style="font-size:12px;color:var(--text-light);">@${escapeHtml(u.username)} · şifrə: ${escapeHtml(u.password)}</div>
+      </div>
+      <div style="display:flex;gap:4px;margin-left:8px;">
+        <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="openSalesUserModal(${i})">✏️</button>
+        <button class="btn-del" style="padding:4px 10px;font-size:12px;" onclick="deleteSalesUser(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function openSalesUserModal(idx) {
+  const users = getSalesUsers();
+  const editing = (typeof idx === 'number' && idx >= 0);
+  const u = editing ? users[idx] : { username:'', password:'', name:'' };
+  const name = prompt('Əməkdaşın adı:', u.name || '');
+  if(name == null) return;
+  const username = prompt('İstifadəçi adı (login):', u.username || '');
+  if(username == null) return;
+  const password = prompt('Şifrə:', u.password || '');
+  if(password == null) return;
+  if(!name.trim() || !username.trim() || !password.trim()) { showToast('Bütün sahələri doldurun.', true); return; }
+  const dup = users.findIndex((x, i) => x.username === username.trim() && i !== idx);
+  if(dup >= 0) { showToast('Bu istifadəçi adı artıq mövcuddur.', true); return; }
+  const entry = { username: username.trim(), password: password.trim(), name: name.trim() };
+  if(editing) users[idx] = entry; else users.push(entry);
+  saveSalesUsers(users);
+  renderSalesUsers();
+  showToast(editing ? 'Əməkdaş yeniləndi.' : 'Əməkdaş əlavə edildi.');
+}
+
+function deleteSalesUser(idx) {
+  const users = getSalesUsers();
+  if(!users[idx]) return;
+  if(!confirm(`"${users[idx].name || users[idx].username}" əməkdaşını silmək istəyirsiniz?`)) return;
+  users.splice(idx, 1);
+  saveSalesUsers(users);
+  renderSalesUsers();
+  showToast('Əməkdaş silindi.');
+}
+
+// ─── Edit sale entry ───────────────────────────────────────
+function adminEditSale(ts) {
+  const sales = getSales();
+  const idx = sales.findIndex(x => String(x.ts) === String(ts));
+  if(idx < 0) return;
+  const s = sales[idx];
+
+  const newQtyStr = prompt(`Sayı (mövcud: ${s.qty}):`, String(s.qty));
+  if(newQtyStr == null) return;
+  const newQty = parseFloat(newQtyStr);
+  if(!(newQty > 0)) { showToast('Sayı 0-dan böyük olmalıdır.', true); return; }
+
+  const newPriceStr = prompt(`Vahid qiyməti $ (mövcud: ${(+s.unitPrice).toFixed(2)}):`, String(s.unitPrice));
+  if(newPriceStr == null) return;
+  const newPrice = parseFloat(newPriceStr);
+  if(!(newPrice >= 0)) { showToast('Qiymət düzgün deyil.', true); return; }
+
+  const newCustomer = prompt('Müştəri adı:', s.customer || '');
+  if(newCustomer == null) return;
+
+  // Adjust stock by the qty delta (oldQty - newQty), so reducing qty restores stock
+  const products = getProducts();
+  const pIdx = products.findIndex(p => p.id === s.productId);
+  if(pIdx >= 0) {
+    const delta = (+s.qty) - newQty;
+    products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + delta;
+    if(products[pIdx].stock < 0) {
+      if(!confirm('Diqqət: Stock mənfi olacaq. Davam edək?')) return;
+    }
+    saveProducts(products);
+  }
+
+  sales[idx] = Object.assign({}, s, {
+    qty: newQty,
+    unitPrice: newPrice,
+    total: newQty * newPrice,
+    customer: newCustomer.trim()
+  });
+  saveSales(sales);
+  renderSalesLog();
+  renderAdminDash();
+  renderPublicProducts();
+  showToast('Satış redaktə edildi.');
 }
 
 // Delete a single sale from admin log AND restore the product stock
@@ -3490,6 +3732,9 @@ function confirmSale() {
   const sales = getSales();
   const customer = document.getElementById('sale-customer').value.trim();
   const ts = Date.now();
+  const currentUser = getCurrentSalesUser();
+  const sellerName = currentUser ? (currentUser.name || currentUser.username) : 'Sales Team';
+  const sellerUsername = currentUser ? currentUser.username : 'sales';
   let confirmed = 0;
 
   ids.forEach(id => {
@@ -3502,7 +3747,7 @@ function confirmSale() {
     const unitPrice = item.customPrice;
     const total = unitPrice * qty;
     products[pIdx].stock -= qty;
-    sales.push({ ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: 'Sales Team' });
+    sales.push({ ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: sellerName, salespersonUsername: sellerUsername });
     confirmed++;
   });
 
@@ -3531,7 +3776,12 @@ function renderMySales() {
   const sales = getSales();
   const list = document.getElementById('my-sales-list');
   if(!list) return;
-  const recent = [...sales].reverse().slice(0,20);
+  const me = getCurrentSalesUser();
+  const myKey = me ? me.username : null;
+  const mine = myKey
+    ? sales.filter(s => (s.salespersonUsername || '') === myKey || (!s.salespersonUsername && (s.salesperson || '') === me.name))
+    : sales;
+  const recent = [...mine].reverse().slice(0,20);
   if(!recent.length){list.innerHTML='<div style="color:var(--text-light);font-size:13px;text-align:center;padding:12px;">No sales yet.</div>';return;}
   list.innerHTML = recent.map(s=>
     `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -5144,6 +5394,7 @@ function adminTab(tab, btn) {
   });
   if(tab === 'site-editor') { setTimeout(vseInit, 80); }
   if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
+  if(tab === 'sales-log')   { renderSalesLog(); }
 }
 
 function vseInit() {
