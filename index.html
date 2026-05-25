@@ -1793,6 +1793,7 @@
               <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importExcel(event)"/>
             </label>
             <button class="btn-markup" onclick="openGlobalMarkup()">📊 Global Markup</button>
+            <button class="btn-markup" onclick="clearAllProductImages()" title="Bütün məhsulların şəkillərini siler">🗑️ Şəkilləri sıfırla</button>
             <button class="btn-add" onclick="openProductForm()">+ Add Product</button>
           </div>
         </div>
@@ -3109,6 +3110,19 @@ function deleteProduct(id) {
   renderAdminDash();
   renderPublicProducts();
   showToast('Product deleted.');
+}
+
+// Clear all product images (resets to default category icon)
+function clearAllProductImages() {
+  const products = getProducts();
+  const withImg  = products.filter(p => p.image).length;
+  if(!withImg) { showToast('Heç bir məhsulda şəkil yoxdur.'); return; }
+  if(!confirm(`${withImg} məhsulun şəkilini silmək istəyirsiniz?\n\nMəhsullar default ikon ilə göstəriləcək. 3D şəkilləri sonradan birər-birər redaktə formasından yükləyə bilərsiniz.`)) return;
+  products.forEach(p => { p.image = ''; });
+  saveProducts(products);
+  renderAdminDash();
+  renderPublicProducts();
+  showToast(`${withImg} məhsulun şəkili silindi.`);
 }
 
 // ═══════════════════════════════════════════════════════
