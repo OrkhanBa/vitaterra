@@ -2459,7 +2459,7 @@ function renderPublicProducts(filter) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${p.desc||'Premium Cerrado Sol formulation.'}</p>
+        <p class="product-desc">${currentLang==='az' ? `Premium Cerrado Sol formulyasiyası. Aktiv maddə: ${p.activeIngredient||p.name}.` : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
@@ -2526,7 +2526,7 @@ function filterProducts(cat, btn) {
         <div class="product-category">${p.category}</div>`}
       </div>
       <div class="product-card-body">
-        <p class="product-desc">${p.desc||'Premium Cerrado Sol formulation.'}</p>
+        <p class="product-desc">${currentLang==='az' ? `Premium Cerrado Sol formulyasiyası. Aktiv maddə: ${p.activeIngredient||p.name}.` : (p.desc||'Premium Cerrado Sol formulation.')}</p>
         <div class="product-meta">
           ${p.unit?`<span class="product-meta-item">📦 ${p.unit}</span>`:''}
           ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
@@ -2553,7 +2553,7 @@ function openProductModal(id) {
         <button class="modal-close" onclick="closeProductModal()" style="position:absolute;top:12px;right:12px;">×</button>
         <div class="modal-icon" id="m-icon" style="display:none;"></div>
         <div class="modal-title" id="m-name">${p.name}</div>
-        <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, Spain</div>
+        <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, ${currentLang==='az'?'İspaniya':'Spain'}</div>
       </div>`;
   } else {
     mHeader.classList.remove('has-img');
@@ -2561,7 +2561,7 @@ function openProductModal(id) {
       <button class="modal-close" onclick="closeProductModal()">×</button>
       <div class="modal-icon" id="m-icon">${CATEGORY_ICONS[p.category]||'📦'}</div>
       <div class="modal-title" id="m-name">${p.name}</div>
-      <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, Spain</div>`;
+      <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, ${currentLang==='az'?'İspaniya':'Spain'}</div>`;
   }
   // Price badge in modal header — multiply unit price by pack size
   const modalUnitAzn  = salePriceAZN(p);
@@ -2575,35 +2575,45 @@ function openProductModal(id) {
   const mCatEl = document.getElementById('m-category');
   if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
 
+  const isAz = currentLang === 'az';
+  const descText = isAz
+    ? `Premium Cerrado Sol formulyasiyası. Aktiv maddə: ${p.activeIngredient || p.name}.`
+    : (p.desc || `Premium Cerrado Sol formulation. Active ingredient: ${p.activeIngredient || p.name}.`);
+  const usageSteps = isAz
+    ? ['Etiket göstərişlərinə əməl edin', 'Tövsiyə edilən normada tətbiq edin', 'Tətbiq zamanı tam qoruyucu avadanlıqdan istifadə edin', 'Orijinal qabda, sərin və quru yerdə saxlayın']
+    : (p.usage || 'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place.').split('. ').filter(s => s.trim());
+
   document.getElementById('m-body').innerHTML = `
-    <div class="modal-section-title">About this Product</div>
-    <p class="modal-text">${p.desc||'Premium agricultural product from Cerrado Sol, Spain.'}</p>
-    <div class="modal-section-title">${currentLang==='az'?'İstifadə Qaydası':'How to Use'}</div>
+    <div class="modal-section-title">${isAz ? 'Məhsul Haqqında' : 'About this Product'}</div>
+    <p class="modal-text">${descText}</p>
+    <div class="modal-section-title">${isAz ? 'İstifadə Qaydası' : 'How to Use'}</div>
     <div class="usage-steps">
-      ${(p.usage||'Follow label instructions.').split('. ').filter(s=>s.trim()).map((s,i)=>`
+      ${usageSteps.map((s,i) => `
         <div class="usage-step">
           <div class="step-num">${i+1}</div>
           <div class="step-text">${s.trim()}.</div>
         </div>`).join('')}
     </div>
     ${p.activeIngredient||p.formulation ? `
-    <div class="modal-section-title">${currentLang==='az'?'Texniki Xüsusiyyətlər':'Technical Specifications'}</div>
+    <div class="modal-section-title">${isAz ? 'Texniki Xüsusiyyətlər' : 'Technical Specifications'}</div>
     <div class="modal-specs">
-      ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${currentLang==='az'?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
-      ${p.formulation?`<div class="spec-item"><div class="spec-label">${currentLang==='az'?'Forma':'Formulation'}</div><div class="spec-value">${p.formulation}</div></div>`:''}
-      ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = currentLang==='az'?'Qablaşdırma':'Pack Size'; const val = currentLang==='az'?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
-      <div class="spec-item"><div class="spec-label">${currentLang==='az'?'Mənşə':'Origin'}</div><div class="spec-value">🇪🇸 İspaniya — Cerrado Sol</div></div>
+      ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${isAz?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
+      ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${p.formulation}</div></div>`:''}
+      ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = isAz?'Qablaşdırma':'Pack Size'; const val = isAz?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
+      <div class="spec-item"><div class="spec-label">${isAz?'Mənşə':'Origin'}</div><div class="spec-value">🇪🇸 İspaniya — Cerrado Sol</div></div>
     </div>` : ''}
-    <div class="modal-section-title">Safety & Compliance</div>
+    <div class="modal-section-title">${isAz ? 'Təhlükəsizlik və Uyğunluq' : 'Safety & Compliance'}</div>
     <div class="safety-grid">
-      <div class="safety-item">✅ EU Regulation Compliant</div>
-      <div class="safety-item">🧪 Tested & Certified</div>
-      <div class="safety-item">📋 Full SDS Available</div>
-      <div class="safety-item">🌍 Environmental Assessed</div>
+      <div class="safety-item">✅ ${isAz ? 'AB Tənzimləməsinə Uyğun' : 'EU Regulation Compliant'}</div>
+      <div class="safety-item">🧪 ${isAz ? 'Sınaqdan Keçirilmiş və Sertifikatlı' : 'Tested & Certified'}</div>
+      <div class="safety-item">📋 ${isAz ? 'Tam Təhlükəsizlik Vərəqi Mövcuddur' : 'Full SDS Available'}</div>
+      <div class="safety-item">🌍 ${isAz ? 'Ekoloji Qiymətləndirmə Aparılıb' : 'Environmental Assessed'}</div>
     </div>
     <div style="margin-top:24px;padding:16px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:10px;">
       <p style="font-size:13px;color:var(--text-mid);">
-        <strong>Interested in ordering?</strong> Contact our sales team at <strong>sales\u0040vitaterra.az</strong> or use the contact form below.
+        ${isAz
+          ? '<strong>Sifariş vermək istəyirsiniz?</strong> Satış komandamızla əlaqə saxlayın: <strong>sales@vitaterra.az</strong> və ya aşağıdakı əlaqə formasından istifadə edin.'
+          : '<strong>Interested in ordering?</strong> Contact our sales team at <strong>sales@vitaterra.az</strong> or use the contact form below.'}
       </p>
     </div>
   `;
