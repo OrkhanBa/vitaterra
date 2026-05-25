@@ -3675,46 +3675,23 @@ function fileToBase64(file) {
 }
 
 async function extractLabelWithAI(base64, filename) {
-  const prompt = `You are analyzing a pesticide/agrochemical product label PDF (may be in Russian or English). Extract the following information and respond ONLY with valid JSON, no markdown, no extra text:
-{
-  "name": "trade name / product name from label",
-  "activeIngredient": "active ingredient(s) with concentration",
-  "category": "one of: Herbicide, Insecticide, Fungicide, Growth Regulator, Fertilizer, Specialty",
-  "formulation": "formulation type e.g. SC, EC, WG, SL",
-  "desc": "2-3 sentence product description in English based on the label",
-  "usage": "key usage instructions in English in 2-3 sentences",
-  "target": "target pests or crops mentioned (English)",
-  "safetyInterval": "pre-harvest interval if mentioned",
-  "desc_az": "2-3 cümlə ilə Azərbaycan dilində məhsulun təsviri — nə üçün nəzərdə tutulduğunu və necə işlədiyini izah et",
-  "usage_az": "Azərbaycan dilində istifadə qaydası — doza, vaxt, metod — 2-3 cümlə",
-  "target_az": "Azərbaycan dilində: hansı bitkilər üçün nəzərdə tutulub və hansı zərərvericiləri/xəstəlikləri məhv edir",
-  "rawText": "first 200 chars of extracted text for reference"
-}`;
-
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/.netlify/functions/extract-label', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: prompt }
-          ]
-        }]
-      })
+      body: JSON.stringify({ base64, filename })
     });
-    const data = await response.json();
-    const text = (data.content || []).map(b => b.text || '').join('');
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      console.error('Label extraction failed:', response.status, errBody);
+      throw new Error(errBody.error || ('HTTP ' + response.status));
+    }
+    return await response.json();
   } catch(err) {
-    // Fallback: parse from filename
-    const name = filename.replace('.pdf','').replace(/_/g,' ').replace(/-/g,' ');
-    return { name, activeIngredient: '', category: 'Other', desc: '', usage: '', rawText: '' };
+    console.error('extractLabelWithAI error:', err);
+    // Fallback: parse from filename so name-based matching still works
+    const name = filename.replace(/\.pdf$/i,'').replace(/[_-]/g,' ');
+    return { name, activeIngredient: '', category: 'Other', desc: '', usage: '', rawText: '', _error: String(err.message || err) };
   }
 }
 
