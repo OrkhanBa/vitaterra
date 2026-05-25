@@ -1240,6 +1240,57 @@
     padding:20px 24px; margin-bottom:20px; display:none;
   }
   .processing-bar.visible { display:block; }
+
+  /* ─── IMAGE LABELS SECTION ─── */
+  .img-labels-divider {
+    display:flex; align-items:center; gap:16px;
+    margin:32px 0 24px; color:var(--text-light); font-size:12px;
+    text-transform:uppercase; letter-spacing:1px; font-weight:600;
+  }
+  .img-labels-divider::before, .img-labels-divider::after {
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+  .img-upload-zone-batch {
+    border:2px dashed var(--border); border-radius:16px;
+    padding:48px 32px; text-align:center; cursor:pointer;
+    transition:all 0.25s; background:var(--white); position:relative;
+    margin-bottom:24px;
+  }
+  .img-upload-zone-batch:hover, .img-upload-zone-batch.drag-over {
+    border-color:var(--gold); background:rgba(201,168,76,0.04);
+  }
+  .img-lbl-queue { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
+  .img-lbl-item {
+    background:var(--white); border:1px solid var(--border); border-radius:12px;
+    padding:14px 18px; display:flex; align-items:center; gap:14px;
+    box-shadow:var(--shadow);
+  }
+  .img-lbl-thumb {
+    width:72px; height:52px; object-fit:cover; border-radius:8px;
+    flex-shrink:0; border:1px solid var(--border);
+  }
+  .img-lbl-thumb-placeholder {
+    width:72px; height:52px; border-radius:8px; flex-shrink:0;
+    border:1px solid var(--border); background:var(--cream);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+  }
+  .img-lbl-info { flex:1; min-width:0; }
+  .img-lbl-name { font-weight:600; font-size:13px; color:var(--text-dark); margin-bottom:4px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .img-lbl-status { font-size:12px; }
+  .img-lbl-actions { margin-left:auto; display:flex; gap:8px; align-items:center; flex-shrink:0; }
+  .img-lbl-select {
+    padding:6px 10px; border:1px solid var(--border); border-radius:6px;
+    font-size:12px; font-family:'DM Sans',sans-serif; outline:none; max-width:210px;
+  }
+  .btn-apply-img {
+    padding:7px 14px; background:var(--gold); color:var(--green-dark);
+    border:none; border-radius:6px; font-size:12px; font-weight:700;
+    cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; white-space:nowrap;
+  }
+  .btn-apply-img:hover { background:var(--gold-light); }
+  .btn-apply-img:disabled { opacity:0.4; cursor:not-allowed; }
   .progress-track {
     background:#eee; border-radius:100px; height:8px; margin-top:10px; overflow:hidden;
   }
@@ -1862,6 +1913,39 @@
           <div style="font-size:13px;color:var(--text-light);" id="pdf-apply-summary">0 labels matched and ready</div>
         </div>
         <button class="btn-apply-all" onclick="applyAllLabels()">✅ Apply All Matched Labels</button>
+      </div>
+
+      <!-- ─── IMAGE LABELS SECTION ─── -->
+      <div class="img-labels-divider">🖼️ Məhsul Şəkil Labelləri</div>
+
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--text-mid);line-height:1.6;">
+        <strong style="color:var(--green-dark);">Rus/İngilis dilindəki label şəkillərini yükləyin.</strong>
+        Şəkillər avtomatik olaraq məhsul adına görə uyğunlaşdırılacaq. Düzgün uyğunlaşmadıqda özünüz seçə bilərsiniz. Tətbiq etdikdən sonra həmin şəkil məhsulun kataloq fotosuna çevriləcək.
+      </div>
+
+      <!-- Upload zone -->
+      <div class="img-upload-zone-batch" id="img-lbl-drop-zone"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleImgLblDrop(event)">
+        <label style="cursor:pointer;display:block;">
+          <div class="pdf-upload-icon">🖼️</div>
+          <div class="pdf-upload-title">Şəkil Labelləri Yükləyin</div>
+          <div class="pdf-upload-sub">JPG, PNG, WebP fayllarını bura sürükləyin və ya klikləyin<br/>Bir neçə şəkli eyni anda seçə bilərsiniz</div>
+          <input type="file" accept="image/*" multiple style="display:none;" onchange="handleImgLblFiles(event)"/>
+        </label>
+      </div>
+
+      <!-- Image label queue -->
+      <div class="img-lbl-queue" id="img-lbl-queue"></div>
+
+      <!-- Apply all -->
+      <div id="img-lbl-apply-bar" style="display:none;padding:20px;background:var(--white);border-radius:14px;border:1px solid rgba(201,168,76,0.4);box-shadow:var(--shadow);align-items:center;justify-content:space-between;gap:16px;">
+        <div>
+          <div style="font-weight:600;font-size:15px;color:var(--green-dark);">Tətbiqə hazırdır</div>
+          <div style="font-size:13px;color:var(--text-light);" id="img-lbl-apply-summary">0 şəkil uyğunlaşdırılıb</div>
+        </div>
+        <button class="btn-apply-all" style="background:var(--gold);color:var(--green-dark);" onclick="imgLblApplyAll()">🖼️ Hamısını Tətbiq Et</button>
       </div>
 
     </div>
@@ -2599,7 +2683,7 @@ function openProductModal(id) {
     <div class="modal-section-title">${isAz ? 'Texniki Xüsusiyyətlər' : 'Technical Specifications'}</div>
     <div class="modal-specs">
       ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${isAz?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
-      ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${p.formulation}</div></div>`:''}
+      ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${isAz ? ({'WG':'Suda dağılan qranul','SC':'Suspenziya konsentratı','EC':'Emulsiyalaşan konsentrat','SL':'Həll olunan maye','WP':'Islanıla bilən toz','CS':'Kapsul suspenziyası','SE':'Suspoemulsiya','EW':'Emulsiya','FS':'Toxum işləmə suspenziyası','DC':'Dispersiyalaşan konsentrat'}[p.formulation.toUpperCase()] || p.formulation) : p.formulation}</div></div>`:''}
       ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = isAz?'Qablaşdırma':'Pack Size'; const val = isAz?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
       <div class="spec-item"><div class="spec-label">${isAz?'Mənşə':'Origin'}</div><div class="spec-value">İspaniya</div></div>
     </div>` : ''}
@@ -3604,6 +3688,173 @@ function applyLabelToProduct(item) {
   if(p.target)          products[idx].target          = p.target;
   if(p.safetyInterval)  products[idx].safetyInterval  = p.safetyInterval;
   saveProducts(products);
+}
+
+// ═══════════════════════════════════════════════════════
+// IMAGE LABEL UPLOADER
+// ═══════════════════════════════════════════════════════
+var imgLblQueue = [];
+var imgLblIdCounter = 0;
+
+function handleImgLblDrop(e) {
+  e.preventDefault();
+  document.getElementById('img-lbl-drop-zone').classList.remove('drag-over');
+  var files = Array.from(e.dataTransfer.files).filter(function(f) {
+    return f.type.startsWith('image/');
+  });
+  addImgLblFiles(files);
+}
+
+function handleImgLblFiles(e) {
+  addImgLblFiles(Array.from(e.target.files));
+  e.target.value = '';
+}
+
+function addImgLblFiles(files) {
+  var products = getProducts();
+  files.forEach(function(file) {
+    var id = ++imgLblIdCounter;
+    var item = { id: id, file: file, name: file.name, dataUrl: null, matchedProductId: null, status: 'loading' };
+
+    // Auto-match by filename similarity
+    var baseName = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[-_]/g, ' ');
+    var matched = null;
+    var bestScore = 0;
+    products.forEach(function(p) {
+      var pName = p.name.toLowerCase();
+      // exact contains
+      if(pName.includes(baseName) || baseName.includes(pName)) {
+        var score = Math.min(baseName.length, pName.length) / Math.max(baseName.length, pName.length);
+        if(score > bestScore) { bestScore = score; matched = p; }
+      }
+      // first word match
+      var firstWord = baseName.split(' ')[0];
+      if(firstWord.length > 3 && pName.startsWith(firstWord)) {
+        if(0.5 > bestScore) { bestScore = 0.5; matched = p; }
+      }
+    });
+    if(matched) { item.matchedProductId = matched.id; item.status = 'matched'; }
+    else { item.status = 'nomatch'; }
+
+    imgLblQueue.push(item);
+
+    // Load image as dataUrl
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var maxW = 800, maxH = 600;
+        var w = img.width, h = img.height;
+        if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        item.dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        renderImgLblQueue();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  renderImgLblQueue();
+}
+
+function renderImgLblQueue() {
+  var container = document.getElementById('img-lbl-queue');
+  if(!container) return;
+  if(!imgLblQueue.length) { container.innerHTML = ''; updateImgLblApplyBar(); return; }
+  var products = getProducts();
+  var productOptions = products.map(function(p) {
+    return '<option value="' + p.id + '">' + p.name + '</option>';
+  }).join('');
+
+  container.innerHTML = imgLblQueue.map(function(item) {
+    var statusColors = { matched:'var(--success)', nomatch:'var(--danger)', loading:'var(--warning)', done:'var(--success)' };
+    var statusLabels = { matched:'✅ Uyğunlaşdırıldı', nomatch:'❌ Uyğunlaşma tapılmadı', loading:'⏳ Yüklənir...', done:'✅ Tətbiq edildi' };
+    var color = statusColors[item.status] || 'var(--text-light)';
+    var canApply = (item.status === 'matched' || item.status === 'nomatch') && item.matchedProductId && item.dataUrl;
+    var isDone = item.status === 'done';
+
+    var thumbHtml = item.dataUrl
+      ? '<img class="img-lbl-thumb" src="' + item.dataUrl + '" alt=""/>'
+      : '<div class="img-lbl-thumb-placeholder">🖼️</div>';
+
+    return '<div class="img-lbl-item" id="img-lbl-item-' + item.id + '">' +
+      thumbHtml +
+      '<div class="img-lbl-info">' +
+        '<div class="img-lbl-name">' + item.name + '</div>' +
+        '<div class="img-lbl-status" style="color:' + color + ';">' + (statusLabels[item.status]||'') + '</div>' +
+      '</div>' +
+      '<div class="img-lbl-actions">' +
+        (!isDone ? '<select class="img-lbl-select" onchange="imgLblOverrideMatch(' + item.id + ',this.value)">' +
+          '<option value="">— Məhsul seçin —</option>' +
+          productOptions.replace('value="' + item.matchedProductId + '"', 'value="' + item.matchedProductId + '" selected') +
+        '</select>' : '<span style="font-size:12px;color:var(--success);font-weight:600;">✅ Tətbiq edildi</span>') +
+        (!isDone ? '<button class="btn-apply-img" onclick="imgLblApplySingle(' + item.id + ')"' + (canApply?'':' disabled') + '>Tətbiq et</button>' : '') +
+        '<button style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text-light);padding:4px 6px;" onclick="imgLblRemove(' + item.id + ')" title="Sil">✕</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  updateImgLblApplyBar();
+}
+
+function imgLblOverrideMatch(id, productId) {
+  var item = imgLblQueue.find(function(i) { return i.id === id; });
+  if(!item) return;
+  item.matchedProductId = productId ? parseInt(productId) : null;
+  item.status = productId ? 'matched' : 'nomatch';
+  renderImgLblQueue();
+}
+
+function imgLblRemove(id) {
+  imgLblQueue = imgLblQueue.filter(function(i) { return i.id !== id; });
+  renderImgLblQueue();
+}
+
+function imgLblApplySingle(id) {
+  var item = imgLblQueue.find(function(i) { return i.id === id; });
+  if(!item || !item.matchedProductId || !item.dataUrl) return;
+  var products = getProducts();
+  var idx = products.findIndex(function(p) { return p.id === item.matchedProductId; });
+  if(idx < 0) return;
+  products[idx].image = item.dataUrl;
+  saveProducts(products);
+  item.status = 'done';
+  renderImgLblQueue();
+  renderAdminDash();
+  renderPublicProducts();
+  showToast('Şəkil məhsula tətbiq edildi: ' + products[idx].name);
+}
+
+function imgLblApplyAll() {
+  var ready = imgLblQueue.filter(function(i) {
+    return (i.status === 'matched') && i.matchedProductId && i.dataUrl;
+  });
+  if(!ready.length) return;
+  var products = getProducts();
+  ready.forEach(function(item) {
+    var idx = products.findIndex(function(p) { return p.id === item.matchedProductId; });
+    if(idx >= 0) products[idx].image = item.dataUrl;
+    item.status = 'done';
+  });
+  saveProducts(products);
+  renderImgLblQueue();
+  renderAdminDash();
+  renderPublicProducts();
+  showToast(ready.length + ' şəkil məhsullara tətbiq edildi!');
+}
+
+function updateImgLblApplyBar() {
+  var bar = document.getElementById('img-lbl-apply-bar');
+  if(!bar) return;
+  var readyCount = imgLblQueue.filter(function(i) {
+    return i.status === 'matched' && i.matchedProductId && i.dataUrl;
+  }).length;
+  bar.style.display = readyCount > 0 ? 'flex' : 'none';
+  var summary = document.getElementById('img-lbl-apply-summary');
+  if(summary) summary.textContent = readyCount + ' şəkil uyğunlaşdırılıb və tətbiqə hazırdır';
 }
 
 // ═══════════════════════════════════════════════════════
