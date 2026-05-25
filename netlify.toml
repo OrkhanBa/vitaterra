@@ -5,6 +5,28 @@
 [build.processing]
   skip_processing = true
 
+# /admin and /sales are SPA routes served by the single-file app.
+# Rewrite (status 200) so the URL bar stays clean instead of redirecting.
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/sales"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/sales/*"
+  to = "/index.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

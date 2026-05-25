@@ -1496,18 +1496,12 @@
       <a href="#about-section" onclick="scrollTo_('#about-section');closeMobileMenu();return false;" data-en="About" data-az="Haqqımızda">About</a>
       <a href="#products-section" onclick="scrollTo_('#products-section');closeMobileMenu();return false;" data-en="Products" data-az="Məhsullar">Products</a>
       <a href="#contact-section" onclick="scrollTo_('#contact-section');closeMobileMenu();return false;" data-en="Contact" data-az="Əlaqə">Contact</a>
-      <div class="nav-mobile-portals">
-        <button class="btn-portal" onclick="openLogin('sales');closeMobileMenu();" data-en="Sales Portal" data-az="Satış Portalı">Sales Portal</button>
-        <button class="btn-portal" onclick="openLogin('admin');closeMobileMenu();">Admin</button>
-      </div>
     </div>
     <div class="nav-cta">
       <div class="lang-switcher">
         <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
         <button class="lang-btn" id="lang-az" onclick="setLang('az')">AZ</button>
       </div>
-      <button class="btn-portal nav-desktop-only" onclick="openLogin('sales')" data-en="Sales Portal" data-az="Satış Portalı">Sales Portal</button>
-      <button class="btn-portal nav-desktop-only" onclick="openLogin('admin')">Admin</button>
       <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
@@ -1692,13 +1686,6 @@
           </div>
         </div>
         <div>
-          <div class="footer-col-title" data-en="Portals" data-az="Portallar">Portals</div>
-          <div class="footer-links">
-            <a onclick="openLogin('sales')" data-en="Sales Portal" data-az="Satış Portalı">Sales Portal</a>
-            <a onclick="openLogin('admin')" data-en="Admin Dashboard" data-az="Admin Paneli">Admin Dashboard</a>
-          </div>
-        </div>
-        <div>
           <div class="footer-col-title" data-en="Contact" data-az="Əlaqə">Contact</div>
           <div class="footer-links">
             <a><span class="__cf_email__" data-cfemail="3a53545c557a4c534e5b4e5f48485b145b40">[email&#160;protected]</span></a>
@@ -1750,7 +1737,7 @@
       <input class="form-input" type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
-    <button class="btn-secondary" style="width:100%;" onclick="closeLogin()">Cancel</button>
+    <button class="btn-secondary" style="width:100%;" onclick="cancelLogin()">Cancel</button>
     <p id="login-hint" style="text-align:center;font-size:12px;color:var(--text-light);margin-top:16px;">
       Admin: admin / admin123
     </p>
@@ -2623,7 +2610,18 @@ function openLogin(role) {
   document.getElementById('login-pass').value = '';
   updateLoginHint(role);
 }
-function closeLogin() { document.getElementById('login-modal').classList.remove('open'); }
+function closeLogin() {
+  document.getElementById('login-modal').classList.remove('open');
+}
+
+// Called when the user cancels/dismisses the login modal — drop the
+// /admin or /sales path so the URL bar reflects the public view.
+function cancelLogin() {
+  closeLogin();
+  if(currentView === 'public' && location.pathname && location.pathname !== '/') {
+    try { history.replaceState({}, '', '/'); } catch(e) {}
+  }
+}
 function updateLoginHint(role) {
   const hint = document.getElementById('login-hint');
   if(!hint) return;
@@ -2671,6 +2669,10 @@ function doLogin() {
 function logout() {
   setCurrentSalesUser(null);
   showView('public');
+  // Drop the /admin or /sales path from the URL when signing out.
+  if(location.pathname && location.pathname !== '/') {
+    try { history.replaceState({}, '', '/'); } catch(e) {}
+  }
 }
 
 // Update the salesperson name + avatar in the sales portal header
@@ -6170,16 +6172,41 @@ function setLang(lang) {
   if(allFilterBtn) allFilterBtn.textContent = lang === 'az' ? 'Hamısı' : 'All';
 }
 
+// Detect the current path (/admin or /sales) and open the right portal.
+// Re-runs on browser back/forward so the URL bar stays in sync.
+function handleRouteFromPath() {
+  const path = (location.pathname || '').toLowerCase().replace(/\/+$/, '');
+  if(path === '/admin') {
+    // Admin requires login every time — there's no persistent admin session yet.
+    showView('public');
+    openLogin('admin');
+    return;
+  }
+  if(path === '/sales') {
+    // If the salesperson is still signed in from sessionStorage, jump
+    // straight to the portal; otherwise show the login modal.
+    const u = getCurrentSalesUser();
+    if(u) { showView('sales'); renderSalesView(); updateSalesHeader(); }
+    else  { showView('public'); openLogin('sales'); }
+    return;
+  }
+  // Default: stay on the public landing page.
+  showView('public');
+}
+
 // INIT
 document.addEventListener('DOMContentLoaded', async function() {
   // Pull the latest published site content before first render.
   await fetchPublishedContent();
   setLang(currentLang);
   var pm = document.getElementById('product-modal'); if(pm) pm.addEventListener('click', function(e){ if(e.target===this) closeProductModal(); });
-  var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) closeLogin(); });
+  var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) cancelLogin(); });
   var pfm = document.getElementById('product-form-modal'); if(pfm) pfm.addEventListener('click', function(e){ if(e.target===this) closeProductForm(); });
   var gmm = document.getElementById('global-markup-modal'); if(gmm) gmm.addEventListener('click', function(e){ if(e.target===this) closeGlobalMarkup(); });
   var esm = document.getElementById('edit-sale-modal'); if(esm) esm.addEventListener('click', function(e){ if(e.target===this) closeEditSale(); });
+
+  handleRouteFromPath();
+  window.addEventListener('popstate', handleRouteFromPath);
 });
 
 // ═══════════════════════════════════════════════════════
