@@ -1,0 +1,7 @@
+{
+  "_meta": {
+    "publishedAt": null,
+    "comment": "Published product catalog. Edit via the admin editor, not by hand. Visitors fall back to DEFAULT_PRODUCTS in index.html when this file's products array is empty."
+  },
+  "products": []
+}

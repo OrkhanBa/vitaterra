@@ -2481,10 +2481,22 @@ function sanitizeProduct(p, idx) {
   };
 }
 
+// PUBLISHED_PRODUCTS holds the product catalog fetched from /products.json
+// (the deployed version that all visitors see). Admin's localStorage `vt_products`
+// is a draft overlay that only the editing admin sees until they hit Publish.
+var PUBLISHED_PRODUCTS = null;
+
 function getProducts() {
   try {
     const d = localStorage.getItem(PRODUCTS_KEY);
-    const arr = d ? JSON.parse(d) : DEFAULT_PRODUCTS;
+    var arr;
+    if (d) {
+      arr = JSON.parse(d);
+    } else if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
+      arr = PUBLISHED_PRODUCTS;
+    } else {
+      arr = DEFAULT_PRODUCTS;
+    }
     return arr.map((p,i) => sanitizeProduct(p, i));
   }
   catch(e) { return DEFAULT_PRODUCTS.map((p,i) => sanitizeProduct(p,i)); }
@@ -4569,6 +4581,20 @@ async function fetchPublishedContent() {
   } catch (e) { /* network error - fall back to defaults */ }
 }
 
+// Fetches the published product catalog (admin's last "Publish" snapshot).
+// On non-admin browsers this becomes the source of truth in getProducts();
+// admin localStorage still wins so unsaved drafts are visible before publish.
+async function fetchPublishedProducts() {
+  try {
+    const res = await fetch('/products.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && Array.isArray(data.products) && data.products.length) {
+      PUBLISHED_PRODUCTS = data.products;
+    }
+  } catch (e) { /* network error - fall back to localStorage / DEFAULT_PRODUCTS */ }
+}
+
 function getSiteContent() {
   try {
     const d = localStorage.getItem(SITE_CONTENT_KEY);
@@ -4597,10 +4623,16 @@ async function vsePublish() {
   try {
     const delta = getDraftDelta();
     delta._meta = { publishedAt: new Date().toISOString() };
+
+    // Snapshot the full sanitized product catalog so it lands in products.json
+    // on the server. We always send it (even if admin only edited site text) so
+    // products.json stays in sync with whatever the admin currently sees.
+    const productsSnapshot = getProducts();
+
     const res = await fetch('/.netlify/functions/publish-site', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw, content: delta })
+      body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot })
     });
     const data = await res.json();
     if (res.ok && data.ok) {
@@ -6236,8 +6268,9 @@ function handleRouteFromPath() {
 
 // INIT
 document.addEventListener('DOMContentLoaded', async function() {
-  // Pull the latest published site content before first render.
-  await fetchPublishedContent();
+  // Pull the latest published site content + product catalog in parallel
+  // before first render so non-admin visitors see the right data immediately.
+  await Promise.all([fetchPublishedContent(), fetchPublishedProducts()]);
   setLang(currentLang);
   var pm = document.getElementById('product-modal'); if(pm) pm.addEventListener('click', function(e){ if(e.target===this) closeProductModal(); });
   var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) cancelLogin(); });

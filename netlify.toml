@@ -33,10 +33,15 @@
     X-Content-Type-Options = "nosniff"
     Content-Security-Policy = "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self';"
 
-# Cache content file briefly so admin sees updates fast,
+# Cache content files briefly so admin sees updates fast,
 # but visitors don't hammer the server.
 [[headers]]
   for = "/site-content.json"
+  [headers.values]
+    Cache-Control = "public, max-age=30, must-revalidate"
+
+[[headers]]
+  for = "/products.json"
   [headers.values]
     Cache-Control = "public, max-age=30, must-revalidate"
 
