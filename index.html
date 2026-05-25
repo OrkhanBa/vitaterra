@@ -2188,6 +2188,7 @@
 
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/products-data.js"></script>
 <script>
 // Global state — declared first for safe hoisting
 var vseSection     = 'hero';
@@ -2295,11 +2296,35 @@ function saveSales(arr) { localStorage.setItem(SALES_KEY, JSON.stringify(arr)); 
 
 function salePrice(p) { return (parseFloat(p.cost)||0) * (1 + (parseFloat(p.markup)||0)/100); }
 function salePriceAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+
+// Returns raw packaging string for a product, looking up products-data.js first
+function packagingForProduct(p) {
+  if (typeof PRODUCTS_DATA !== 'undefined') {
+    const d = PRODUCTS_DATA.find(x => x.id === p.id);
+    if (d && d.packaging) return d.packaging;
+  }
+  return (p.unit && p.unit !== 'unit') ? p.unit : '';
+}
+
+// Translates packaging string to Azerbaijani units
+function formatPackAz(str) {
+  if (!str) return '';
+  return str
+    .replace(/\b(\d+(?:[.,]\d+)?)\s*l\b/gi, '$1 litr')
+    .replace(/\b(\d+(?:[.,]\d+)?)\s*kg\b/gi, '$1 kq')
+    .replace(/\b(\d+(?:[.,]\d+)?)\s*g\b/gi, '$1 q')
+    .replace(/bottle/gi, 'butulka')
+    .replace(/\balu\s*bag/gi, 'alüm. paket')
+    .replace(/pallets?/gi, '').trim().replace(/,\s*$/, '');
+}
+
 function priceStripHTML(p, lang) {
   const azn = salePriceAZN(p);
+  const rawPack = packagingForProduct(p);
+  const packStr = lang === 'az' ? formatPackAz(rawPack) : rawPack;
+  const per = packStr ? ' / ' + packStr : '';
   if (azn <= 0) return `<div class="product-price-strip"><span class="pp-contact">${lang==='az'?'Qiymət üçün əlaqə saxlayın':'Contact for price'}</span></div>`;
-  const per = p.unit ? ' / ' + p.unit : '';
-  const lbl = lang==='az' ? 'Qiymət' : 'Price';
+  const lbl = lang === 'az' ? 'Qiymət' : 'Price';
   return `<div class="product-price-strip"><div><div class="pp-label">${lbl}</div><div class="pp-amount">₼${azn.toFixed(2)}<span class="pp-per">${per}</span></div></div></div>`;
 }
 
@@ -2521,9 +2546,11 @@ function openProductModal(id) {
       <div class="modal-category" id="m-category">${p.category} · Cerrado Sol, Spain</div>`;
   }
   // Price badge in modal header
-  const modalAzn = salePriceAZN(p);
+  const modalAzn   = salePriceAZN(p);
+  const modalRawPk = packagingForProduct(p);
+  const modalPkStr = currentLang === 'az' ? formatPackAz(modalRawPk) : modalRawPk;
   const modalPriceBadge = modalAzn > 0
-    ? `<div class="modal-price-badge">₼${modalAzn.toFixed(2)}<span class="mpb-per"> / ${p.unit||'unit'}</span></div>`
+    ? `<div class="modal-price-badge">₼${modalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span></div>`
     : '';
   const mCatEl = document.getElementById('m-category');
   if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
@@ -2540,12 +2567,12 @@ function openProductModal(id) {
         </div>`).join('')}
     </div>
     ${p.activeIngredient||p.formulation ? `
-    <div class="modal-section-title">Technical Specifications</div>
+    <div class="modal-section-title">${currentLang==='az'?'Texniki Xüsusiyyətlər':'Technical Specifications'}</div>
     <div class="modal-specs">
-      ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">Active Ingredient</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
-      ${p.formulation?`<div class="spec-item"><div class="spec-label">Formulation</div><div class="spec-value">${p.formulation}</div></div>`:''}
-      ${p.unit?`<div class="spec-item"><div class="spec-label">Pack Size</div><div class="spec-value">${p.unit}</div></div>`:''}
-      <div class="spec-item"><div class="spec-label">Origin</div><div class="spec-value">🇪🇸 Spain \u2014 Cerrado Sol</div></div>
+      ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${currentLang==='az'?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
+      ${p.formulation?`<div class="spec-item"><div class="spec-label">${currentLang==='az'?'Forma':'Formulation'}</div><div class="spec-value">${p.formulation}</div></div>`:''}
+      ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = currentLang==='az'?'Qablaşdırma':'Pack Size'; const val = currentLang==='az'?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
+      <div class="spec-item"><div class="spec-label">${currentLang==='az'?'Mənşə':'Origin'}</div><div class="spec-value">🇪🇸 İspaniya — Cerrado Sol</div></div>
     </div>` : ''}
     <div class="modal-section-title">Safety & Compliance</div>
     <div class="safety-grid">
