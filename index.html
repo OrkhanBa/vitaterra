@@ -2315,7 +2315,8 @@ function formatPackAz(str) {
     .replace(/\b(\d+(?:[.,]\d+)?)\s*g\b/gi, '$1 q')
     .replace(/bottle/gi, '')
     .replace(/\balu\s*bag/gi, 'alüm. paket')
-    .replace(/pallets?/gi, '').trim().replace(/,\s*$/, '');
+    .replace(/[×x]\s*\d+/gi, '')
+    .replace(/pallets?/gi, '').trim().replace(/,\s*$/, '').trim();
 }
 
 // Parses the first quantity+unit from a packaging string and returns
