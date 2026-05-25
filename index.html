@@ -2398,6 +2398,12 @@ function sanitizeProduct(p, idx) {
     activeIngredient:p.activeIngredient  || '',
     formulation:     p.formulation       || '',
     image:           p.image             || '',
+    // AI-extracted label fields (Azerbaijani translations + extra metadata)
+    desc_az:         p.desc_az           || '',
+    usage_az:        p.usage_az          || '',
+    target_az:       p.target_az         || '',
+    target:          p.target            || '',
+    safetyInterval:  p.safetyInterval    || '',
   };
 }
 
