@@ -18,7 +18,10 @@ function reply(status, body) {
   };
 }
 
-const PROMPT = `You are analyzing a pesticide/agrochemical product label PDF (may be in Russian or English). Extract the following information and respond ONLY with valid JSON, no markdown, no extra text:
+const PROMPT = `You are analyzing a pesticide/agrochemical product label PDF (may be in Russian or English).
+CRITICAL: You MUST fill ALL fields below, especially the *_az fields which must be in AZERBAIJANI language (not English, not Russian). Translate the label content into Azerbaijani.
+Respond ONLY with valid JSON, no markdown, no extra text. All 12 fields are required.
+
 {
   "name": "trade name / product name from label",
   "activeIngredient": "active ingredient(s) with concentration",
@@ -27,10 +30,10 @@ const PROMPT = `You are analyzing a pesticide/agrochemical product label PDF (ma
   "desc": "2-3 sentence product description in English based on the label",
   "usage": "key usage instructions in English in 2-3 sentences",
   "target": "target pests or crops mentioned (English)",
-  "safetyInterval": "pre-harvest interval if mentioned",
-  "desc_az": "2-3 cümlə ilə Azərbaycan dilində məhsulun təsviri — nə üçün nəzərdə tutulduğunu və necə işlədiyini izah et",
-  "usage_az": "Azərbaycan dilində istifadə qaydası — doza, vaxt, metod — 2-3 cümlə",
-  "target_az": "Azərbaycan dilində: hansı bitkilər üçün nəzərdə tutulub və hansı zərərvericiləri/xəstəlikləri məhv edir",
+  "safetyInterval": "pre-harvest interval if mentioned, otherwise empty string",
+  "desc_az": "REQUIRED — 2-3 cümlə Azərbaycan dilində: məhsulun təsviri, nə üçün nəzərdə tutulduğu və necə işlədiyi",
+  "usage_az": "REQUIRED — Azərbaycan dilində istifadə qaydası: doza, vaxt, metod — 2-3 cümlə",
+  "target_az": "REQUIRED — Azərbaycan dilində: hansı bitkilər üçün nəzərdə tutulub və hansı zərərvericiləri/xəstəlikləri məhv edir",
   "rawText": "first 200 chars of extracted text for reference"
 }`;
 
@@ -64,7 +67,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        max_tokens: 4000,
         messages: [{
           role: 'user',
           content: [
