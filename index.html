@@ -2846,7 +2846,7 @@ function renderAdminTable(filter) {
       <td style="color:var(--text-light);font-style:italic;">$${cost.toFixed(2)}</td>
       <td>${markup}%</td>
       <td><strong>$${sp.toFixed(2)}</strong></td>
-      <td>${p.unit||'\u2014'}</td>
+      <td>${(p.unit && p.unit !== 'unit') ? p.unit : (packagingForProduct(p) || '\u2014')}</td>
       <td>${stock}</td>
       <td>${statusBadge(stock)}</td>
       <td><div class="action-btns">
