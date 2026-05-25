@@ -1930,9 +1930,9 @@
            ondrop="handleImgLblDrop(event)">
         <label style="cursor:pointer;display:block;">
           <div class="pdf-upload-icon">🖼️</div>
-          <div class="pdf-upload-title">Şəkil Labelləri Yükləyin</div>
-          <div class="pdf-upload-sub">JPG, PNG, WebP fayllarını bura sürükləyin və ya klikləyin<br/>Bir neçə şəkli eyni anda seçə bilərsiniz</div>
-          <input type="file" accept="image/*" multiple style="display:none;" onchange="handleImgLblFiles(event)"/>
+          <div class="pdf-upload-title">Label Fayllarını Yükləyin</div>
+          <div class="pdf-upload-sub">PDF, JPG, PNG, WebP fayllarını bura sürükləyin və ya klikləyin<br/>Bir neçə faylı eyni anda seçə bilərsiniz — PDF-in ilk səhifəsi şəkilə çevriləcək</div>
+          <input type="file" accept="image/*,.pdf" multiple style="display:none;" onchange="handleImgLblFiles(event)"/>
         </label>
       </div>
 
@@ -2272,6 +2272,7 @@
 
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="/products-data.js"></script>
 <script>
 // Global state — declared first for safe hoisting
@@ -2683,7 +2684,7 @@ function openProductModal(id) {
     <div class="modal-section-title">${isAz ? 'Texniki Xüsusiyyətlər' : 'Technical Specifications'}</div>
     <div class="modal-specs">
       ${p.activeIngredient?`<div class="spec-item"><div class="spec-label">${isAz?'Aktiv Maddə':'Active Ingredient'}</div><div class="spec-value">${p.activeIngredient}</div></div>`:''}
-      ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${isAz ? ({'WG':'Suda dağılan qranul','SC':'Suspenziya konsentratı','EC':'Emulsiyalaşan konsentrat','SL':'Həll olunan maye','WP':'Islanıla bilən toz','CS':'Kapsul suspenziyası','SE':'Suspoemulsiya','EW':'Emulsiya','FS':'Toxum işləmə suspenziyası','DC':'Dispersiyalaşan konsentrat'}[p.formulation.toUpperCase()] || p.formulation) : p.formulation}</div></div>`:''}
+      ${p.formulation?`<div class="spec-item"><div class="spec-label">${isAz?'Forma':'Formulation'}</div><div class="spec-value">${isAz ? ({'WG':'Suda dağılan qranul','WDG':'Suda dağılan qranul','SC':'Suspenziya konsentratı','EC':'Emulsiyalaşan konsentrat','SL':'Həll olunan maye','WP':'Islanıla bilən toz','CS':'Kapsul suspenziyası','SE':'Suspoemulsiya','EW':'Emulsiya','FS':'Toxum işləmə suspenziyası','DC':'Dispersiyalaşan konsentrat'}[p.formulation.toUpperCase()] || p.formulation) : p.formulation}</div></div>`:''}
       ${(() => { const pk = packagingForProduct(p); if (!pk) return ''; const lbl = isAz?'Qablaşdırma':'Pack Size'; const val = isAz?formatPackAz(pk):pk; return `<div class="spec-item"><div class="spec-label">${lbl}</div><div class="spec-value">${val}</div></div>`; })()}
       <div class="spec-item"><div class="spec-label">${isAz?'Mənşə':'Origin'}</div><div class="spec-value">İspaniya</div></div>
     </div>` : ''}
@@ -3700,7 +3701,7 @@ function handleImgLblDrop(e) {
   e.preventDefault();
   document.getElementById('img-lbl-drop-zone').classList.remove('drag-over');
   var files = Array.from(e.dataTransfer.files).filter(function(f) {
-    return f.type.startsWith('image/');
+    return f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.pdf');
   });
   addImgLblFiles(files);
 }
@@ -3710,54 +3711,114 @@ function handleImgLblFiles(e) {
   e.target.value = '';
 }
 
-function addImgLblFiles(files) {
+function imgLblAutoMatch(fileName) {
   var products = getProducts();
+  var baseName = fileName.replace(/\.[^.]+$/, '').toLowerCase().replace(/[-_.]/g, ' ').trim();
+  var matched = null;
+  var bestScore = 0;
+  products.forEach(function(p) {
+    var pName = p.name.toLowerCase();
+    if(pName.includes(baseName) || baseName.includes(pName)) {
+      var score = Math.min(baseName.length, pName.length) / Math.max(baseName.length, pName.length);
+      if(score > bestScore) { bestScore = score; matched = p; }
+    }
+    var firstWord = baseName.split(' ')[0];
+    if(firstWord && firstWord.length > 3 && pName.startsWith(firstWord) && 0.5 > bestScore) {
+      bestScore = 0.5; matched = p;
+    }
+  });
+  return matched;
+}
+
+function imgResizeDataUrl(dataUrl, callback) {
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.createElement('canvas');
+    var maxW = 800, maxH = 600;
+    var w = img.width, h = img.height;
+    if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', 0.82));
+  };
+  img.src = dataUrl;
+}
+
+function addImgLblFiles(files) {
   files.forEach(function(file) {
     var id = ++imgLblIdCounter;
-    var item = { id: id, file: file, name: file.name, dataUrl: null, matchedProductId: null, status: 'loading' };
-
-    // Auto-match by filename similarity
-    var baseName = file.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[-_]/g, ' ');
-    var matched = null;
-    var bestScore = 0;
-    products.forEach(function(p) {
-      var pName = p.name.toLowerCase();
-      // exact contains
-      if(pName.includes(baseName) || baseName.includes(pName)) {
-        var score = Math.min(baseName.length, pName.length) / Math.max(baseName.length, pName.length);
-        if(score > bestScore) { bestScore = score; matched = p; }
-      }
-      // first word match
-      var firstWord = baseName.split(' ')[0];
-      if(firstWord.length > 3 && pName.startsWith(firstWord)) {
-        if(0.5 > bestScore) { bestScore = 0.5; matched = p; }
-      }
-    });
-    if(matched) { item.matchedProductId = matched.id; item.status = 'matched'; }
-    else { item.status = 'nomatch'; }
-
-    imgLblQueue.push(item);
-
-    // Load image as dataUrl
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      var img = new Image();
-      img.onload = function() {
-        var canvas = document.createElement('canvas');
-        var maxW = 800, maxH = 600;
-        var w = img.width, h = img.height;
-        if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
-        if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        item.dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        renderImgLblQueue();
-      };
-      img.src = ev.target.result;
+    var matched = imgLblAutoMatch(file.name);
+    var item = {
+      id: id, file: file, name: file.name, dataUrl: null,
+      matchedProductId: matched ? matched.id : null,
+      status: 'loading'
     };
-    reader.readAsDataURL(file);
+    imgLblQueue.push(item);
+    renderImgLblQueue();
+
+    var isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if(isPdf) {
+      imgLblRenderPdf(file, item);
+    } else {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        imgResizeDataUrl(ev.target.result, function(dataUrl) {
+          item.dataUrl = dataUrl;
+          item.status = item.matchedProductId ? 'matched' : 'nomatch';
+          renderImgLblQueue();
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   });
-  renderImgLblQueue();
+}
+
+function imgLblRenderPdf(file, item) {
+  // Use PDF.js to render the first page as a canvas image
+  if(typeof pdfjsLib === 'undefined') {
+    item.status = 'nomatch';
+    item.dataUrl = null;
+    showToast('PDF.js yüklənmədi. Səhifəni yeniləyin.');
+    renderImgLblQueue();
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var typedArray = new Uint8Array(ev.target.result);
+    pdfjsLib.getDocument({ data: typedArray }).promise.then(function(pdf) {
+      return pdf.getPage(1);
+    }).then(function(page) {
+      var viewport = page.getViewport({ scale: 1.5 });
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+        return canvas;
+      });
+    }).then(function(canvas) {
+      // Resize to max 800x600
+      var maxW = 800, maxH = 600;
+      var w = canvas.width, h = canvas.height;
+      var outCanvas = document.createElement('canvas');
+      if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+      outCanvas.width = w; outCanvas.height = h;
+      outCanvas.getContext('2d').drawImage(canvas, 0, 0, w, h);
+      item.dataUrl = outCanvas.toDataURL('image/jpeg', 0.85);
+      item.status = item.matchedProductId ? 'matched' : 'nomatch';
+      renderImgLblQueue();
+    }).catch(function(err) {
+      console.error('PDF render error:', err);
+      item.status = 'nomatch';
+      item.dataUrl = null;
+      renderImgLblQueue();
+      showToast('PDF oxunmadı: ' + file.name);
+    });
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function renderImgLblQueue() {
