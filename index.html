@@ -2265,13 +2265,41 @@
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea class="form-textarea" id="fp-desc" placeholder="Product description..." style="min-height:70px;"></textarea>
+      <!-- ── English (from label) ── -->
+      <div style="background:rgba(150,150,150,0.06);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-bottom:10px;">🌐 İngilis dilində (AI tərəfindən doldurulur)</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Description (EN)</label>
+          <textarea class="form-textarea" id="fp-desc" placeholder="Product description..." style="min-height:60px;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Usage Instructions (EN)</label>
+          <textarea class="form-textarea" id="fp-usage" placeholder="How to apply this product..." style="min-height:60px;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Target Crops / Pests (EN)</label>
+          <input class="form-input" id="fp-target" placeholder="e.g. Aphids on tomato, pepper..."/>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Usage Instructions</label>
-        <textarea class="form-textarea" id="fp-usage" placeholder="How to apply this product..." style="min-height:70px;"></textarea>
+
+      <!-- ── Azərbaycan dilində (redaktə oluna bilər) ── -->
+      <div style="background:rgba(62,140,88,0.08);border:1px solid rgba(62,140,88,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green-accent);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span>🇦🇿 Azərbaycan dilində (saytda görünür)</span>
+          <span style="font-size:10px;color:var(--text-light);text-transform:none;letter-spacing:0;font-weight:500;">AI tərcüməsini buradan redaktə edin</span>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">📋 Məhsulun təyinatı</label>
+          <textarea class="form-textarea" id="fp-desc-az" placeholder="Məhsulun nə üçün nəzərdə tutulduğunu və necə işlədiyini izah edin..." style="min-height:70px;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">🌿 Hansı bitkilər üçün / hədəf zərərvericilər</label>
+          <textarea class="form-textarea" id="fp-target-az" placeholder="Məs. Pomidor, biber, xiyər bitkilərindəki hörümçək gənələrinə qarşı..." style="min-height:60px;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">⚗️ İstifadə qaydası</label>
+          <textarea class="form-textarea" id="fp-usage-az" placeholder="Doza, vaxt, metod..." style="min-height:70px;"></textarea>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -2973,23 +3001,27 @@ var editingId = null;
 
 function openProductForm(id) {
   editingId = id || null;
-  document.getElementById('product-form-title').textContent = id ? 'Edit Product' : 'Add New Product';
+  document.getElementById('product-form-title').textContent = id ? 'Məhsulu Redaktə Et' : 'Yeni Məhsul Əlavə Et';
   if(id) {
     const p = getProducts().find(x=>x.id===id);
     if(p) {
-      document.getElementById('fp-name').value     = p.name;
-      document.getElementById('fp-category').value = p.category;
-      document.getElementById('fp-desc').value     = p.desc||'';
-      document.getElementById('fp-usage').value    = p.usage||'';
-      document.getElementById('fp-unit').value     = p.unit||'';
-      document.getElementById('fp-stock').value    = p.stock;
-      document.getElementById('fp-cost').value     = p.cost;
-      document.getElementById('fp-markup').value   = p.markup;
+      document.getElementById('fp-name').value      = p.name;
+      document.getElementById('fp-category').value  = p.category;
+      document.getElementById('fp-desc').value      = p.desc||'';
+      document.getElementById('fp-usage').value     = p.usage||'';
+      document.getElementById('fp-target').value    = p.target||'';
+      document.getElementById('fp-desc-az').value   = p.desc_az||'';
+      document.getElementById('fp-usage-az').value  = p.usage_az||'';
+      document.getElementById('fp-target-az').value = p.target_az||'';
+      document.getElementById('fp-unit').value      = p.unit||'';
+      document.getElementById('fp-stock').value     = p.stock;
+      document.getElementById('fp-cost').value      = p.cost;
+      document.getElementById('fp-markup').value    = p.markup;
       updatePriceCalc();
       setProductImagePreview(p.image||'');
     }
   } else {
-    ['fp-name','fp-desc','fp-usage','fp-unit'].forEach(id=>document.getElementById(id).value='');
+    ['fp-name','fp-desc','fp-usage','fp-target','fp-desc-az','fp-usage-az','fp-target-az','fp-unit'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('fp-stock').value='0';
     document.getElementById('fp-cost').value='';
     document.getElementById('fp-markup').value='30';
@@ -3014,30 +3046,33 @@ function saveProduct() {
   const cost   = parseFloat(document.getElementById('fp-cost').value);
   const markup = parseFloat(document.getElementById('fp-markup').value);
   const stock  = parseInt(document.getElementById('fp-stock').value)||0;
-  if(!name || isNaN(cost) || isNaN(markup)) { showToast('Please fill in all required fields.', true); return; }
+  if(!name || isNaN(cost) || isNaN(markup)) { showToast('Bütün vacib sahələri doldurun.', true); return; }
   const imgPreview = document.getElementById('fp-img-preview');
   const image = (imgPreview && imgPreview.style.display !== 'none') ? imgPreview.src : '';
+  const fields = {
+    name, cost, markup, stock, image,
+    category:  document.getElementById('fp-category').value,
+    desc:      document.getElementById('fp-desc').value,
+    usage:     document.getElementById('fp-usage').value,
+    target:    document.getElementById('fp-target').value,
+    desc_az:   document.getElementById('fp-desc-az').value,
+    usage_az:  document.getElementById('fp-usage-az').value,
+    target_az: document.getElementById('fp-target-az').value,
+    unit:      document.getElementById('fp-unit').value,
+  };
   const products = getProducts();
   if(editingId) {
     const idx = products.findIndex(p=>p.id===editingId);
-    if(idx>=0) products[idx] = { ...products[idx], name, cost, markup, stock, image,
-      category: document.getElementById('fp-category').value,
-      desc:     document.getElementById('fp-desc').value,
-      usage:    document.getElementById('fp-usage').value,
-      unit:     document.getElementById('fp-unit').value };
+    if(idx>=0) products[idx] = { ...products[idx], ...fields };
   } else {
     const newId = products.length ? Math.max(...products.map(p=>p.id))+1 : 1;
-    products.push({ id:newId, name, cost, markup, stock, image,
-      category: document.getElementById('fp-category').value,
-      desc:     document.getElementById('fp-desc').value,
-      usage:    document.getElementById('fp-usage').value,
-      unit:     document.getElementById('fp-unit').value });
+    products.push({ id:newId, ...fields });
   }
   saveProducts(products);
   closeProductForm();
   renderAdminDash();
   renderPublicProducts();
-  showToast(editingId ? 'Product updated!' : 'Product added!');
+  showToast(editingId ? 'Məhsul yeniləndi!' : 'Məhsul əlavə edildi!');
 }
 
 function deleteProduct(id) {
