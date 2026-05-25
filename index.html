@@ -1484,7 +1484,7 @@
 
   <!-- NAV -->
   <nav>
-    <div class="nav-logo" onclick="scrollToTop()">
+    <div class="nav-logo" onclick="goHome()" role="link" tabindex="0" aria-label="Vita Terra — go to home" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goHome();}">
       <div class="nav-logo-icon"><img src="/assets/logo-mark-gold.svg" alt="Vita Terra"/></div>
       <div>
         <div class="nav-logo-text">Vita Terra</div>
@@ -2592,6 +2592,23 @@ function scrollTo_(id) {
   closeMobileMenu();
 }
 function scrollToTop() { window.scrollTo({top:0,behavior:'smooth'}); }
+
+// Logo click handler: from any view, return to the public landing page.
+// Smooth-scrolls to top when already on the home page; otherwise switches
+// the view, drops /admin or /sales from the URL, and scrolls to top.
+function goHome() {
+  if(currentView !== 'public') {
+    showView('public');
+    if(location.pathname && location.pathname !== '/') {
+      try { history.replaceState({}, '', '/'); } catch(e) {}
+    }
+    return;
+  }
+  if(location.pathname && location.pathname !== '/') {
+    try { history.replaceState({}, '', '/'); } catch(e) {}
+  }
+  scrollToTop();
+}
 
 // ─── MOBILE NAV ───
 function toggleMobileMenu() {
