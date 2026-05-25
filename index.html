@@ -2214,12 +2214,40 @@
 
           <!-- Order total -->
           <div id="sale-summary" style="display:none;background:var(--cream);border-radius:10px;padding:16px;margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-light);margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-light);margin-bottom:10px;">
               <span id="cart-items-count">0 items</span>
-              <span>Total</span>
+              <span data-en="Subtotal" data-az="Cəm">Subtotal</span>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div style="font-size:13px;color:var(--text-light);">Order Total</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:13px;color:var(--text-light);" data-en="Subtotal" data-az="Cəm">Subtotal</div>
+              <div id="sale-subtotal-display" style="font-size:15px;font-weight:600;color:var(--text);">$0.00</div>
+            </div>
+
+            <!-- Discount control (capped at 7%) -->
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--white);border-radius:8px;margin-bottom:10px;">
+              <label for="cart-discount-pct" style="font-size:13px;color:var(--text);font-weight:600;cursor:pointer;">
+                <span data-en="Discount" data-az="Endirim">Endirim</span>
+                <span style="font-weight:400;color:var(--text-light);">(max 7%)</span>
+              </label>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" id="cart-discount-pct" value="0" min="0" max="7" step="0.5"
+                       style="width:64px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:14px;text-align:right;background:var(--cream);"
+                       oninput="updateCartDiscount(this.value)" onblur="updateCartDiscount(this.value, true)"/>
+                <span style="font-size:14px;font-weight:600;color:var(--text);">%</span>
+              </div>
+            </div>
+
+            <!-- Discount amount line — visible only when discount > 0 -->
+            <div id="sale-discount-line" style="display:none;justify-content:space-between;align-items:center;font-size:13px;color:var(--green-accent);margin-bottom:10px;">
+              <span>
+                <span data-en="Discount" data-az="Endirim">Endirim</span>
+                (<span id="sale-discount-pct-display">0</span>%)
+              </span>
+              <span id="sale-discount-amount-display">-$0.00</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);">
+              <div style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Order Total</div>
               <div class="sale-total" id="sale-total-display">$0.00</div>
             </div>
           </div>
@@ -3385,19 +3413,24 @@ function renderSalesLog() {
     return;
   }
 
-  tbody.innerHTML = [...filtered].reverse().map(s => `<tr>
-    <td>${new Date(s.ts).toLocaleString()}</td>
-    <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(s.salesperson || 'Sales Team')}</span></td>
-    <td><strong>${escapeHtml(s.productName)}</strong></td>
-    <td>${s.qty}</td>
-    <td>$${(+s.unitPrice).toFixed(2)}</td>
-    <td><strong>$${(+s.total).toFixed(2)}</strong></td>
-    <td>${escapeHtml(s.customer || '\u2014')}</td>
-    <td style="white-space:nowrap;">
-      <button class="btn-add" style="padding:5px 10px;font-size:12px;" onclick="adminEditSale('${s.ts}')">✏️ Redaktə</button>
-      <button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button>
-    </td>
-  </tr>`).join('');
+  tbody.innerHTML = [...filtered].reverse().map(s => {
+    const discBadge = (s.discountPct > 0)
+      ? `<span title="Original: $${(+s.unitPriceOriginal).toFixed(2)}" style="display:inline-block;margin-left:6px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">−${s.discountPct}%</span>`
+      : '';
+    return `<tr>
+      <td>${new Date(s.ts).toLocaleString()}</td>
+      <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(s.salesperson || 'Sales Team')}</span></td>
+      <td><strong>${escapeHtml(s.productName)}</strong></td>
+      <td>${s.qty}</td>
+      <td>$${(+s.unitPrice).toFixed(2)}${discBadge}</td>
+      <td><strong>$${(+s.total).toFixed(2)}</strong></td>
+      <td>${escapeHtml(s.customer || '\u2014')}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-add" style="padding:5px 10px;font-size:12px;" onclick="adminEditSale('${s.ts}')">✏️ Redaktə</button>
+        <button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 function escapeHtml(str) {
@@ -3609,6 +3642,7 @@ var saleQty = 1;
 
 function renderSalesView() {
   cartItems = {};
+  cartDiscount = 0;
   renderSaleProducts();
   renderCart();
   renderMySales();
@@ -3617,6 +3651,11 @@ function renderSalesView() {
 // ── CART STATE ──────────────────────────────────────────
 // cartItems = { productId: { qty, customPrice } }
 var cartItems = {};
+
+// Order-level discount in percent, applied to the cart subtotal at confirmation.
+// Capped at MAX_CART_DISCOUNT so sales reps can't give away more than the policy.
+var MAX_CART_DISCOUNT = 7;
+var cartDiscount = 0;
 
 function addToCart(id) {
   const p = getProducts().find(x => x.id === id);
@@ -3661,8 +3700,26 @@ function filterSaleProducts(v) { renderSaleProducts(v); }
 
 function clearCart() {
   cartItems = {};
+  cartDiscount = 0;
   renderSaleProducts();
   renderCart();
+}
+
+// Order-level discount input handler. Clamps to [0, MAX_CART_DISCOUNT]
+// and refreshes the totals. When `commit` is true (e.g. blur event), it
+// rewrites the input value so the user sees the clamped number, including
+// when they typed something out of range.
+function updateCartDiscount(val, commit) {
+  var n = parseFloat(val);
+  if(!isFinite(n) || n < 0) n = 0;
+  if(n > MAX_CART_DISCOUNT) n = MAX_CART_DISCOUNT;
+  // Keep one decimal for half-percent steps (e.g. 6.5%).
+  cartDiscount = Math.round(n * 10) / 10;
+  if(commit) {
+    var inp = document.getElementById('cart-discount-pct');
+    if(inp) inp.value = cartDiscount;
+  }
+  refreshCartTotals();
 }
 
 function updateCartQty(id, val) {
@@ -3690,15 +3747,32 @@ function refreshCartItemSubtotal(id) {
 
 function refreshCartTotals() {
   const ids = Object.keys(cartItems).map(Number);
-  let grandTotal = 0, totalQty = 0;
+  let subtotal = 0, totalQty = 0;
   ids.forEach(id => {
     const item = cartItems[id];
-    if(item) { grandTotal += item.customPrice * item.qty; totalQty += item.qty; }
+    if(item) { subtotal += item.customPrice * item.qty; totalQty += item.qty; }
   });
-  const totalEl = document.getElementById('sale-total-display');
-  const countEl = document.getElementById('cart-items-count');
+  const discountAmt = subtotal * (cartDiscount / 100);
+  const grandTotal  = subtotal - discountAmt;
+
+  const subEl     = document.getElementById('sale-subtotal-display');
+  const totalEl   = document.getElementById('sale-total-display');
+  const countEl   = document.getElementById('cart-items-count');
+  const lineEl    = document.getElementById('sale-discount-line');
+  const pctEl     = document.getElementById('sale-discount-pct-display');
+  const amtEl     = document.getElementById('sale-discount-amount-display');
+
+  if(subEl)   subEl.textContent   = '$' + subtotal.toFixed(2);
   if(totalEl) totalEl.textContent = '$' + grandTotal.toFixed(2);
   if(countEl) countEl.textContent = totalQty + ' item' + (totalQty !== 1 ? 's' : '');
+
+  if(cartDiscount > 0 && subtotal > 0) {
+    if(lineEl) lineEl.style.display = 'flex';
+    if(pctEl)  pctEl.textContent    = String(cartDiscount);
+    if(amtEl)  amtEl.textContent    = '-$' + discountAmt.toFixed(2);
+  } else if(lineEl) {
+    lineEl.style.display = 'none';
+  }
 }
 
 function removeFromCart(id) {
@@ -3751,14 +3825,11 @@ function renderCart() {
     return;
   }
 
-  let grandTotal = 0, totalQty = 0;
   const rows = ids.map(id => {
     const p = products.find(x => x.id === id);
     if(!p) return '';
     const item     = cartItems[id];
     const subtotal = item.customPrice * item.qty;
-    grandTotal += subtotal;
-    totalQty   += item.qty;
     return `<div class="cart-item" id="cart-item-${id}">
       <div class="cart-item-header">
         <div>
@@ -3789,10 +3860,15 @@ function renderCart() {
 
   if(listEl)     listEl.innerHTML = rows.join('');
   if(summaryEl)  summaryEl.style.display = 'block';
-  if(totalEl)    totalEl.textContent = '$' + grandTotal.toFixed(2);
-  if(countEl)    countEl.textContent = totalQty + ' item' + (totalQty !== 1 ? 's' : '');
   if(confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
   if(badgeEl)    { badgeEl.textContent = ids.length + ' added'; badgeEl.style.display = 'inline-block'; }
+
+  // Sync discount input to current state (renderCart may run after a state reset).
+  const discInput = document.getElementById('cart-discount-pct');
+  if(discInput) discInput.value = cartDiscount;
+
+  // Single source of truth for subtotal / discount / grand total.
+  refreshCartTotals();
 }
 
 function confirmSale() {
@@ -3806,8 +3882,14 @@ function confirmSale() {
   const currentUser = getCurrentSalesUser();
   const sellerName = currentUser ? (currentUser.name || currentUser.username) : 'Sales Team';
   const sellerUsername = currentUser ? currentUser.username : 'sales';
-  let confirmed = 0;
 
+  // Defensive re-clamp in case state was modified out of band.
+  var discountPct = cartDiscount;
+  if(!isFinite(discountPct) || discountPct < 0) discountPct = 0;
+  if(discountPct > MAX_CART_DISCOUNT) discountPct = MAX_CART_DISCOUNT;
+  const discountMul = 1 - (discountPct / 100);
+
+  let confirmed = 0;
   ids.forEach(id => {
     const item = cartItems[id];
     const pIdx = products.findIndex(p => p.id === id);
@@ -3815,10 +3897,19 @@ function confirmSale() {
     const p = products[pIdx];
     const qty = Math.min(item.qty, p.stock);
     if(qty < 1) return;
-    const unitPrice = item.customPrice;
-    const total = unitPrice * qty;
+    // Apply discount per-row so `unitPrice` always equals what the customer
+    // actually paid per unit. Existing reports compute totals from these
+    // fields without needing to know about the discount.
+    const unitPriceOriginal = item.customPrice;
+    const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
+    const total     = +(unitPrice * qty).toFixed(2);
     products[pIdx].stock -= qty;
-    sales.push({ ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: sellerName, salespersonUsername: sellerUsername });
+    const row = { ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: sellerName, salespersonUsername: sellerUsername };
+    if(discountPct > 0) {
+      row.discountPct       = discountPct;
+      row.unitPriceOriginal = unitPriceOriginal;
+    }
+    sales.push(row);
     confirmed++;
   });
 
@@ -3828,9 +3919,11 @@ function confirmSale() {
   saveSales(sales);
 
   const grandTotal = sales.slice(-confirmed).reduce((s, x) => s + x.total, 0);
-  showToast('Sale confirmed! $' + grandTotal.toFixed(2) + ' · ' + confirmed + ' product' + (confirmed > 1 ? 's' : ''));
+  const discountMsg = discountPct > 0 ? (' (−' + discountPct + '%)') : '';
+  showToast('Sale confirmed! $' + grandTotal.toFixed(2) + discountMsg + ' · ' + confirmed + ' product' + (confirmed > 1 ? 's' : ''));
 
   cartItems = {};
+  cartDiscount = 0;
   document.getElementById('sale-customer').value = '';
   renderSaleProducts();
   renderCart();
@@ -3854,19 +3947,26 @@ function renderMySales() {
     : sales;
   const recent = [...mine].reverse().slice(0,20);
   if(!recent.length){list.innerHTML='<div style="color:var(--text-light);font-size:13px;text-align:center;padding:12px;">No sales yet.</div>';return;}
-  list.innerHTML = recent.map(s=>
-    `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+  list.innerHTML = recent.map(s => {
+    const discBadge = (s.discountPct > 0)
+      ? `<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;margin-right:6px;">−${s.discountPct}%</span>`
+      : '';
+    const editedBadge = s.edited
+      ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;">EDITED</span>'
+      : '';
+    return `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;">${s.productName}</div>
         <div style="font-size:11px;color:var(--text-light);">Qty: ${s.qty} &middot; $${s.total.toFixed(2)} &middot; ${new Date(s.ts).toLocaleString()}</div>
         ${s.customer ? `<div style="font-size:11px;color:var(--text-light);">${s.customer}</div>` : ''}
-        ${s.edited ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;">EDITED</span>' : ''}
+        ${discBadge}${editedBadge}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button class="btn-edit" style="padding:4px 10px;font-size:11px;" onclick="openEditSale('${s.ts}')">Edit</button>
         <button class="btn-del" style="padding:4px 10px;font-size:11px;" onclick="undoSale('${s.ts}')">Undo</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function openEditSale(ts) {
