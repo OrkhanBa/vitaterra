@@ -4374,7 +4374,7 @@ function saveEditSale() {
   if(isNaN(newQty) || newQty < 1) { showToast('Say minimum 1 olmalıdır', true); return; }
 
   const sales    = getSales();
-  const products = getProducts();
+  const products = loadRawProducts();
   const idx = sales.findIndex(x => String(x.ts) === String(ts));
   if(idx < 0) return;
   const s = sales[idx];
@@ -4402,7 +4402,7 @@ function saveEditSale() {
 function undoSale(ts) {
   if(!confirm('Bu satışı geri almaq? Stok bərpa olunacaq.')) return;
   const sales    = getSales();
-  const products = getProducts();
+  const products = loadRawProducts();
   const idx = sales.findIndex(x => String(x.ts) === String(ts));
   if(idx < 0) return;
   const s = sales[idx];
