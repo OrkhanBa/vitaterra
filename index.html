@@ -364,14 +364,6 @@
     letter-spacing:1px; text-transform:uppercase; align-self:flex-start;
   }
   .product-tilt-overlay-content .product-stock-badge { position:absolute; top:12px; right:12px; }
-  .product-tilted-card .tilted-card-caption {
-    pointer-events:none; position:absolute; left:0; top:0;
-    border-radius:6px; background:var(--white);
-    padding:4px 10px; font-size:11px; font-weight:600;
-    color:var(--green-dark); opacity:0; z-index:3;
-    box-shadow:0 4px 14px rgba(0,0,0,0.15);
-    transform:translate(-50%, -120%); white-space:nowrap;
-  }
   @media (prefers-reduced-motion: reduce) {
     .product-tilted-card .tilted-card-inner { transition:none !important; transform:none !important; }
   }
@@ -3561,11 +3553,9 @@ function initTiltedCards(root) {
     if (fig.__tiltReady) return;
     fig.__tiltReady = true;
     var inner = fig.querySelector('.tilted-card-inner');
-    var caption = fig.querySelector('.tilted-card-caption');
     if (!inner) return;
     var amp = parseFloat(fig.dataset.rotateAmplitude || '12');
     var scale = parseFloat(fig.dataset.scaleOnHover || '1.05');
-    var lastY = 0;
     fig.addEventListener('mousemove', function(e) {
       var rect = fig.getBoundingClientRect();
       var ox = e.clientX - rect.left - rect.width / 2;
@@ -3573,21 +3563,9 @@ function initTiltedCards(root) {
       var rotX = (oy / (rect.height / 2)) * -amp;
       var rotY = (ox / (rect.width / 2)) * amp;
       inner.style.transform = 'rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg) scale(' + scale + ')';
-      if (caption) {
-        caption.style.left = (e.clientX - rect.left) + 'px';
-        caption.style.top = (e.clientY - rect.top) + 'px';
-        caption.style.opacity = '1';
-        caption.style.transform = 'translate(-50%, -120%) rotate(' + (-(oy - lastY) * 0.6) + 'deg)';
-        lastY = oy;
-      }
     });
     fig.addEventListener('mouseleave', function() {
       inner.style.transform = 'rotateX(0deg) rotateY(0deg) scale(1)';
-      if (caption) {
-        caption.style.opacity = '0';
-        caption.style.transform = 'translate(-50%, -120%) rotate(0deg)';
-      }
-      lastY = 0;
     });
   });
 }
@@ -3613,7 +3591,6 @@ function buildProductCardHtml(p) {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<figcaption class="tilted-card-caption">' + escapeHtml(p.name) + '</figcaption>' +
     '</figure>' +
     '<div class="product-card-body">' +
       '<p class="product-desc">' + escapeHtml(descText) + '</p>' +
