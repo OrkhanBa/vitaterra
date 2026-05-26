@@ -463,7 +463,7 @@
   .login-tab.active { background:var(--green-dark); color:var(--white); }
   .login-error { background:#fff0ee; border:1px solid #f5c6c2; color:var(--danger); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
   .login-error.show { display:block; }
-  #clerk-sign-in-container { margin-bottom: 12px; }
+  #clerk-sign-in-container { margin-bottom: 12px; min-height: 280px; }
 
   /* ─── ADMIN DASHBOARD ─── */
   #admin-view, #sales-view {
@@ -2855,6 +2855,9 @@ async function initClerkIfConfigured() {
       }
     });
     clerkReady = true;
+    if (loginTargetRole === 'admin' && document.getElementById('login-modal').classList.contains('open')) {
+      updateLoginFormForRole('admin');
+    }
     return true;
   } catch (e) {
     console.warn('Clerk init failed; using legacy admin auth.', e);
@@ -2887,7 +2890,7 @@ function mountClerkAdminSignIn() {
   if (!container) return;
   unmountClerkAdminSignIn();
   window.Clerk.mountSignIn(container, {
-    routing: 'hash',
+    routing: 'virtual',
     signUpUrl: undefined,
     afterSignInUrl: window.location.pathname || '/admin',
   });
