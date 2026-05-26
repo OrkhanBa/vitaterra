@@ -1873,7 +1873,7 @@
                 <th>Markup %</th>
                 <th>Sale Price ($)</th>
                 <th>Unit</th>
-                <th>Stock</th>
+                <th>Stok (ədəd / kq-l)</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -2614,8 +2614,9 @@
           <input class="form-input" id="fp-unit" placeholder="məs. 1 l və ya 500 g" oninput="updatePriceCalc()"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Stock Quantity *</label>
-          <input class="form-input" type="number" id="fp-stock" min="0" placeholder="0"/>
+          <label class="form-label">Stok (qablaşma üzrə ədəd) *</label>
+          <input class="form-input" type="number" id="fp-stock" min="0" step="1" placeholder="0"/>
+          <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Məs: 10 kq-lıq qabda 1000 ədəd = 10 000 kq</div>
         </div>
       </div>
       <div class="form-row">
@@ -2990,6 +2991,77 @@ function packMultiplier(packStr) {
   return 1;
 }
 
+// Raw `p.stock` is total kg/L when pack ≥ 1 kg/L; package count when pack < 1 kg (e.g. 500 g).
+function baseUnitLabelFromPack(packStr) {
+  if(!packStr) return 'ədəd';
+  if(/ml|\bl\b|litre|liter/i.test(packStr)) return 'litr';
+  if(/kg|\bg\b|gr|gram|kilo/i.test(packStr)) return 'kq';
+  return 'vahid';
+}
+
+function resolveProductStock(p) {
+  const raw = parseFloat(p.stock) || 0;
+  const packStr = packagingForProduct(p);
+  const mult = packMultiplier(packStr) || 1;
+  let packages;
+  let baseUnits;
+
+  if(mult >= 1) {
+    baseUnits = raw;
+    packages = mult > 0 ? raw / mult : raw;
+  } else {
+    packages = raw;
+    baseUnits = raw * mult;
+  }
+
+  return {
+    raw,
+    packStr,
+    mult,
+    packages,
+    baseUnits,
+    packLabel: packStr ? formatPackAz(packStr) : 'ədəd',
+    baseUnitLabel: baseUnitLabelFromPack(packStr)
+  };
+}
+
+function stockPackages(p) {
+  return resolveProductStock(p).packages;
+}
+
+function formatStockCount(n) {
+  n = parseFloat(n) || 0;
+  if(Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n));
+  return n.toFixed(2);
+}
+
+function stockRawFromPackages(p, packages) {
+  const mult = packMultiplier(packagingForProduct(p)) || 1;
+  const pkg = parseFloat(packages) || 0;
+  if(mult >= 1) return Math.round(pkg * mult * 1000) / 1000;
+  return Math.round(pkg);
+}
+
+function stockDeltaRaw(p, packageQtyDelta) {
+  const mult = packMultiplier(packagingForProduct(p)) || 1;
+  const d = parseFloat(packageQtyDelta) || 0;
+  if(mult >= 1) return d * mult;
+  return d;
+}
+
+function maxSalePackages(p) {
+  const pkg = stockPackages(p);
+  return pkg <= 0 ? 0 : Math.max(0, Math.floor(pkg));
+}
+
+function productHasStock(p) {
+  return maxSalePackages(p) > 0;
+}
+
+function stockBadgeForProduct(p) {
+  return stockBadge(maxSalePackages(p));
+}
+
 function priceStripHTML(p, lang) {
   const unitAzn  = salePriceAZN(p);              // price per kg or per litre
   const rawPack  = packagingForProduct(p);
@@ -3009,10 +3081,32 @@ function stockBadge(qty) {
   return '<span class="product-stock-badge in-stock">In Stock</span>';
 }
 function statusBadge(qty) {
-  qty = parseInt(qty) || 0;
+  qty = parseInt(qty, 10) || 0;
   if(qty === 0) return '<span class="badge badge-red">Out of Stock</span>';
   if(qty <= 10) return '<span class="badge badge-orange">Low Stock ('+qty+')</span>';
   return '<span class="badge badge-green">In Stock ('+qty+')</span>';
+}
+
+function adminStockCellHtml(p) {
+  const meta = resolveProductStock(p);
+  const pkgLine = '<strong>' + formatStockCount(meta.packages) + '</strong> <span style="font-size:10px;color:var(--text-light);">ədəd</span>';
+  if(meta.mult > 1 && meta.baseUnits > 0) {
+    return pkgLine + '<div style="font-size:11px;color:var(--text-mid);margin-top:2px;">'
+      + formatStockCount(meta.baseUnits) + ' ' + escapeHtml(meta.baseUnitLabel) + ' cəmi</div>';
+  }
+  return pkgLine;
+}
+
+function adminStatusBadge(p) {
+  const meta = resolveProductStock(p);
+  const pkg = maxSalePackages(p);
+  if(pkg <= 0) return '<span class="badge badge-red">Out of Stock</span>';
+  let label = formatStockCount(meta.packages) + ' ədəd';
+  if(meta.mult > 1 && meta.baseUnits > 0) {
+    label += ' · ' + formatStockCount(meta.baseUnits) + ' ' + meta.baseUnitLabel;
+  }
+  if(pkg <= 10) return '<span class="badge badge-orange">Low Stock (' + label + ')</span>';
+  return '<span class="badge badge-green">In Stock (' + label + ')</span>';
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3395,11 +3489,11 @@ function renderPublicProducts(filter) {
         ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
           onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
         <div class="product-img-overlay">
-          ${stockBadge(p.stock)}
+          ${stockBadgeForProduct(p)}
           <div class="product-name">${p.name}</div>
           <div class="product-category">${p.category}</div>
         </div>` : `
-        ${stockBadge(p.stock)}
+        ${stockBadgeForProduct(p)}
         <div class="product-icon">${CATEGORY_ICONS[p.category]||'📦'}</div>
         <div class="product-name">${p.name}</div>
         <div class="product-category">${p.category}</div>`}
@@ -3464,11 +3558,11 @@ function filterProducts(cat, btn) {
         ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
           onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
         <div class="product-img-overlay">
-          ${stockBadge(p.stock)}
+          ${stockBadgeForProduct(p)}
           <div class="product-name">${p.name}</div>
           <div class="product-category">${p.category}</div>
         </div>` : `
-        ${stockBadge(p.stock)}
+        ${stockBadgeForProduct(p)}
         <div class="product-icon">${CATEGORY_ICONS[p.category]||'📦'}</div>
         <div class="product-name">${p.name}</div>
         <div class="product-category">${p.category}</div>`}
@@ -3621,8 +3715,8 @@ function renderAdminKPIs() {
   const products = getProducts();
   const sales    = getSales();
   const totalRevenue = sales.reduce((s,x)=>s+x.total,0);
-  const lowStock = products.filter(p=>p.stock>0&&p.stock<=10).length;
-  const outStock = products.filter(p=>p.stock===0).length;
+  const lowStock = products.filter(p => { const n = maxSalePackages(p); return n > 0 && n <= 10; }).length;
+  const outStock = products.filter(p => maxSalePackages(p) <= 0).length;
   const el = document.getElementById('admin-kpis');
   if(!el) return;
   el.innerHTML = `
@@ -3642,7 +3736,6 @@ function renderAdminTable(filter) {
   tbody.innerHTML = filtered.map(p => {
     const cost     = parseFloat(p.cost)   || 0;  // per kg/L (base unit)
     const markup   = parseFloat(p.markup) || 0;
-    const stock    = parseInt(p.stock)    || 0;
     const spUnit   = salePrice(p);                // sale price per kg/L
     const rawPack  = packagingForProduct(p);
     const mult     = packMultiplier(rawPack);     // e.g. 0.5 for "500 g"
@@ -3667,8 +3760,8 @@ function renderAdminTable(filter) {
       <td>${markup}%</td>
       <td><strong title="Vahid: $${spUnit.toFixed(2)}">$${packSale.toFixed(2)}${perPack}</strong></td>
       <td>${packLbl || '\u2014'}</td>
-      <td>${stock}</td>
-      <td>${statusBadge(stock)}</td>
+      <td>${adminStockCellHtml(p)}</td>
+      <td>${adminStatusBadge(p)}</td>
       <td><div class="action-btns">
         <button class="btn-edit" onclick="openProductForm(${p.id})">Edit</button>
         <button class="btn-del" onclick="deleteProduct(${p.id})">Delete</button>
@@ -3836,7 +3929,7 @@ function openProductForm(id) {
       // If unit is empty, fall back to packaging from PRODUCTS_DATA as a placeholder
       const unitFallback = (typeof PRODUCTS_DATA !== 'undefined' && PRODUCTS_DATA.find(x=>x.id===p.id)?.packaging) || '';
       document.getElementById('fp-unit').value      = (p.unit && p.unit !== 'unit') ? p.unit : unitFallback;
-      document.getElementById('fp-stock').value     = p.stock;
+      document.getElementById('fp-stock').value     = formatStockCount(stockPackages(p));
       document.getElementById('fp-cost').value      = p.cost;
       document.getElementById('fp-markup').value    = p.markup;
       updatePriceCalc();
@@ -3907,8 +4000,15 @@ function saveProduct() {
   const name   = document.getElementById('fp-name').value.trim();
   const cost   = parseFloat(document.getElementById('fp-cost').value);
   const markup = parseFloat(document.getElementById('fp-markup').value);
-  const stock  = parseInt(document.getElementById('fp-stock').value)||0;
-  if(!name || isNaN(cost) || isNaN(markup)) { showToast('Bütün vacib sahələri doldurun.', true); return; }
+  const stockInput = parseFloat(document.getElementById('fp-stock').value);
+  const unitVal = document.getElementById('fp-unit').value.trim();
+  let stockHolder = { unit: unitVal || 'unit', id: editingId || 0 };
+  if(editingId) {
+    const existing = getProducts().find(x => x.id === editingId);
+    if(existing) stockHolder = Object.assign({}, existing, { unit: unitVal || existing.unit });
+  }
+  const stock  = stockRawFromPackages(stockHolder, stockInput);
+  if(!name || isNaN(cost) || isNaN(markup) || isNaN(stockInput) || stockInput < 0) { showToast('Bütün vacib sahələri doldurun.', true); return; }
   const imgPreview = document.getElementById('fp-img-preview');
   const image = (imgPreview && imgPreview.style.display !== 'none') ? imgPreview.src : '';
   const fields = {
@@ -4025,17 +4125,21 @@ function importExcel(event) {
           }
           const existing = products.findIndex(p=>p.name.toLowerCase()===name.toLowerCase());
           if(existing>=0) {
-            products[existing].stock = qty;
-            if(price>0) products[existing].cost = price;
+            const target = products[existing];
+            if(price>0) target.cost = price;
             if(colMap.markup !== undefined) {
               const importedMarkup = parseFloat(row[colMap.markup]);
-              if (!isNaN(importedMarkup)) products[existing].markup = importedMarkup;
+              if (!isNaN(importedMarkup)) target.markup = importedMarkup;
             }
+            if(unit && unit !== 'unit') target.unit = unit;
+            target.stock = stockRawFromPackages(target, qty);
           } else {
             const newId = products.length ? Math.max(...products.map(p=>p.id))+1 : 1;
-            products.push({id:newId, name, activeIngredient:active, formulation, cost:price, markup, stock:qty, unit, category:cat,
+            const newProd = {id:newId, name, activeIngredient:active, formulation, cost:price, markup, stock:0, unit, category:cat,
               desc:`Premium Cerrado Sol formulation. Active ingredient: ${active}.`,
-              usage:'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application.'});
+              usage:'Follow label instructions. Apply at recommended rate. Wear full protective equipment during application.'};
+            newProd.stock = stockRawFromPackages(newProd, qty);
+            products.push(newProd);
           }
           imported++;
         }
@@ -4236,7 +4340,8 @@ function adminEditSale(ts) {
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) {
     const delta = (+s.qty) - newQty;
-    products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + delta;
+    const p = products[pIdx];
+    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, delta);
     if(products[pIdx].stock < 0) {
       if(!confirm('Diqqət: Stock mənfi olacaq. Davam edək?')) return;
     }
@@ -4267,7 +4372,11 @@ function adminDeleteSale(ts) {
   // Restore stock
   const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
-  if(pIdx >= 0) { products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0); saveProducts(products); }
+  if(pIdx >= 0) {
+    const p = products[pIdx];
+    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+    saveProducts(products);
+  }
 
   sales.splice(idx, 1);
   saveSales(sales);
@@ -4286,7 +4395,10 @@ function clearSalesLog() {
   const products = loadRawProducts();
   sales.forEach(s => {
     const pIdx = products.findIndex(p => p.id === s.productId);
-    if(pIdx >= 0) products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0);
+    if(pIdx >= 0) {
+      const p = products[pIdx];
+      products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+    }
   });
   saveProducts(products);
   saveSales([]);
@@ -4341,11 +4453,12 @@ var cartDiscount = 0;
 
 function addToCart(id) {
   const p = getProducts().find(x => x.id === id);
-  if(!p || p.stock === 0) return;
+  if(!p || !productHasStock(p)) return;
+  const maxPkg = maxSalePackages(p);
   if(!cartItems[id]) {
     cartItems[id] = { qty: 1, customPrice: parseFloat(salePackPriceAZN(p).toFixed(2)) };
   } else {
-    cartItems[id].qty = Math.min(p.stock, cartItems[id].qty + 1);
+    cartItems[id].qty = Math.min(maxPkg, cartItems[id].qty + 1);
   }
   renderSaleProducts();
   renderCart();
@@ -4363,7 +4476,8 @@ function renderSaleProducts(filter) {
     const spAzn   = salePackPriceAZN(p);
     const packLbl = salePackLabel(p, 'az');
     const inCart  = !!cartItems[p.id];
-    const disabled = p.stock === 0;
+    const maxPkg  = maxSalePackages(p);
+    const disabled = !productHasStock(p);
     return `<div class="sale-product-item${inCart?' in-cart':''}"
       style="${disabled?'opacity:0.45;cursor:not-allowed;':'cursor:pointer;'}"
       onclick="${disabled?'':'addToCart('+p.id+')'}">
@@ -4374,7 +4488,7 @@ function renderSaleProducts(filter) {
       </button>
       <div class="sale-product-name">${CATEGORY_ICONS[p.category]||'📦'} ${p.name}</div>
       <div class="sale-product-price">${formatAzn(spAzn)} / ${packLbl}</div>
-      <div class="sale-product-stock">${p.stock===0?'Stokda yoxdur':p.stock+' ədəd mövcud'}</div>
+      <div class="sale-product-stock">${disabled?'Stokda yoxdur':formatStockCount(maxPkg)+' ədəd mövcud'}</div>
     </div>`;
   }).join('');
 }
@@ -4408,7 +4522,7 @@ function updateCartDiscount(val, commit) {
 function updateCartQty(id, val) {
   const p = getProducts().find(x => x.id === id);
   if(!p || !cartItems[id]) return;
-  const qty = Math.max(1, Math.min(p.stock, parseInt(val) || 1));
+  const qty = Math.max(1, Math.min(maxSalePackages(p), parseInt(val, 10) || 1));
   cartItems[id].qty = qty;
   refreshCartItemSubtotal(id);
   refreshCartTotals();
@@ -4483,7 +4597,7 @@ function stepCartQty(id, delta) {
   if(!cartItems[id]) return;
   const p = getProducts().find(x => x.id === id);
   if(!p) return;
-  cartItems[id].qty = Math.max(1, Math.min(p.stock, cartItems[id].qty + delta));
+  cartItems[id].qty = Math.max(1, Math.min(maxSalePackages(p), cartItems[id].qty + delta));
   const el = document.getElementById('cq-' + id);
   if(el) el.value = cartItems[id].qty;
   refreshCartItemSubtotal(id);
@@ -4527,7 +4641,7 @@ function renderCart() {
           <div class="cart-item-label" data-en="Quantity" data-az="Miqdar">Miqdar</div>
           <div class="cart-item-qty-wrap">
             <button class="cart-qty-btn" onclick="stepCartQty(${id},-1)">&#8722;</button>
-            <input class="cart-qty-input" id="cq-${id}" type="number" value="${item.qty}" min="1" max="${p.stock}"
+            <input class="cart-qty-input" id="cq-${id}" type="number" value="${item.qty}" min="1" max="${maxSalePackages(p)}"
               onchange="updateCartQty(${id},this.value)"/>
             <button class="cart-qty-btn" onclick="stepCartQty(${id},1)">&#43;</button>
           </div>
@@ -4579,7 +4693,7 @@ function confirmSale() {
     const pIdx = products.findIndex(p => p.id === id);
     if(pIdx < 0) return;
     const p = products[pIdx];
-    const qty = Math.min(item.qty, p.stock);
+    const qty = Math.min(item.qty, maxSalePackages(p));
     if(qty < 1) return;
     // Apply discount per-row so `unitPrice` always equals what the customer
     // actually paid per unit. Existing reports compute totals from these
@@ -4587,7 +4701,7 @@ function confirmSale() {
     const unitPriceOriginal = item.customPrice;
     const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
     const total     = +(unitPrice * qty).toFixed(2);
-    products[pIdx].stock -= qty;
+    products[pIdx].stock -= stockDeltaRaw(p, qty);
     const row = { ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: sellerName, salespersonUsername: sellerUsername };
     if(discountPct > 0) {
       row.discountPct       = discountPct;
@@ -4685,7 +4799,8 @@ function saveEditSale() {
   const qtyDiff = newQty - s.qty;
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) {
-    products[pIdx].stock = Math.max(0, products[pIdx].stock - qtyDiff);
+    const p = products[pIdx];
+    products[pIdx].stock = Math.max(0, (parseFloat(p.stock) || 0) - stockDeltaRaw(p, qtyDiff));
     saveProducts(products);
   }
 
@@ -4711,7 +4826,11 @@ function undoSale(ts) {
 
   // Restore stock
   const pIdx = products.findIndex(p => p.id === s.productId);
-  if(pIdx >= 0) { products[pIdx].stock += s.qty; saveProducts(products); }
+  if(pIdx >= 0) {
+    const p = products[pIdx];
+    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, s.qty);
+    saveProducts(products);
+  }
 
   sales.splice(idx, 1);
   saveSales(sales);
@@ -8079,36 +8198,11 @@ function financeExpenseAmountAzn(exp) {
 
 // Stock in admin is total kg/L when pack size ≥ 1 kg/L; package count when pack < 1 kg (e.g. 500 g).
 function financeBaseUnitLabel(packStr) {
-  if(!packStr) return 'ədəd';
-  if(/ml|\bl\b|litre|liter/i.test(packStr)) return 'litr';
-  if(/kg|\bg\b|gr|gram|kilo/i.test(packStr)) return 'kq';
-  return 'vahid';
+  return baseUnitLabelFromPack(packStr);
 }
 
 function financeResolveStock(p) {
-  const raw = parseFloat(p.stock) || 0;
-  const packStr = packagingForProduct(p);
-  const mult = packMultiplier(packStr) || 1;
-  let packages;
-  let baseUnits;
-
-  if(mult >= 1) {
-    baseUnits = raw;
-    packages = mult > 0 ? raw / mult : raw;
-  } else {
-    packages = raw;
-    baseUnits = raw * mult;
-  }
-
-  return {
-    raw,
-    packStr,
-    mult,
-    packages,
-    baseUnits,
-    packLabel: packStr ? formatPackAz(packStr) : 'ədəd',
-    baseUnitLabel: financeBaseUnitLabel(packStr)
-  };
+  return resolveProductStock(p);
 }
 
 function financeInventoryUnitPrices(p, stockMeta) {
