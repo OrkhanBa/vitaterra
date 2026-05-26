@@ -1,0 +1,104 @@
+{
+  "color": {
+    "green-dark": { "value": "#1a3a2a", "type": "color", "description": "Nav, hero bg, primary dark" },
+    "green-mid": { "value": "#2d5c3f", "type": "color" },
+    "green-accent": { "value": "#3e8c58", "type": "color", "description": "Buttons, links, accents" },
+    "green-light": { "value": "#6ab87a", "type": "color" },
+    "gold": { "value": "#c9a84c", "type": "color", "description": "Primary CTA, highlights" },
+    "gold-light": { "value": "#e8c96a", "type": "color", "description": "Hero title highlight, nav sub" },
+    "cream": { "value": "#f7f4ee", "type": "color", "description": "Page background" },
+    "white": { "value": "#ffffff", "type": "color" },
+    "text-dark": { "value": "#1a1a1a", "type": "color" },
+    "text-mid": { "value": "#4a4a4a", "type": "color" },
+    "text-light": { "value": "#888888", "type": "color" },
+    "danger": { "value": "#c0392b", "type": "color" },
+    "warning": { "value": "#e67e22", "type": "color" },
+    "success": { "value": "#27ae60", "type": "color" },
+    "border": { "value": "#e0dbd0", "type": "color" }
+  },
+  "gradient": {
+    "hero": {
+      "value": "linear-gradient(160deg, #1a3a2a 0%, #2d5c3f 60%, #1a4530 100%)",
+      "type": "color",
+      "description": "Hero section background"
+    },
+    "btn-primary": {
+      "value": "linear-gradient(135deg, #c9a84c, #e8c96a)",
+      "type": "color",
+      "description": "Primary button fill"
+    }
+  },
+  "fontFamily": {
+    "display": { "value": "Playfair Display", "type": "fontFamilies", "description": "Headings, hero title, stat numbers" },
+    "body": { "value": "DM Sans", "type": "fontFamilies", "description": "Body, nav, buttons, forms" }
+  },
+  "fontSize": {
+    "nav-logo": { "value": "20", "type": "fontSizes" },
+    "nav-link": { "value": "14", "type": "fontSizes" },
+    "hero-badge": { "value": "12", "type": "fontSizes" },
+    "hero-title": { "value": "56", "type": "fontSizes", "description": "Desktop; use clamp 42–68 in code" },
+    "hero-desc": { "value": "17", "type": "fontSizes" },
+    "section-label": { "value": "12", "type": "fontSizes" },
+    "section-title": { "value": "40", "type": "fontSizes" },
+    "body": { "value": "16", "type": "fontSizes" },
+    "btn": { "value": "15", "type": "fontSizes" },
+    "stat-num": { "value": "36", "type": "fontSizes" },
+    "stat-label": { "value": "13", "type": "fontSizes" }
+  },
+  "fontWeight": {
+    "regular": { "value": "400", "type": "fontWeights" },
+    "medium": { "value": "500", "type": "fontWeights" },
+    "semibold": { "value": "600", "type": "fontWeights" },
+    "bold": { "value": "700", "type": "fontWeights" }
+  },
+  "lineHeight": {
+    "tight": { "value": "110%", "type": "lineHeights", "description": "Hero title" },
+    "body": { "value": "170%", "type": "lineHeights" }
+  },
+  "letterSpacing": {
+    "badge": { "value": "1.5px", "type": "letterSpacing" },
+    "nav-sub": { "value": "2px", "type": "letterSpacing" },
+    "section-label": { "value": "2px", "type": "letterSpacing" }
+  },
+  "borderRadius": {
+    "sm": { "value": "6", "type": "borderRadius", "description": "Nav links, small buttons" },
+    "md": { "value": "8", "type": "borderRadius", "description": "Primary/secondary buttons" },
+    "lg": { "value": "12", "type": "borderRadius", "description": "Stat cards, modals" },
+    "xl": { "value": "20", "type": "borderRadius", "description": "About visual block" },
+    "pill": { "value": "100", "type": "borderRadius", "description": "Hero badge" }
+  },
+  "spacing": {
+    "nav-height": { "value": "70", "type": "spacing" },
+    "section-y": { "value": "100", "type": "spacing" },
+    "hero-padding-top": { "value": "120", "type": "spacing" },
+    "hero-grid-gap": { "value": "80", "type": "spacing" },
+    "stat-card-padding": { "value": "28", "type": "spacing" },
+    "btn-padding-x": { "value": "32", "type": "spacing" },
+    "btn-padding-y": { "value": "14", "type": "spacing" },
+    "page-max-width": { "value": "1200", "type": "spacing", "description": "Content max-width px" }
+  },
+  "shadow": {
+    "default": { "value": "0 4px 24px rgba(0,0,0,0.08)", "type": "boxShadow" },
+    "lg": { "value": "0 12px 48px rgba(0,0,0,0.15)", "type": "boxShadow" },
+    "btn-primary": { "value": "0 4px 20px rgba(201,168,76,0.35)", "type": "boxShadow" }
+  },
+  "component": {
+    "nav": {
+      "background": { "value": "rgba(26,58,42,0.97)", "type": "color" },
+      "border-bottom": { "value": "rgba(201,168,76,0.3)", "type": "color" }
+    },
+    "stat-card": {
+      "background": { "value": "rgba(255,255,255,0.06)", "type": "color" },
+      "border": { "value": "rgba(255,255,255,0.1)", "type": "color" }
+    },
+    "hero-badge": {
+      "background": { "value": "rgba(201,168,76,0.15)", "type": "color" },
+      "border": { "value": "rgba(201,168,76,0.4)", "type": "color" }
+    }
+  },
+  "frame": {
+    "desktop": { "value": "1440", "type": "sizing", "description": "Primary artboard width" },
+    "tablet": { "value": "768", "type": "sizing" },
+    "mobile": { "value": "375", "type": "sizing" }
+  }
+}

@@ -1,0 +1,42 @@
+---
+description: Figma design workflow for VitaTerra — tokens, mockups, and implementation
+globs: index.html,design/**
+alwaysApply: false
+---
+
+# Figma Design Workflow
+
+## Design source of truth
+
+- **Live site CSS**: `:root` variables in `index.html` (lines ~12–30).
+- **Figma tokens**: `design/figma-tokens.json` — import into Figma via [Tokens Studio](https://tokens.studio/) plugin.
+- When tokens change in Figma, update both `design/figma-tokens.json` and `:root` in `index.html`.
+
+## Figma file structure (recommended pages)
+
+1. **🎨 Design System** — colors, typography, buttons, stat cards, nav
+2. **🏠 Public Site** — Hero, About, Products grid, Contact, Footer (1440 / 768 / 375 frames)
+3. **⚙️ Admin** — optional; admin UI also lives in `index.html`
+
+## Implementing Figma → code
+
+- All public + admin UI stays in **single** `index.html` — never split CSS/JS out.
+- Map Figma colors to existing `--*` CSS variables; do not introduce new hex values without updating tokens.
+- Fonts: **Playfair Display** (headings), **DM Sans** (body) — already loaded from Google Fonts.
+- User shares Figma link or screenshot → match spacing, radius, and hierarchy from the mockup.
+- Content text: prefer Admin **Site Editor** + `site-content.json` for copy; use code only for layout/CSS.
+
+## Sections to mirror in Figma
+
+| Figma frame | HTML anchor |
+|-------------|-------------|
+| Hero | `#home` / `.hero` |
+| About | `#about-section` |
+| Products | `#products-section` |
+| Contact | `#contact-section` |
+| Footer | `.site-footer` |
+
+## Do not
+
+- Export React/Vue from Figma — implement manually in `index.html`.
+- Change deploy model (Netlify + GitHub `main` auto-deploy).

@@ -1,0 +1,56 @@
+{
+  "VitaTerra": {
+    "color": {
+      "green-dark": { "value": "#1a3a2a", "type": "color" },
+      "green-mid": { "value": "#2d5c3f", "type": "color" },
+      "green-accent": { "value": "#3e8c58", "type": "color" },
+      "green-light": { "value": "#6ab87a", "type": "color" },
+      "gold": { "value": "#c9a84c", "type": "color" },
+      "gold-light": { "value": "#e8c96a", "type": "color" },
+      "cream": { "value": "#f7f4ee", "type": "color" },
+      "white": { "value": "#ffffff", "type": "color" },
+      "text-dark": { "value": "#1a1a1a", "type": "color" },
+      "text-mid": { "value": "#4a4a4a", "type": "color" },
+      "text-light": { "value": "#888888", "type": "color" },
+      "danger": { "value": "#c0392b", "type": "color" },
+      "warning": { "value": "#e67e22", "type": "color" },
+      "success": { "value": "#27ae60", "type": "color" },
+      "border": { "value": "#e0dbd0", "type": "color" },
+      "hero-deep": { "value": "#1a4530", "type": "color" }
+    },
+    "fontFamilies": {
+      "display": { "value": "Playfair Display", "type": "fontFamilies" },
+      "body": { "value": "DM Sans", "type": "fontFamilies" }
+    },
+    "fontSizes": {
+      "nav-logo": { "value": "20", "type": "fontSizes" },
+      "nav-link": { "value": "14", "type": "fontSizes" },
+      "hero-badge": { "value": "12", "type": "fontSizes" },
+      "hero-title": { "value": "56", "type": "fontSizes" },
+      "hero-desc": { "value": "17", "type": "fontSizes" },
+      "section-label": { "value": "12", "type": "fontSizes" },
+      "section-title": { "value": "40", "type": "fontSizes" },
+      "body": { "value": "16", "type": "fontSizes" },
+      "btn": { "value": "15", "type": "fontSizes" },
+      "stat-num": { "value": "36", "type": "fontSizes" },
+      "stat-label": { "value": "13", "type": "fontSizes" }
+    },
+    "spacing": {
+      "nav-height": { "value": "70", "type": "spacing" },
+      "section-y": { "value": "100", "type": "spacing" },
+      "hero-padding-top": { "value": "120", "type": "spacing" },
+      "hero-grid-gap": { "value": "80", "type": "spacing" },
+      "stat-card-padding": { "value": "28", "type": "spacing" },
+      "btn-padding-x": { "value": "32", "type": "spacing" },
+      "btn-padding-y": { "value": "14", "type": "spacing" },
+      "page-max-width": { "value": "1200", "type": "spacing" }
+    },
+    "borderRadius": {
+      "sm": { "value": "6", "type": "borderRadius" },
+      "md": { "value": "8", "type": "borderRadius" },
+      "lg": { "value": "12", "type": "borderRadius" },
+      "xl": { "value": "20", "type": "borderRadius" },
+      "pill": { "value": "100", "type": "borderRadius" }
+    }
+  }
+}

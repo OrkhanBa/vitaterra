@@ -63,7 +63,7 @@
   .nav-logo-icon img { width:100%; height:100%; display:block; }
   .nav-logo-text { font-family:'Playfair Display',serif; color:var(--white); font-size:20px; font-weight:700; letter-spacing:0.5px; }
   .nav-logo-sub { font-size:10px; color:var(--gold-light); letter-spacing:2px; text-transform:uppercase; }
-  .nav-links { display:flex; align-items:center; gap:8px; }
+  .nav-links { display:flex; align-items:center; gap:20px; }
   .nav-links a {
     color:rgba(255,255,255,0.8); text-decoration:none; font-size:14px;
     padding:8px 16px; border-radius:6px; transition:all 0.2s; font-weight:500; cursor:pointer;
@@ -149,7 +149,8 @@
     font-size:clamp(42px,5vw,68px); line-height:1.1;
     color:var(--white); font-weight:700; margin-bottom:24px;
   }
-  .hero-title span { color:var(--gold-light); }
+  .hero-title-highlight { color:var(--gold-light); }
+  .hero-title-line2 { display:block; }
   .hero-desc {
     font-size:17px; color:rgba(255,255,255,0.75); line-height:1.7;
     margin-bottom:40px; max-width:480px;
@@ -169,7 +170,7 @@
   .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(201,168,76,0.45); }
   .btn-secondary {
     background:transparent; color:var(--white);
-    border:1px solid rgba(255,255,255,0.3);
+    border:1px solid rgba(255,255,255,0.35);
     padding:14px 32px; border-radius:8px; font-size:15px; font-weight:500;
     cursor:pointer; transition:all 0.25s; font-family:'DM Sans',sans-serif;
   }
@@ -181,6 +182,7 @@
     background:rgba(255,255,255,0.06);
     border:1px solid rgba(255,255,255,0.1);
     border-radius:12px; padding:28px 24px;
+    min-height:180px;
     backdrop-filter:blur(10px);
     transition:all 0.3s;
   }
@@ -190,7 +192,9 @@
     font-size:36px; color:var(--gold-light); font-weight:700; margin-bottom:6px;
   }
   .stat-card-label { font-size:13px; color:rgba(255,255,255,0.6); letter-spacing:0.5px; }
-  .stat-card-icon { font-size:28px; margin-bottom:12px; }
+  .stat-card-icon { font-size:28px; margin-bottom:8px; line-height:1; }
+  .stat-card-icon-img { width:28px; height:28px; margin-bottom:8px; }
+  .stat-card-icon-img img { width:28px; height:28px; display:block; border-radius:4px; }
 
   /* ─── SECTIONS ─── */
   section { padding:100px 40px; }
@@ -260,10 +264,10 @@
     background:var(--white);
     border:1px solid var(--border);
     border-radius:16px; overflow:hidden;
-    transition:all 0.3s; cursor:pointer;
+    transition:box-shadow 0.3s, border-color 0.3s; cursor:pointer;
     box-shadow: var(--shadow);
   }
-  .product-card:hover { transform:translateY(-6px); box-shadow:var(--shadow-lg); border-color:var(--green-accent); }
+  .product-card:hover { box-shadow:var(--shadow-lg); border-color:var(--green-accent); }
   .product-card-header {
     background:linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
     padding:32px 28px 24px;
@@ -315,6 +319,62 @@
     transition:all 0.2s; font-family:'DM Sans',sans-serif;
   }
   .btn-learn:hover { background:var(--green-accent); }
+
+  /* ─── TILTED CARD (react-bits TiltedCard port, vanilla JS) ─── */
+  .product-tilted-card.tilted-card-figure {
+    width:100%; height:220px; margin:0;
+    perspective:800px;
+    display:flex; flex-direction:column; align-items:stretch; justify-content:center;
+    border-radius:16px 16px 0 0; overflow:visible;
+  }
+  .product-tilted-card .tilted-card-inner {
+    position:relative; transform-style:preserve-3d;
+    width:100%; height:220px;
+    transition:transform 0.45s cubic-bezier(0.03, 0.98, 0.52, 0.99);
+    will-change:transform;
+  }
+  .product-tilted-card .tilted-card-img {
+    position:absolute; top:0; left:0; width:100%; height:220px;
+    object-fit:cover; border-radius:16px 16px 0 0;
+    transform:translateZ(0); display:block;
+  }
+  .tilted-card-placeholder {
+    background:linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-size:52px; color:rgba(255,255,255,0.9);
+  }
+  .product-tilted-card .tilted-card-overlay {
+    position:absolute; top:0; left:0; width:100%; height:220px;
+    z-index:2; transform:translateZ(24px); pointer-events:none;
+    border-radius:16px 16px 0 0; overflow:hidden;
+  }
+  .product-tilt-overlay-content {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    padding:16px 20px 18px;
+    background:linear-gradient(to top, rgba(10,30,18,0.92) 0%, rgba(10,30,18,0.35) 55%, transparent 100%);
+  }
+  .product-tilt-overlay-content .product-name {
+    font-family:'Playfair Display',serif; color:var(--white);
+    font-size:17px; font-weight:600; margin-bottom:4px;
+  }
+  .product-tilt-overlay-content .product-category {
+    display:inline-block; background:rgba(201,168,76,0.25); color:var(--gold-light);
+    font-size:11px; padding:3px 12px; border-radius:100px;
+    letter-spacing:1px; text-transform:uppercase; align-self:flex-start;
+  }
+  .product-tilt-overlay-content .product-stock-badge { position:absolute; top:12px; right:12px; }
+  .product-tilted-card .tilted-card-caption {
+    pointer-events:none; position:absolute; left:0; top:0;
+    border-radius:6px; background:var(--white);
+    padding:4px 10px; font-size:11px; font-weight:600;
+    color:var(--green-dark); opacity:0; z-index:3;
+    box-shadow:0 4px 14px rgba(0,0,0,0.15);
+    transform:translate(-50%, -120%); white-space:nowrap;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .product-tilted-card .tilted-card-inner { transition:none !important; transform:none !important; }
+  }
 
   /* ─── MODAL PRICE BADGE ─── */
   .modal-price-badge {
@@ -1545,7 +1605,7 @@
       <div class="nav-logo-icon"><img src="/assets/logo-mark-gold.svg" alt="Vita Terra"/></div>
       <div>
         <div class="nav-logo-text">Vita Terra</div>
-        <div class="nav-logo-sub" data-en="Your Plant Protection Partner" data-az="Bitki Mühafizə Tərəfdaşınız">Bitki Mühafizə Tərəfdaşınız</div>
+        <div class="nav-logo-sub" data-en="Your Plant Protection Partner" data-az="BİTKİ MÜHAFİZƏ TƏRƏFDAŞINIZ">Bitki Mühafizə Tərəfdaşınız</div>
       </div>
     </div>
     <div class="nav-links" id="nav-links">
@@ -1571,11 +1631,12 @@
     <div class="hero">
       <div class="hero-grid">
         <div class="hero-content">
-          <div class="hero-badge" data-en="🇪🇸 Exclusive Distributor · Spain · Cerrado Sol" data-az="🇪🇸 Eksklüziv Distribütor · İspaniya · Cerrado Sol">🇪🇸 Exclusive Distributor · Spain · Cerrado Sol</div>
+          <div class="hero-badge" data-en="🇪🇸 Exclusive Distributor · Spain · Cerrado Sol" data-az="🇪🇸 EKSKLUZİV DİSTRİBÜTOR · İSPANİYA · CERRADO SOL">🇪🇸 Exclusive Distributor · Spain · Cerrado Sol</div>
           <h1 class="hero-title">
-            <span data-en="Agricultural" data-az="Kənd Təsərrüfatında">Agricultural</span> <span>Excellence</span><br/><span data-en="From Spain" data-az="İspaniyadan">From Spain</span>
+            <span class="hero-title-line1">Kənd Təsərrüfatında</span><br/>
+            <span class="hero-title-line2"><span class="hero-title-highlight">Mükəmməllik</span><span class="hero-title-rest"> İspaniyadan</span></span>
           </h1>
-          <p class="hero-desc" data-en="Vita Terra is the exclusive distributor of Cerrado Sol pesticides in the region, delivering world-class crop protection solutions trusted by farmers and agribusinesses." data-az="Vita Terra şirkəti regionda Cerrado Sol pestisidlərinin eksklüziv distribütorüdür — əkinçilər və kənd təsərrüfatı müəssisələri tərəfindən güvənilən dünya səviyyəli məhsul mühafizəsi həlləri təqdim edir.">Vita Terra is the exclusive distributor of Cerrado Sol pesticides in the region, delivering world-class crop protection solutions trusted by farmers and agribusinesses.</p>
+          <p class="hero-desc" data-en="Vita Terra is the exclusive distributor of Cerrado Sol pesticides in the region, delivering world-class crop protection solutions trusted by farmers and agribusinesses." data-az="Vita Terra şirkəti regionda Cerrado Sol pestisidlərinin eksklüziv distribütorüdür — fermerlər və kənd təsərrüfatı müəssisələri tərəfindən güvənilən dünya səviyyəli məhsul mühafizəsi həlləri təqdim edir.">Vita Terra is the exclusive distributor of Cerrado Sol pesticides in the region, delivering world-class crop protection solutions trusted by farmers and agribusinesses.</p>
           <p class="hero-desc-az" style="display:none;">Vita Terra şirkəti regionda Cerrado Sol pestisidlərinin eksklüziv distribütorüdür — əkinçilər və kənd təsərrüfatı müəssisələri tərəfindən güvənilən dünya səviyyəli məhsul mühafizəsi həlləri təqdim edir.</p>
           <div class="hero-btns">
             <button class="btn-primary" onclick="scrollTo_('#products-section')" data-en="View Products" data-az="Məhsullara Bax">View Products</button>
@@ -1585,23 +1646,23 @@
         <div class="hero-stats">
           <div class="stat-card">
             <div class="stat-card-icon">🌾</div>
-            <div class="stat-card-num" id="hero-product-count">12+</div>
-            <div class="stat-card-label">Premium Products</div>
+            <div class="stat-card-num" id="hero-product-count">45+</div>
+            <div class="stat-card-label" data-en="Premium Products" data-az="Premium Məhsullar">Premium Products</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-icon">🇪🇸</div>
             <div class="stat-card-num">100%</div>
-            <div class="stat-card-label">Spanish Origin</div>
+            <div class="stat-card-label" data-en="Spanish Origin" data-az="İspan Mənşəli">Spanish Origin</div>
           </div>
           <div class="stat-card">
-            <div class="stat-card-icon">🔬</div>
-            <div class="stat-card-num">EU</div>
-            <div class="stat-card-label">Certified Formula</div>
+            <div class="stat-card-icon stat-card-icon-img"><img src="/assets/eu-flag.svg" alt="Avropa Birliyi"/></div>
+            <div class="stat-card-num" data-en="Europe" data-az="Avropa">Avropa</div>
+            <div class="stat-card-label" data-en="Certified Formula" data-az="Sertifikatlı Formul">Certified Formula</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-icon">📦</div>
-            <div class="stat-card-num">Fast</div>
-            <div class="stat-card-label">Regional Delivery</div>
+            <div class="stat-card-num" data-en="Fast" data-az="Sürətli">Fast</div>
+            <div class="stat-card-label" data-en="Regional Delivery" data-az="Regional Çatdırılma">Regional Delivery</div>
           </div>
         </div>
       </div>
@@ -2671,6 +2732,7 @@ var vseRefreshTimer = null;
 // DATA STORE
 // ═══════════════════════════════════════════════════════
 const PRODUCTS_KEY    = 'vt_products';
+const STOCK_KG_MIGRATION_KEY = 'vt_stock_kg_base_v2';
 const SALES_KEY       = 'vt_sales';
 const SALES_USERS_KEY = 'vt_sales_users';
 const CURRENT_USER_KEY = 'vt_current_user';
@@ -2770,11 +2832,11 @@ const DEFAULT_PRODUCTS = [
   {"id": 3, "name": "Lancet SL", "activeIngredient": "6-benzylaminopurine (6-BA) 19 g/l SL", "formulation": "SL", "category": "Growth Regulator", "cost": 6.14, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: 6-benzylaminopurine (6-BA) 19 g/l SL.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 4, "name": "Odysseus 480 SC", "activeIngredient": "Thiacloprid 480 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 34.06, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiacloprid 480 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 5, "name": "Razor 280 SC", "activeIngredient": "Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 9.34, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 6, "name": "Inclinar 100 WG", "activeIngredient": "Emamectin benzoate 100 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "cost": 23.0, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Emamectin benzoate 100 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 6, "name": "Inclinar 100 WG", "activeIngredient": "Emamectin benzoate 100 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "cost": 23.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Emamectin benzoate 100 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 7, "name": "Baiar 550 SC", "activeIngredient": "Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 21.0, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 8, "name": "Tocar 247 SC", "activeIngredient": "Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 9.54, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 9, "name": "Predador 220 EC", "activeIngredient": "Tebuconazole 125 g/l + Triadiminol 100 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 12.56, "markup": 30, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 125 g/l + Triadiminol 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 10, "name": "Divisar 750 WG", "activeIngredient": "Cyprodinil 750 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "cost": 38.08, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 750 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 10, "name": "Divisar 750 WG", "activeIngredient": "Cyprodinil 750 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "cost": 38.08, "markup": 30, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 750 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 11, "name": "Coger 100 EC", "activeIngredient": "Pyriproxyfen 10% EC", "formulation": "EC", "category": "Insecticide", "cost": 6.25, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyriproxyfen 10% EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 12, "name": "Pyrat 800 WG", "activeIngredient": "Captan 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 7.5, "markup": 30, "stock": 10000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Captan 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 13, "name": "Atrapar 50 WG", "activeIngredient": "Abamectin 50 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "cost": 18.65, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Abamectin 50 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
@@ -2784,22 +2846,22 @@ const DEFAULT_PRODUCTS = [
   {"id": 17, "name": "Curar 250 EC", "activeIngredient": "Cypermethrin 250 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 6.82, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cypermethrin 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 18, "name": "Tratar 700 WG", "activeIngredient": "Dithianon 700 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "cost": 43.5, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dithianon 700 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 19, "name": "Mandriguera 100 CS", "activeIngredient": "Lambda-cyhalothrin 100 g/l CS", "formulation": "CS", "category": "Insecticide", "cost": 11.91, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Lambda-cyhalothrin 100 g/l CS.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 20, "name": "Silex 500 WG", "activeIngredient": "Kresoxim-methyl 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 26.0, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Kresoxim-methyl 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 20, "name": "Silex 500 WG", "activeIngredient": "Kresoxim-methyl 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 26.0, "markup": 30, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Kresoxim-methyl 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 21, "name": "Ajustar 200 WP", "activeIngredient": "Pyridaben 200 g/kg WP", "formulation": "WP", "category": "Insecticide", "cost": 8.64, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyridaben 200 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 22, "name": "Estrellar 100 EC", "activeIngredient": "Penconazole 100 g/L EC", "formulation": "EC", "category": "Fungicide", "cost": 13.08, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Penconazole 100 g/L EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 23, "name": "Curador 200 SC", "activeIngredient": "Chlorantraniliprole 200 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 28.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Chlorantraniliprole 200 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 24, "name": "Lamar 500 WG", "activeIngredient": "Pirimicarb 500 g/kg WG", "formulation": "WG", "category": "Insecticide", "cost": 29.38, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pirimicarb 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 24, "name": "Lamar 500 WG", "activeIngredient": "Pirimicarb 500 g/kg WG", "formulation": "WG", "category": "Insecticide", "cost": 29.38, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pirimicarb 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 25, "name": "Lamada 700 WP", "activeIngredient": "Thiophanate methyl 700 g/kg WP", "formulation": "WP", "category": "Fungicide", "cost": 8.87, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiophanate methyl 700 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 26, "name": "Tono 400 SC", "activeIngredient": "Dodine 400 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 12.06, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dodine 400 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 27, "name": "Coronilla 800 WG", "activeIngredient": "Fosetyl aluminium 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 9.85, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Fosetyl aluminium 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 28, "name": "Argola 250 EC", "activeIngredient": "Deltamethrin 25 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 6.71, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Deltamethrin 25 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 29, "name": "Alianza 760 WG", "activeIngredient": "Ziram 76% WG", "formulation": "WG", "category": "Fungicide", "cost": 8.38, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Ziram 76% WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 30, "name": "Hornillo 500 WG", "activeIngredient": "Trifloxystrobin 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 28.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Trifloxystrobin 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 31, "name": "Anillito 200 SP", "activeIngredient": "Acetamiprid 200 g/kg SP", "formulation": "SP", "category": "Insecticide", "cost": 7.54, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Acetamiprid 200 g/kg SP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 31, "name": "Anillito 200 SP", "activeIngredient": "Acetamiprid 200 g/kg SP", "formulation": "SP", "category": "Insecticide", "cost": 7.54, "markup": 30, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Acetamiprid 200 g/kg SP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 32, "name": "Corro 240 SC", "activeIngredient": "Spirodiclofen 240 g/L SC", "formulation": "SP", "category": "Insecticide", "cost": 14.62, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 240 g/L SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 33, "name": "Zumbar 100 SC", "activeIngredient": "Spirotetramat 100 g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 22.0, "markup": 30, "stock": 1500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirotetramat 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 34, "name": "Camarilla 380 WG", "activeIngredient": "Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 34.09, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 35, "name": "Cercado 625 WG", "activeIngredient": "Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 59.89, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 35, "name": "Cercado 625 WG", "activeIngredient": "Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 59.89, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 36, "name": "Lumbre 250 EC", "activeIngredient": "Difenoconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "cost": 10.93, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 37, "name": "Sonos 300 SC", "activeIngredient": "Pyrimethanil 300 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 8.1, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyrimethanil 300 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 38, "name": "Arco 250 EC", "activeIngredient": "Tebuconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "cost": 9.02, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
@@ -2808,7 +2870,7 @@ const DEFAULT_PRODUCTS = [
   {"id": 41, "name": "Cosido 480 SC", "activeIngredient": "Diflubenzuron 480g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 17.03, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Diflubenzuron 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 42, "name": "Tapiar EC", "activeIngredient": "Hexythiazox 50 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 13.11, "markup": 30, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Hexythiazox 50 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 43, "name": "Amurallar 110 SC", "activeIngredient": "Etoxazole 110g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 13.63, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Etoxazole 110g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 44, "name": "Corriente 480 SC", "activeIngredient": "Spinosad 480g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 195.0, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spinosad 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 44, "name": "Corriente 480 SC", "activeIngredient": "Spinosad 480g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 195.0, "markup": 30, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spinosad 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
   {"id": 45, "name": "Parador 240 SC", "activeIngredient": "Spirodiclofen 222 gr/l + Abamectin 18g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 16.51, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 222 gr/l + Abamectin 18g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
 ];
 
@@ -2853,6 +2915,27 @@ function usesLocalProductDraft() {
   return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales' || currentView === 'finance'));
 }
 
+// One-time: old builds stored sub-1 kg/L pack stock as package count; convert to kg/L base units.
+function migrateStockToBaseUnits(products) {
+  if(!Array.isArray(products) || !products.length) return products;
+  if(localStorage.getItem(STOCK_KG_MIGRATION_KEY)) return products;
+  var changed = false;
+  products.forEach(function(p) {
+    var mult = packMultiplier(packagingForProduct(p)) || 1;
+    if(mult >= 1) return;
+    var raw = parseFloat(p.stock) || 0;
+    if(raw <= 0) return;
+    var kg = Math.round(raw * mult * 1000) / 1000;
+    if(kg !== raw) {
+      p.stock = kg;
+      changed = true;
+    }
+  });
+  localStorage.setItem(STOCK_KG_MIGRATION_KEY, '1');
+  if(changed) saveProducts(products);
+  return products;
+}
+
 // Raw catalog for reads/writes — never sanitized defaults that can clobber markups.
 function loadRawProducts() {
   try {
@@ -2860,14 +2943,14 @@ function loadRawProducts() {
     if (d) {
       var parsed = JSON.parse(d);
       if (Array.isArray(parsed) && parsed.length) {
-        return mergePublishedLabelFields(parsed);
+        return migrateStockToBaseUnits(mergePublishedLabelFields(parsed));
       }
     }
   } catch (e) { /* fall through */ }
   if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
-    return PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); });
+    return migrateStockToBaseUnits(PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); }));
   }
-  return DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); });
+  return migrateStockToBaseUnits(DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); }));
 }
 
 function getProducts() {
@@ -2975,9 +3058,10 @@ function productPackMetaHtml(p, lang) {
   return pk ? `<span class="product-meta-item">📦 ${pk}</span>` : '';
 }
 
-// Parses the first quantity+unit from a packaging string and returns
+// Parses the first quantity+unit from a packaging string (sale unit) and returns
 // a multiplier relative to the base unit (1 kg or 1 L).
-// e.g. "500 g"  → 0.5,  "5 kg" → 5,  "1 l" → 1,  "0.5 L bottle" → 0.5
+// "500 g, alu bag ×20, pallets" → 0.5 (500 g paket; ×20/palet satış sayına daxil deyil)
+// "5 kg" → 5,  "1 l" → 1,  "0.5 L bottle" → 0.5
 function packMultiplier(packStr) {
   if (!packStr) return 1;
   const m = packStr.match(/(\d+(?:[.,]\d+)?)\s*(ml|l|liter|litre|g|gr|gram|kg|kilo)/i);
@@ -2991,7 +3075,7 @@ function packMultiplier(packStr) {
   return 1;
 }
 
-// Raw `p.stock` is total kg/L when pack ≥ 1 kg/L; package count when pack < 1 kg (e.g. 500 g).
+// Raw `p.stock` is always total kg or L in warehouse; package count = stock ÷ pack size.
 function baseUnitLabelFromPack(packStr) {
   if(!packStr) return 'ədəd';
   if(/ml|\bl\b|litre|liter/i.test(packStr)) return 'litr';
@@ -3003,16 +3087,8 @@ function resolveProductStock(p) {
   const raw = parseFloat(p.stock) || 0;
   const packStr = packagingForProduct(p);
   const mult = packMultiplier(packStr) || 1;
-  let packages;
-  let baseUnits;
-
-  if(mult >= 1) {
-    baseUnits = raw;
-    packages = mult > 0 ? raw / mult : raw;
-  } else {
-    packages = raw;
-    baseUnits = raw * mult;
-  }
+  const baseUnits = raw;
+  const packages = mult > 0 ? raw / mult : raw;
 
   return {
     raw,
@@ -3038,15 +3114,13 @@ function formatStockCount(n) {
 function stockRawFromPackages(p, packages) {
   const mult = packMultiplier(packagingForProduct(p)) || 1;
   const pkg = parseFloat(packages) || 0;
-  if(mult >= 1) return Math.round(pkg * mult * 1000) / 1000;
-  return Math.round(pkg);
+  return Math.round(pkg * mult * 1000) / 1000;
 }
 
 function stockDeltaRaw(p, packageQtyDelta) {
   const mult = packMultiplier(packagingForProduct(p)) || 1;
   const d = parseFloat(packageQtyDelta) || 0;
-  if(mult >= 1) return d * mult;
-  return d;
+  return d * mult;
 }
 
 function maxSalePackages(p) {
@@ -3090,7 +3164,7 @@ function statusBadge(qty) {
 function adminStockCellHtml(p) {
   const meta = resolveProductStock(p);
   const pkgLine = '<strong>' + formatStockCount(meta.packages) + '</strong> <span style="font-size:10px;color:var(--text-light);">ədəd</span>';
-  if(meta.mult > 1 && meta.baseUnits > 0) {
+  if(meta.mult !== 1 && meta.baseUnits > 0) {
     return pkgLine + '<div style="font-size:11px;color:var(--text-mid);margin-top:2px;">'
       + formatStockCount(meta.baseUnits) + ' ' + escapeHtml(meta.baseUnitLabel) + ' cəmi</div>';
   }
@@ -3102,7 +3176,7 @@ function adminStatusBadge(p) {
   const pkg = maxSalePackages(p);
   if(pkg <= 0) return '<span class="badge badge-red">Out of Stock</span>';
   let label = formatStockCount(meta.packages) + ' ədəd';
-  if(meta.mult > 1 && meta.baseUnits > 0) {
+  if(meta.mult !== 1 && meta.baseUnits > 0) {
     label += ' · ' + formatStockCount(meta.baseUnits) + ' ' + meta.baseUnitLabel;
   }
   if(pkg <= 10) return '<span class="badge badge-orange">Low Stock (' + label + ')</span>';
@@ -3475,44 +3549,96 @@ function updateSalesHeader() {
 }
 
 // ═══════════════════════════════════════════════════════
-// PUBLIC WEBSITE \u2014 PRODUCTS
+// PUBLIC WEBSITE — PRODUCTS
 // ═══════════════════════════════════════════════════════
+
+// Vanilla port of react-bits TiltedCard (no React / framer-motion — single-file deploy)
+function initTiltedCards(root) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (window.matchMedia('(pointer: coarse)').matches) return;
+  var scope = root || document;
+  scope.querySelectorAll('[data-tilted-card]').forEach(function(fig) {
+    if (fig.__tiltReady) return;
+    fig.__tiltReady = true;
+    var inner = fig.querySelector('.tilted-card-inner');
+    var caption = fig.querySelector('.tilted-card-caption');
+    if (!inner) return;
+    var amp = parseFloat(fig.dataset.rotateAmplitude || '12');
+    var scale = parseFloat(fig.dataset.scaleOnHover || '1.05');
+    var lastY = 0;
+    fig.addEventListener('mousemove', function(e) {
+      var rect = fig.getBoundingClientRect();
+      var ox = e.clientX - rect.left - rect.width / 2;
+      var oy = e.clientY - rect.top - rect.height / 2;
+      var rotX = (oy / (rect.height / 2)) * -amp;
+      var rotY = (ox / (rect.width / 2)) * amp;
+      inner.style.transform = 'rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg) scale(' + scale + ')';
+      if (caption) {
+        caption.style.left = (e.clientX - rect.left) + 'px';
+        caption.style.top = (e.clientY - rect.top) + 'px';
+        caption.style.opacity = '1';
+        caption.style.transform = 'translate(-50%, -120%) rotate(' + (-(oy - lastY) * 0.6) + 'deg)';
+        lastY = oy;
+      }
+    });
+    fig.addEventListener('mouseleave', function() {
+      inner.style.transform = 'rotateX(0deg) rotateY(0deg) scale(1)';
+      if (caption) {
+        caption.style.opacity = '0';
+        caption.style.transform = 'translate(-50%, -120%) rotate(0deg)';
+      }
+      lastY = 0;
+    });
+  });
+}
+
+function buildProductCardHtml(p) {
+  var isAz = currentLang === 'az';
+  var descText = isAz
+    ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc || '') ? p.desc : 'Premium formula. Aktiv maddə: ' + (p.activeIngredient || p.name) + '.'))
+    : (p.desc || 'Premium Cerrado Sol formulation.');
+  var learnLabel = isAz ? 'Ətraflı Bax' : 'View Details';
+  var imgBlock = p.image
+    ? '<img class="tilted-card-img" src="' + escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" onclick="event.stopPropagation();openLightbox(\'' + String(p.image).replace(/'/g, "\\'") + '\',\'' + String(p.name).replace(/'/g, "\\'") + '\')"/>'
+    : '<div class="tilted-card-img tilted-card-placeholder">' + (CATEGORY_ICONS[p.category] || '📦') + '</div>';
+  return '<div class="product-card" onclick="openProductModal(' + p.id + ')">' +
+    '<figure class="tilted-card-figure product-tilted-card" data-tilted-card data-rotate-amplitude="12" data-scale-on-hover="1.05">' +
+      '<div class="tilted-card-inner">' +
+        imgBlock +
+        '<div class="tilted-card-overlay">' +
+          '<div class="product-tilt-overlay-content">' +
+            stockBadgeForProduct(p) +
+            '<div class="product-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="product-category">' + escapeHtml(p.category) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<figcaption class="tilted-card-caption">' + escapeHtml(p.name) + '</figcaption>' +
+    '</figure>' +
+    '<div class="product-card-body">' +
+      '<p class="product-desc">' + escapeHtml(descText) + '</p>' +
+      '<div class="product-meta">' +
+        productPackMetaHtml(p, currentLang) +
+        (p.activeIngredient ? '<span class="product-meta-item">🔬 ' + escapeHtml(p.activeIngredient.split(' ').slice(0, 2).join(' ')) + '</span>' : '') +
+        (p.formulation ? '<span class="product-meta-item">⚗️ ' + escapeHtml(p.formulation) + '</span>' : '') +
+        ((isAz && p.target_az) ? '<span class="product-meta-item">🌿 ' + escapeHtml(p.target_az.split(/[,،]/)[0].trim()) + '</span>' : '') +
+      '</div>' +
+    '</div>' +
+    priceStripHTML(p, currentLang) +
+    '<div class="product-card-footer">' +
+      '<button class="btn-learn" data-en="View Details" data-az="Ətraflı Bax">' + learnLabel + '</button>' +
+    '</div>' +
+  '</div>';
+}
+
 function renderPublicProducts(filter) {
   filter = filter || 'all';
   const products = getProducts();
   const grid = document.getElementById('products-grid');
   if(!grid) return;
   const filtered = filter==='all' ? products : products.filter(p=>p.category===filter);
-  grid.innerHTML = filtered.map(p => `
-    <div class="product-card" onclick="openProductModal(${p.id})">
-      <div class="product-card-header${p.image?' has-img':''}">
-        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
-          onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
-        <div class="product-img-overlay">
-          ${stockBadgeForProduct(p)}
-          <div class="product-name">${p.name}</div>
-          <div class="product-category">${p.category}</div>
-        </div>` : `
-        ${stockBadgeForProduct(p)}
-        <div class="product-icon">${CATEGORY_ICONS[p.category]||'📦'}</div>
-        <div class="product-name">${p.name}</div>
-        <div class="product-category">${p.category}</div>`}
-      </div>
-      <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
-        <div class="product-meta">
-          ${productPackMetaHtml(p, currentLang)}
-          ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
-          ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
-          ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
-        </div>
-      </div>
-      ${priceStripHTML(p, currentLang)}
-      <div class="product-card-footer">
-        <button class="btn-learn" data-en="View Details" data-az="Ətraflı Bax">${currentLang==='az'?'Ətraflı Bax':'View Details'}</button>
-      </div>
-    </div>
-  `).join('');
+  grid.innerHTML = filtered.map(buildProductCardHtml).join('');
+  initTiltedCards(grid);
 
   // Rebuild filter buttons
   const filterDiv = document.getElementById('products-filter');
@@ -3549,39 +3675,7 @@ function renderPublicProducts(filter) {
 function filterProducts(cat, btn) {
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const products = getProducts();
-  const grid = document.getElementById('products-grid');
-  const filtered = cat==='all' ? products : products.filter(p=>p.category===cat);
-  grid.innerHTML = filtered.map(p => `
-    <div class="product-card" onclick="openProductModal(${p.id})">
-      <div class="product-card-header${p.image?' has-img':''}">
-        ${p.image ? `<img class="product-card-img" src="${p.image}" alt="${p.name}" loading="lazy"
-          onclick="event.stopPropagation();openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
-        <div class="product-img-overlay">
-          ${stockBadgeForProduct(p)}
-          <div class="product-name">${p.name}</div>
-          <div class="product-category">${p.category}</div>
-        </div>` : `
-        ${stockBadgeForProduct(p)}
-        <div class="product-icon">${CATEGORY_ICONS[p.category]||'📦'}</div>
-        <div class="product-name">${p.name}</div>
-        <div class="product-category">${p.category}</div>`}
-      </div>
-      <div class="product-card-body">
-        <p class="product-desc">${currentLang==='az' ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc||'') ? p.desc : `Premium formula. Aktiv maddə: ${p.activeIngredient||p.name}.`)) : (p.desc||'Premium Cerrado Sol formulation.')}</p>
-        <div class="product-meta">
-          ${productPackMetaHtml(p, currentLang)}
-          ${p.activeIngredient?`<span class="product-meta-item">🔬 ${p.activeIngredient.split(' ').slice(0,2).join(' ')}</span>`:''}
-          ${p.formulation?`<span class="product-meta-item">⚗️ ${p.formulation}</span>`:''}
-          ${(currentLang==='az'&&p.target_az)?`<span class="product-meta-item">🌿 ${p.target_az.split(/[,،]/)[0].trim()}</span>`:''}
-        </div>
-      </div>
-      ${priceStripHTML(p, currentLang)}
-      <div class="product-card-footer">
-        <button class="btn-learn" data-en="View Details" data-az="Ətraflı Bax">${currentLang==='az'?'Ətraflı Bax':'View Details'}</button>
-      </div>
-    </div>
-  `).join('');
+  renderPublicProducts(cat);
 }
 
 function openProductModal(id) {
@@ -5450,15 +5544,15 @@ const SITE_CONTENT_KEY = 'vt_site_content';
 
 const SITE_DEFAULTS = {
   nav_company_name:'Vita Terra', nav_tagline:'Your Plant Protection Partner',
-  nav_company_name_az:'Vita Terra', nav_tagline_az:'Bitki Mühafizə Tərəfdaşınız',
+  nav_company_name_az:'Vita Terra', nav_tagline_az:'BİTKİ MÜHAFİZƏ TƏRƏFDAŞINIZ',
   hero_badge:'🇪🇸 Exclusive Distributor · Spain · Cerrado Sol',
-  hero_badge_az:'🇪🇸 Eksklüziv Distribütor · İspaniya · Cerrado Sol',
+  hero_badge_az:'🇪🇸 EKSKLUZİV DİSTRİBÜTOR · İSPANİYA · CERRADO SOL',
   hero_title_en:'Agricultural Excellence From Spain',
   hero_title_highlight:'Excellence',
   hero_title_en_az:'Kənd Təsərrüfatında Mükəmməllik İspaniyadan',
   hero_title_highlight_az:'Mükəmməllik',
   hero_desc_en:'Vita Terra is the exclusive distributor of Cerrado Sol pesticides in the region, delivering world-class crop protection solutions trusted by farmers and agribusinesses.',
-  hero_desc_az_text:'Vita Terra şirkəti regionda Cerrado Sol pestisidlərinin eksklüziv distribütorüdür, əkinçilər və kənd təsərrüfatı müəssisələri tərəfindən güvənilən dünya səviyyəli məhsul mühafizəsi həlləri təqdim edir.',
+  hero_desc_az_text:'Vita Terra şirkəti regionda Cerrado Sol pestisidlərinin eksklüziv distribütorüdür — fermerlər və kənd təsərrüfatı müəssisələri tərəfindən güvənilən dünya səviyyəli məhsul mühafizəsi həlləri təqdim edir.',
   hero_btn1:'View Products', hero_btn2:'Contact Us',
   hero_btn1_az:'Məhsullara Bax', hero_btn2_az:'Bizimlə Əlaqə',
   hero_bg_color:'', hero_hero_image:'',
@@ -5484,7 +5578,6 @@ const SITE_DEFAULTS = {
   footer_copy:'© 2025 Vita Terra. All rights reserved.',
   footer_copy_az:'© 2025 Vita Terra. Bütün hüquqlar qorunur.',
   footer_spain:'🇪🇸 Official Cerrado Sol Distributor · Spain',
-  nav_company_name_az:'Vita Terra', nav_tagline_az:'Cerrado Sol Distribütoru',
 };
 
 // PUBLISHED_CONTENT holds the content fetched from /site-content.json (the deployed
@@ -6995,6 +7088,33 @@ function vseRemoveImage(key) {
 }
 
 // Legacy compatibility — keep applySiteContent working
+function applyHeroTitleFromContent(c, lang) {
+  var heroTitle = document.querySelector('.hero-title');
+  if(!heroTitle) return;
+  var line1 = heroTitle.querySelector('.hero-title-line1');
+  var hl = heroTitle.querySelector('.hero-title-highlight');
+  var rest = heroTitle.querySelector('.hero-title-rest');
+  if(!line1 || !hl || !rest) return;
+  var full, highlight;
+  if(lang === 'az') {
+    full = c.hero_title_en_az || SITE_DEFAULTS.hero_title_en_az;
+    highlight = c.hero_title_highlight_az || SITE_DEFAULTS.hero_title_highlight_az;
+  } else {
+    full = c.hero_title_en || SITE_DEFAULTS.hero_title_en;
+    highlight = c.hero_title_highlight || SITE_DEFAULTS.hero_title_highlight;
+  }
+  var idx = full.indexOf(highlight);
+  if(idx < 0) {
+    line1.textContent = full;
+    hl.textContent = '';
+    rest.textContent = '';
+    return;
+  }
+  line1.textContent = full.slice(0, idx).trim();
+  hl.textContent = highlight;
+  rest.textContent = full.slice(idx + highlight.length);
+}
+
 function applySiteContent(c) {
   const lang = currentLang || 'az';
   const navNameEl = document.querySelector('.nav-logo-text');
@@ -7008,16 +7128,7 @@ function applySiteContent(c) {
   }
   const heroBadge = document.querySelector('.hero-badge');
   if(heroBadge) heroBadge.textContent = lang==='az' ? (c.hero_badge_az||SITE_DEFAULTS.hero_badge_az) : (c.hero_badge||SITE_DEFAULTS.hero_badge);
-  const heroTitle = document.querySelector('.hero-title');
-  if(heroTitle) {
-    if(lang==='az') {
-      const t=c.hero_title_en_az||SITE_DEFAULTS.hero_title_en_az, h=c.hero_title_highlight_az||SITE_DEFAULTS.hero_title_highlight_az;
-      heroTitle.innerHTML = h&&t.includes(h) ? t.replace(h,'<span>'+h+'</span>') : t;
-    } else {
-      const t=c.hero_title_en||SITE_DEFAULTS.hero_title_en, h=c.hero_title_highlight||SITE_DEFAULTS.hero_title_highlight;
-      heroTitle.innerHTML = h&&t.includes(h) ? t.replace(h,'<span>'+h+'</span>') : t;
-    }
-  }
+  applyHeroTitleFromContent(c, lang);
   const heroDescEn = document.querySelector('.hero-desc');
   const heroDescAz = document.querySelector('.hero-desc-az');
   if(lang==='az') {
@@ -7171,20 +7282,8 @@ function setLang(lang) {
   const heroDescEn = document.querySelector('.hero-desc');
   if(heroDescAz) heroDescAz.style.display = lang === 'az' ? 'block' : 'none';
 
-  // Hero title span highlight stays
-  const heroTitle = document.querySelector('.hero-title');
-  if(heroTitle) {
-    const c = getSiteContent();
-    if(lang === 'az') {
-      const titleAz = c.hero_title_en_az || SITE_DEFAULTS.hero_title_en_az;
-      const hlAz    = c.hero_title_highlight_az || SITE_DEFAULTS.hero_title_highlight_az;
-      heroTitle.innerHTML = hlAz && titleAz.includes(hlAz) ? titleAz.replace(hlAz, '<span>'+hlAz+'</span>') : titleAz;
-    } else {
-      const titleEn = c.hero_title_en || SITE_DEFAULTS.hero_title_en;
-      const hl      = c.hero_title_highlight || SITE_DEFAULTS.hero_title_highlight;
-      heroTitle.innerHTML = hl && titleEn.includes(hl) ? titleEn.replace(hl, '<span>'+hl+'</span>') : titleEn;
-    }
-  }
+  // Hero title (2-line layout + gold highlight)
+  applyHeroTitleFromContent(getSiteContent(), lang);
 
   // Products section sub-text
   const sectionSub = document.querySelector('#products-section .section-sub');
@@ -7228,12 +7327,12 @@ function setLang(lang) {
     btn.textContent = lang === 'az' ? '\u018ftrafl\u0131 Bax' : 'View Details';
   });
 
-  // Stat card labels
-  const statLabels = document.querySelectorAll('.stat-card-label');
-  const slEn = ['Premium Products', 'Spanish Origin', 'Certified Formula', 'Fast\nRegional Delivery'];
-  const slAz = ['Premium M\u0259hsullar', '\u0130span M\u0259n\u015f\u0259li', 'Sertifikatl\u0131 Formul', 'S\u00fcr\u0259tli\nRegional Çatd\u0131rma'];
-  statLabels.forEach((el, i) => {
-    if(slEn[i]) el.textContent = lang === 'az' ? slAz[i] : slEn[i];
+  // Stat card labels + nums (product count stays dynamic)
+  document.querySelectorAll('.stat-card-label[data-en]').forEach(function(el) {
+    el.textContent = lang === 'az' ? el.dataset.az : el.dataset.en;
+  });
+  document.querySelectorAll('.stat-card-num[data-en]').forEach(function(el) {
+    el.textContent = lang === 'az' ? el.dataset.az : el.dataset.en;
   });
 
   // Re-render products so product cards get updated language
@@ -8196,7 +8295,7 @@ function financeExpenseAmountAzn(exp) {
   return amt;
 }
 
-// Stock in admin is total kg/L when pack size ≥ 1 kg/L; package count when pack < 1 kg (e.g. 500 g).
+// Stock in admin is always total kg/L; package count = stock ÷ pack size.
 function financeBaseUnitLabel(packStr) {
   return baseUnitLabelFromPack(packStr);
 }
