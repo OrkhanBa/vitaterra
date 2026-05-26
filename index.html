@@ -2538,13 +2538,19 @@ const DEFAULT_PRODUCTS = [
   {"id": 45, "name": "Parador 240 SC", "activeIngredient": "Spirodiclofen 222 gr/l + Abamectin 18g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 16.51, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 222 gr/l + Abamectin 18g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
 ];
 
+function productMarkup(p) {
+  if (p == null || p.markup === undefined || p.markup === null || p.markup === '') return 30;
+  var n = parseFloat(p.markup);
+  return isNaN(n) ? 30 : n;
+}
+
 function sanitizeProduct(p, idx) {
   return {
     id:              parseInt(p.id)      || idx + 1,
     name:            p.name              || 'Unnamed Product',
     category:        p.category          || 'Other',
     cost:            parseFloat(p.cost)  || 0,
-    markup:          parseFloat(p.markup)|| 30,
+    markup:          productMarkup(p),
     stock:           parseInt(p.stock)   || 0,
     unit:            p.unit              || '',
     desc:            p.desc              || '',
@@ -2573,22 +2579,36 @@ function usesLocalProductDraft() {
   return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales'));
 }
 
+// Raw catalog for reads/writes — never sanitized defaults that can clobber markups.
+function loadRawProducts() {
+  try {
+    var d = localStorage.getItem(PRODUCTS_KEY);
+    if (d) {
+      var parsed = JSON.parse(d);
+      if (Array.isArray(parsed) && parsed.length) {
+        return mergePublishedLabelFields(parsed);
+      }
+    }
+  } catch (e) { /* fall through */ }
+  if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
+    return PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); });
+  }
+  return DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); });
+}
+
 function getProducts() {
   try {
-    const d = localStorage.getItem(PRODUCTS_KEY);
     var arr;
-    if (usesLocalProductDraft() && d) {
-      arr = mergePublishedLabelFields(JSON.parse(d));
+    if (usesLocalProductDraft()) {
+      arr = loadRawProducts();
     } else if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
       arr = PUBLISHED_PRODUCTS;
-    } else if (d) {
-      arr = mergePublishedLabelFields(JSON.parse(d));
     } else {
-      arr = DEFAULT_PRODUCTS;
+      arr = loadRawProducts();
     }
-    return arr.map((p,i) => sanitizeProduct(p, i));
+    return arr.map(function(p, i) { return sanitizeProduct(p, i); });
   }
-  catch(e) { return DEFAULT_PRODUCTS.map((p,i) => sanitizeProduct(p,i)); }
+  catch(e) { return DEFAULT_PRODUCTS.map(function(p,i) { return sanitizeProduct(p,i); }); }
 }
 
 // If localStorage lost label text fields, back-fill from the last published
@@ -3431,7 +3451,7 @@ function bulkDelete() {
   const ids = getCheckedIds();
   if(!ids.length) return;
   if(!confirm(`Delete ${ids.length} selected product${ids.length>1?'s':''}? This cannot be undone.`)) return;
-  saveProducts(getProducts().filter(p=>!ids.includes(p.id)));
+  saveProducts(loadRawProducts().filter(p=>!ids.includes(p.id)));
   renderAdminDash();
   renderPublicProducts();
   showToast(`Deleted ${ids.length} product${ids.length>1?'s':''}.`);
@@ -3600,13 +3620,13 @@ function saveProduct() {
     target_az: document.getElementById('fp-target-az').value,
     unit:      document.getElementById('fp-unit').value,
   };
-  const products = getProducts();
+  const products = loadRawProducts();
   if(editingId) {
     const idx = products.findIndex(p=>p.id===editingId);
-    if(idx>=0) products[idx] = { ...products[idx], ...fields };
+    if(idx>=0) products[idx] = Object.assign({}, products[idx], fields);
   } else {
     const newId = products.length ? Math.max(...products.map(p=>p.id))+1 : 1;
-    products.push({ id:newId, ...fields });
+    products.push(Object.assign({ id:newId }, fields));
   }
   saveProducts(products);
   closeProductForm();
@@ -3622,7 +3642,7 @@ function saveProduct() {
 
 function deleteProduct(id) {
   if(!confirm('Delete this product? This cannot be undone.')) return;
-  saveProducts(getProducts().filter(p=>p.id!==id));
+  saveProducts(loadRawProducts().filter(p=>p.id!==id));
   renderAdminDash();
   renderPublicProducts();
   showToast('Product deleted.');
@@ -3630,7 +3650,7 @@ function deleteProduct(id) {
 
 // Clear all product images (resets to default category icon)
 function clearAllProductImages() {
-  const products = getProducts();
+  const products = loadRawProducts();
   const withImg  = products.filter(p => p.image).length;
   if(!withImg) { showToast('Heç bir məhsulda şəkil yoxdur.'); return; }
   if(!confirm(`${withImg} məhsulun şəkilini silmək istəyirsiniz?\n\nMəhsullar default ikon ilə göstəriləcək. 3D şəkilləri sonradan birər-birər redaktə formasından yükləyə bilərsiniz.`)) return;
@@ -3681,7 +3701,7 @@ function importExcel(event) {
           break;
         }
       }
-      const products = getProducts();
+      const products = loadRawProducts();
       let imported = 0;
       if(headerIdx >= 0) {
         for(let i=headerIdx+1;i<rawRows.length;i++) {
@@ -3705,6 +3725,10 @@ function importExcel(event) {
           if(existing>=0) {
             products[existing].stock = qty;
             if(price>0) products[existing].cost = price;
+            if(colMap.markup !== undefined) {
+              const importedMarkup = parseFloat(row[colMap.markup]);
+              if (!isNaN(importedMarkup)) products[existing].markup = importedMarkup;
+            }
           } else {
             const newId = products.length ? Math.max(...products.map(p=>p.id))+1 : 1;
             products.push({id:newId, name, activeIngredient:active, formulation, cost:price, markup, stock:qty, unit, category:cat,
@@ -3906,7 +3930,7 @@ function adminEditSale(ts) {
   if(newCustomer == null) return;
 
   // Adjust stock by the qty delta (oldQty - newQty), so reducing qty restores stock
-  const products = getProducts();
+  const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) {
     const delta = (+s.qty) - newQty;
@@ -3939,7 +3963,7 @@ function adminDeleteSale(ts) {
   if(!confirm(`Bu satışı silmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
 
   // Restore stock
-  const products = getProducts();
+  const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) { products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0); saveProducts(products); }
 
@@ -3957,7 +3981,7 @@ function clearSalesLog() {
   if(!confirm(`Bütün satış tarixçəsini silmək və ${sales.length} satışdan stock-ları geri qaytarmaq?`)) return;
 
   // Restore stock for every sale
-  const products = getProducts();
+  const products = loadRawProducts();
   sales.forEach(s => {
     const pIdx = products.findIndex(p => p.id === s.productId);
     if(pIdx >= 0) products[pIdx].stock = (parseInt(products[pIdx].stock)||0) + (parseInt(s.qty)||0);
@@ -3975,7 +3999,7 @@ function clearSalesLog() {
 function restoreOriginalStock() {
   if(typeof PRODUCTS_DATA === 'undefined') { showToast('PRODUCTS_DATA tapılmadı.', true); return; }
   if(!confirm('Bütün məhsulları PRODUCTS_DATA-dakı orijinal stock dəyərlərinə qaytarmaq?\n\nBu mövcud satışları silməyəcək, yalnız stock-u sıfırlayacaq.')) return;
-  const products = getProducts();
+  const products = loadRawProducts();
   let restored = 0;
   PRODUCTS_DATA.forEach(d => {
     const idx = products.findIndex(p => p.id === d.id);
@@ -4233,7 +4257,7 @@ function confirmSale() {
   const ids = Object.keys(cartItems).map(Number);
   if(!ids.length) return;
 
-  const products = getProducts();
+  const products = loadRawProducts();
   const sales = getSales();
   const customer = document.getElementById('sale-customer').value.trim();
   const ts = Date.now();
@@ -4663,7 +4687,6 @@ function applyAllLabels() {
     applyLabelToProduct(item);
     item.status = 'done';
   });
-  saveProducts(getProducts()); // already saved inside applyLabelToProduct
   renderPdfQueue();
   renderAdminDash();
   renderPublicProducts();
@@ -4671,7 +4694,7 @@ function applyAllLabels() {
 }
 
 function applyLabelToProduct(item) {
-  const products = getProducts();
+  const products = loadRawProducts();
   const idx = products.findIndex(p => p.id === item.matchedProductId);
   if(idx < 0) return;
   const p = item.parsedData;
@@ -4882,7 +4905,7 @@ function imgLblRemove(id) {
 function imgLblApplySingle(id) {
   var item = imgLblQueue.find(function(i) { return i.id === id; });
   if(!item || !item.matchedProductId || !item.dataUrl) return;
-  var products = getProducts();
+  var products = loadRawProducts();
   var idx = products.findIndex(function(p) { return p.id === item.matchedProductId; });
   if(idx < 0) return;
   products[idx].image = item.dataUrl;
@@ -4899,7 +4922,7 @@ function imgLblApplyAll() {
     return (i.status === 'matched') && i.matchedProductId && i.dataUrl;
   });
   if(!ready.length) return;
-  var products = getProducts();
+  var products = loadRawProducts();
   ready.forEach(function(item) {
     var idx = products.findIndex(function(p) { return p.id === item.matchedProductId; });
     if(idx >= 0) products[idx].image = item.dataUrl;
@@ -4985,7 +5008,7 @@ function applyGlobalMarkup() {
   const val = parseFloat(document.getElementById('global-markup-val').value);
   if(isNaN(val) || val < 0) { showToast('Please enter a valid markup %', true); return; }
 
-  const products = getProducts();
+  const products = loadRawProducts();
   let count = 0;
   products.forEach(p => {
     if(markupSelectedScope === 'all' || p.category === markupSelectedScope) {
@@ -7421,10 +7444,9 @@ function pricingCloseDetail() {
 
 // ─── Import own costs + sales prices from Excel ──────────────────────────
 // File shape: a column for active ingredient + a "cost" column (USD) +
-// a "sales price" column (AZN). Each row is matched to a product by
+// a "sales price" column (USD). Each row is matched to a product by
 // active ingredient. Updates product.cost (USD) and back-calculates
-// product.markup % so the displayed sale price equals the imported AZN price
-// (converted via the FX rate from Pricing settings).
+// product.markup % from sale USD; AZN display uses cost × (1 + markup/100) × fx.
 function pricingImportCostsAndPrices(evt) {
   const file = evt.target.files[0];
   if (!file) return;
@@ -7532,7 +7554,7 @@ function pricingDetectCostPriceColumns(grid) {
 
 // Match parsed rows to products and apply updates (with preview confirm)
 function pricingApplyCostPriceImport(detected, fileName) {
-  const products = (typeof getProducts === 'function' ? getProducts() : []);
+  const products = loadRawProducts();
   const fx = pricingGetSettings().fx;
   const matches = [];
   const unmatched = [];
@@ -7544,7 +7566,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
       const s = pricingMatchStrength(rowAI, pAI, 10);
       if (s > bestStrength) { bestStrength = s; best = p; if (s === 2) break; }
     }
-    if (best) matches.push({ product: best, row, strength: bestStrength });
+    if (best) matches.push({ productId: best.id, row, strength: bestStrength });
     else unmatched.push(row);
   }
   if (!matches.length) {
@@ -7552,19 +7574,25 @@ function pricingApplyCostPriceImport(detected, fileName) {
     return;
   }
 
-  // Build preview body
-  // Cost column is USD, Sale price column is AZN (per documented file shape).
+  // Build preview body — cost and sale price columns are both USD.
   const sampleN = Math.min(matches.length, 8);
   const sampleRows = matches.slice(0, sampleN).map(m => {
-    const oldCost = (parseFloat(m.product.cost)||0).toFixed(2);
-    const oldMk   = (parseFloat(m.product.markup)||0).toFixed(0);
+    const product = products.find(function(p) { return p.id === m.productId; }) || {};
+    const oldCost = (parseFloat(product.cost)||0).toFixed(2);
+    const oldMk   = productMarkup(product).toFixed(0);
     const newCost = m.row.cost != null ? m.row.cost.toFixed(2) : '—';
     let newMk = '—';
-    if (m.row.price != null && m.row.price > 0 && m.row.cost && m.row.cost > 0) {
-      const saleUsd = m.row.price / fx;
-      newMk = (((saleUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
+    let saleUsdStr = '—';
+    let saleAznStr = '—';
+    if (m.row.price != null && m.row.price > 0) {
+      const saleUsd = m.row.price;
+      saleUsdStr = '$' + saleUsd.toFixed(2);
+      saleAznStr = '₼' + (saleUsd * fx).toFixed(2);
+      if (m.row.cost && m.row.cost > 0) {
+        newMk = (((saleUsd - m.row.cost) / m.row.cost) * 100).toFixed(0);
+      }
     }
-    return `<tr><td>${esc(m.product.name)}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${m.row.price != null ? '₼'+m.row.price.toFixed(2) : '—'}</td></tr>`;
+    return `<tr><td>${esc(product.name || '')}</td><td class="num">$${oldCost} → $${newCost}</td><td class="num">${oldMk}% → ${newMk}%</td><td class="num">${saleUsdStr}</td><td class="num">${saleAznStr}</td></tr>`;
   }).join('');
   const moreNote = matches.length > sampleN ? `<div style="text-align:center;color:var(--text-light);padding:8px;font-size:12px;">…and ${matches.length - sampleN} more</div>` : '';
   const unmatchedNote = unmatched.length
@@ -7575,7 +7603,7 @@ function pricingApplyCostPriceImport(detected, fileName) {
   document.getElementById('pricing-detail-sub').textContent   = `${fileName} · FX rate ₼${fx}/USD · would update ${matches.length} of your ${products.length} products`;
   body.innerHTML = `
     <table class="pricing-comp-table" style="margin-bottom:14px;">
-      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Sale (₼)</th></tr></thead>
+      <thead><tr><th>Product</th><th class="num">Cost (USD)</th><th class="num">Markup %</th><th class="num">Sale (USD)</th><th class="num">Sale (₼)</th></tr></thead>
       <tbody>${sampleRows}</tbody>
     </table>
     ${moreNote}
@@ -7588,17 +7616,16 @@ function pricingApplyCostPriceImport(detected, fileName) {
 
   document.getElementById('pricing-import-confirm-btn').onclick = function() {
     for (const m of matches) {
-      const p = m.product;
+      const idx = products.findIndex(function(p) { return p.id === m.productId; });
+      if (idx < 0) continue;
+      const p = products[idx];
       if (m.row.cost != null && m.row.cost > 0) p.cost = m.row.cost;
       if (m.row.price != null && m.row.price > 0 && p.cost > 0) {
-        // Sale price column is AZN per the documented file shape; convert
-        // to USD via the configured FX rate before back-calculating markup
-        // so cost × (1 + markup/100) × fx ≈ sale_azn.
-        const saleUsd = m.row.price / fx;
+        const saleUsd = m.row.price;
         p.markup = +(((saleUsd - p.cost) / p.cost) * 100).toFixed(1);
       }
     }
-    if (typeof saveProducts === 'function') saveProducts(products);
+    saveProducts(products);
     if (typeof renderAdminDash === 'function') renderAdminDash();
     pricingRenderTable();
     pricingCloseDetail();
