@@ -2783,7 +2783,7 @@ function closeMobileMenu() {
 // ═══════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════
-var loginTargetRole = 'admin';
+var loginTargetRole = null;
 var clerkConfig = { publishableKey: '' };
 var clerkReady = false;
 var clerkSignInMounted = false;
@@ -2852,9 +2852,6 @@ async function initClerkIfConfigured() {
       }
       if (!payload.user && currentView === 'admin') {
         logout();
-      }
-      if (!payload.user && loginTargetRole === 'admin' && (location.pathname || '').replace(/\/+$/, '') === '/admin') {
-        try { history.replaceState({}, '', '/'); } catch (e) {}
       }
     });
     clerkReady = true;
@@ -2966,7 +2963,8 @@ function closeLogin() {
 // /admin or /sales path so the URL bar reflects the public view.
 function cancelLogin() {
   closeLogin();
-  if(currentView === 'public' && location.pathname && location.pathname !== '/') {
+  var path = (location.pathname || '').replace(/\/+$/, '');
+  if (currentView === 'public' && path && path !== '/') {
     try { history.replaceState({}, '', '/'); } catch(e) {}
   }
 }
@@ -6824,6 +6822,7 @@ function setLang(lang) {
 function handleRouteFromPath() {
   const path = (location.pathname || '').toLowerCase().replace(/\/+$/, '');
   if(path === '/admin') {
+    loginTargetRole = 'admin';
     if (useClerkAuth() && window.Clerk && window.Clerk.isSignedIn) {
       showView('admin');
       renderAdminDash();
