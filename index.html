@@ -2853,11 +2853,11 @@ async function initClerkIfConfigured() {
       if (!payload.user && currentView === 'admin') {
         logout();
       }
+      if (!payload.user && loginTargetRole === 'admin' && (location.pathname || '').replace(/\/+$/, '') === '/admin') {
+        try { history.replaceState({}, '', '/'); } catch (e) {}
+      }
     });
     clerkReady = true;
-    if (loginTargetRole === 'admin' && document.getElementById('login-modal').classList.contains('open')) {
-      updateLoginFormForRole('admin');
-    }
     return true;
   } catch (e) {
     console.warn('Clerk init failed; using legacy admin auth.', e);
@@ -2874,6 +2874,29 @@ async function getClerkSessionToken() {
   }
 }
 
+function clearClerkAuthHash() {
+  if (!window.location.hash) return;
+  try { history.replaceState({}, '', window.location.pathname || '/'); } catch (e) {}
+}
+
+async function openClerkAdminLogin() {
+  if (!useClerkAuth() || !window.Clerk) return false;
+  loginTargetRole = 'admin';
+  clearClerkAuthHash();
+  try {
+    if (typeof window.Clerk.openSignIn === 'function') {
+      await window.Clerk.openSignIn({
+        afterSignInUrl: window.location.origin + '/admin',
+        signInForceRedirectUrl: window.location.origin + '/admin',
+      });
+      return true;
+    }
+  } catch (e) {
+    console.warn('Clerk openSignIn failed', e);
+  }
+  return false;
+}
+
 function unmountClerkAdminSignIn() {
   var container = document.getElementById('clerk-sign-in-container');
   if (!container) return;
@@ -2884,28 +2907,12 @@ function unmountClerkAdminSignIn() {
   clerkSignInMounted = false;
 }
 
-function mountClerkAdminSignIn() {
-  if (!clerkReady || !window.Clerk) return;
-  var container = document.getElementById('clerk-sign-in-container');
-  if (!container) return;
-  unmountClerkAdminSignIn();
-  window.Clerk.mountSignIn(container, {
-    routing: 'virtual',
-    signUpUrl: undefined,
-    afterSignInUrl: window.location.pathname || '/admin',
-  });
-  clerkSignInMounted = true;
-}
-
 function updateLoginFormForRole(role) {
   var legacy = document.getElementById('login-legacy-fields');
   var clerkBox = document.getElementById('clerk-sign-in-container');
-  var useClerkAdmin = role === 'admin' && useClerkAuth();
-
-  if (legacy) legacy.style.display = useClerkAdmin ? 'none' : 'block';
-  if (clerkBox) clerkBox.style.display = useClerkAdmin ? 'block' : 'none';
-  if (useClerkAdmin) mountClerkAdminSignIn();
-  else unmountClerkAdminSignIn();
+  if (legacy) legacy.style.display = 'block';
+  if (clerkBox) clerkBox.style.display = 'none';
+  unmountClerkAdminSignIn();
 }
 
 function updateAdminHeaderUser() {
@@ -2922,6 +2929,7 @@ function updateAdminHeaderUser() {
 
 function onAdminClerkSignedIn() {
   if (!window.Clerk || !window.Clerk.isSignedIn) return;
+  clearClerkAuthHash();
   closeLogin();
   showView('admin');
   renderAdminDash();
@@ -2929,6 +2937,11 @@ function onAdminClerkSignedIn() {
 }
 
 function openLogin(role) {
+  if (role === 'admin' && useClerkAuth()) {
+    showView('public');
+    openClerkAdminLogin();
+    return;
+  }
   loginTargetRole = role;
   document.getElementById('login-modal').classList.add('open');
   document.querySelectorAll('.login-tab').forEach(function(t, i) {
@@ -2944,6 +2957,9 @@ function openLogin(role) {
 function closeLogin() {
   document.getElementById('login-modal').classList.remove('open');
   unmountClerkAdminSignIn();
+  if (window.Clerk && typeof window.Clerk.closeSignIn === 'function') {
+    try { window.Clerk.closeSignIn(); } catch (e) { /* ignore */ }
+  }
 }
 
 // Called when the user cancels/dismisses the login modal — drop the
@@ -2966,6 +2982,11 @@ function updateLoginHint(role) {
   }
 }
 function setLoginRole(role, btn) {
+  if (role === 'admin' && useClerkAuth()) {
+    closeLogin();
+    openClerkAdminLogin();
+    return;
+  }
   loginTargetRole = role;
   document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
@@ -2981,8 +3002,7 @@ function doLogin() {
 
   if(loginTargetRole === 'admin') {
     if (useClerkAuth()) {
-      err.textContent = 'Clerk ilə daxil olun.';
-      err.classList.add('show');
+      openClerkAdminLogin();
       return;
     }
     if(user === 'admin' && pass === 'admin123') {
