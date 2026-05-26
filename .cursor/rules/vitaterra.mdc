@@ -13,6 +13,14 @@ alwaysApply: true
 - `/netlify/functions/publish-site.js` commits in-browser editor changes to `site-content.json` on GitHub.
 - Deployment: auto-deploy from GitHub `main` → Netlify (`vitaterra.az` / `vitaterra.netlify.app`).
 
+## Clerk auth (optional)
+
+- **Legacy mode** (default): empty `publishableKey` in `clerk-config.json`; admin uses `admin`/`admin123`, publish uses `PUBLISH_PASSWORD` on Netlify.
+- **Clerk mode**: set `publishableKey` in `clerk-config.json`; add `CLERK_SECRET_KEY` on Netlify (and optionally `CLERK_ADMIN_USER_IDS` comma-separated user IDs, or org admins with role `org:admin`).
+- Admin sign-in uses Clerk SignIn in the login modal; publish sends `Authorization: Bearer <session token>` via `publish-site.js` → `_clerk-auth.js`.
+- Sales portal stays on `sales-users.json` username/password (unchanged).
+- Root `package.json` supplies `@clerk/backend` for Netlify functions.
+
 ## Data & Storage
 
 - Products: `localStorage` key `vt_products`; fallback to `DEFAULT_PRODUCTS` defined in `index.html`.
@@ -25,3 +33,9 @@ alwaysApply: true
 - Single quotes for strings.
 - `var`-style JS — no ES modules, no transpilation step.
 - All admin/Pricing UI changes go in `index.html` — do NOT extract to separate files (breaks deploy model).
+
+## Design (Figma)
+
+- Design tokens for Figma: `design/figma-tokens.json` (colors, fonts, spacing match `:root` in `index.html`).
+- Mockups in Figma → implement in `index.html`; see `.cursor/rules/figma-design.mdc` for workflow.
+- Optional: connect Figma MCP in Cursor Settings for Dev Mode link inspection.

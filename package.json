@@ -1,0 +1,7 @@
+{
+  "name": "vitaterra",
+  "private": true,
+  "dependencies": {
+    "@clerk/backend": "^2.0.0"
+  }
+}

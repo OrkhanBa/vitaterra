@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.clerk.accounts.dev https://clerk.vitaterra.az; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://*.clerk.accounts.dev; connect-src 'self' https://*.clerk.accounts.dev https://clerk.vitaterra.az; frame-src https://*.clerk.accounts.dev https://clerk.vitaterra.az;">
 <title>Vita Terra — Cerrado Sol Exclusive Distributor</title>
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -463,6 +463,7 @@
   .login-tab.active { background:var(--green-dark); color:var(--white); }
   .login-error { background:#fff0ee; border:1px solid #f5c6c2; color:var(--danger); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
   .login-error.show { display:block; }
+  #clerk-sign-in-container { margin-bottom: 12px; }
 
   /* ─── ADMIN DASHBOARD ─── */
   #admin-view, #sales-view {
@@ -1728,6 +1729,8 @@
       <button class="login-tab" onclick="setLoginRole('sales',this)">Sales Team</button>
     </div>
     <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
+    <div id="clerk-sign-in-container" style="display:none;"></div>
+    <div id="login-legacy-fields">
     <div class="form-group">
       <label class="form-label">Username</label>
       <input class="form-input" id="login-user" placeholder="Enter username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"/>
@@ -1737,6 +1740,7 @@
       <input class="form-input" type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
+    </div>
     <button class="btn-secondary" style="width:100%;" onclick="cancelLogin()">Cancel</button>
     <p id="login-hint" style="text-align:center;font-size:12px;color:var(--text-light);margin-top:16px;">
       Admin: admin / admin123
@@ -1752,7 +1756,7 @@
       <div class="dash-role-badge" data-en="Admin Dashboard" data-az="Admin Paneli">Admin Dashboard</div>
     </div>
     <div class="dash-nav-right">
-      <span class="dash-user">👤 Administrator</span>
+      <span class="dash-user" id="admin-user-name">👤 Administrator</span>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
   </div>
@@ -2780,21 +2784,163 @@ function closeMobileMenu() {
 // AUTH
 // ═══════════════════════════════════════════════════════
 var loginTargetRole = 'admin';
+var clerkConfig = { publishableKey: '' };
+var clerkReady = false;
+var clerkSignInMounted = false;
+
+function isClerkEnabled() {
+  return !!(clerkConfig && clerkConfig.publishableKey);
+}
+
+function useClerkAuth() {
+  return isClerkEnabled() && clerkReady;
+}
+
+function clerkFrontendDomain(publishableKey) {
+  try {
+    return atob(publishableKey.split('_')[2]).slice(0, -1);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchClerkConfig() {
+  try {
+    const res = await fetch('/clerk-config.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.publishableKey) clerkConfig.publishableKey = String(data.publishableKey).trim();
+  } catch (e) { /* legacy auth only */ }
+}
+
+function loadScript(src, attrs) {
+  return new Promise(function(resolve, reject) {
+    var script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    if (attrs) {
+      Object.keys(attrs).forEach(function(key) {
+        script.setAttribute(key, attrs[key]);
+      });
+    }
+    script.onload = resolve;
+    script.onerror = function() { reject(new Error('Failed to load ' + src)); };
+    document.head.appendChild(script);
+  });
+}
+
+async function initClerkIfConfigured() {
+  if (!isClerkEnabled() || clerkReady) return false;
+  var domain = clerkFrontendDomain(clerkConfig.publishableKey);
+  if (!domain) return false;
+
+  try {
+    if (!window.__internal_ClerkUICtor) {
+      await loadScript('https://' + domain + '/npm/@clerk/ui@1/dist/ui.browser.js');
+    }
+    if (!window.Clerk) {
+      await loadScript(
+        'https://' + domain + '/npm/@clerk/clerk-js@6/dist/clerk.browser.js',
+        { 'data-clerk-publishable-key': clerkConfig.publishableKey }
+      );
+    }
+    await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } });
+    window.Clerk.addListener(function(payload) {
+      if (payload.user && loginTargetRole === 'admin' && window.Clerk.isSignedIn) {
+        onAdminClerkSignedIn();
+      }
+      if (!payload.user && currentView === 'admin') {
+        logout();
+      }
+    });
+    clerkReady = true;
+    return true;
+  } catch (e) {
+    console.warn('Clerk init failed; using legacy admin auth.', e);
+    return false;
+  }
+}
+
+async function getClerkSessionToken() {
+  if (!clerkReady || !window.Clerk || !window.Clerk.session) return null;
+  try {
+    return await window.Clerk.session.getToken();
+  } catch (e) {
+    return null;
+  }
+}
+
+function unmountClerkAdminSignIn() {
+  var container = document.getElementById('clerk-sign-in-container');
+  if (!container) return;
+  if (clerkSignInMounted && window.Clerk && typeof window.Clerk.unmountSignIn === 'function') {
+    try { window.Clerk.unmountSignIn(container); } catch (e) { /* ignore */ }
+  }
+  container.innerHTML = '';
+  clerkSignInMounted = false;
+}
+
+function mountClerkAdminSignIn() {
+  if (!clerkReady || !window.Clerk) return;
+  var container = document.getElementById('clerk-sign-in-container');
+  if (!container) return;
+  unmountClerkAdminSignIn();
+  window.Clerk.mountSignIn(container, {
+    routing: 'hash',
+    signUpUrl: undefined,
+    afterSignInUrl: window.location.pathname || '/admin',
+  });
+  clerkSignInMounted = true;
+}
+
+function updateLoginFormForRole(role) {
+  var legacy = document.getElementById('login-legacy-fields');
+  var clerkBox = document.getElementById('clerk-sign-in-container');
+  var useClerkAdmin = role === 'admin' && useClerkAuth();
+
+  if (legacy) legacy.style.display = useClerkAdmin ? 'none' : 'block';
+  if (clerkBox) clerkBox.style.display = useClerkAdmin ? 'block' : 'none';
+  if (useClerkAdmin) mountClerkAdminSignIn();
+  else unmountClerkAdminSignIn();
+}
+
+function updateAdminHeaderUser() {
+  var el = document.getElementById('admin-user-name');
+  if (!el) return;
+  if (clerkReady && window.Clerk && window.Clerk.user) {
+    var u = window.Clerk.user;
+    var label = (u.fullName || u.primaryEmailAddress && u.primaryEmailAddress.emailAddress || 'Administrator');
+    el.textContent = '👤 ' + label;
+  } else {
+    el.textContent = '👤 Administrator';
+  }
+}
+
+function onAdminClerkSignedIn() {
+  if (!window.Clerk || !window.Clerk.isSignedIn) return;
+  closeLogin();
+  showView('admin');
+  renderAdminDash();
+  updateAdminHeaderUser();
+}
 
 function openLogin(role) {
   loginTargetRole = role;
   document.getElementById('login-modal').classList.add('open');
-  document.querySelectorAll('.login-tab').forEach((t,i) => {
-    t.classList.toggle('active', (i===0&&role==='admin')||(i===1&&role==='sales'));
+  document.querySelectorAll('.login-tab').forEach(function(t, i) {
+    t.classList.toggle('active', (i === 0 && role === 'admin') || (i === 1 && role === 'sales'));
   });
   document.getElementById('login-role-label').textContent = role === 'admin' ? 'Admin Dashboard Access' : 'Sales Team Access';
   document.getElementById('login-error').classList.remove('show');
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
   updateLoginHint(role);
+  updateLoginFormForRole(role);
 }
 function closeLogin() {
   document.getElementById('login-modal').classList.remove('open');
+  unmountClerkAdminSignIn();
 }
 
 // Called when the user cancels/dismisses the login modal — drop the
@@ -2808,8 +2954,13 @@ function cancelLogin() {
 function updateLoginHint(role) {
   const hint = document.getElementById('login-hint');
   if(!hint) return;
-  if(role === 'admin') hint.textContent = 'Admin: admin / admin123';
-  else hint.textContent = 'Satıcı girişi — şəxsi istifadəçi adınızı və şifrənizi daxil edin.';
+  if(role === 'admin') {
+    hint.textContent = useClerkAuth()
+      ? 'Admin girişi Clerk hesabınızla edilir.'
+      : 'Admin: admin / admin123';
+  } else {
+    hint.textContent = 'Satıcı girişi — şəxsi istifadəçi adınızı və şifrənizi daxil edin.';
+  }
 }
 function setLoginRole(role, btn) {
   loginTargetRole = role;
@@ -2817,6 +2968,7 @@ function setLoginRole(role, btn) {
   btn.classList.add('active');
   document.getElementById('login-role-label').textContent = role === 'admin' ? 'Admin Dashboard Access' : 'Sales Team Access';
   updateLoginHint(role);
+  updateLoginFormForRole(role);
 }
 function doLogin() {
   const user = document.getElementById('login-user').value.trim();
@@ -2825,12 +2977,19 @@ function doLogin() {
   err.classList.remove('show');
 
   if(loginTargetRole === 'admin') {
+    if (useClerkAuth()) {
+      err.textContent = 'Clerk ilə daxil olun.';
+      err.classList.add('show');
+      return;
+    }
     if(user === 'admin' && pass === 'admin123') {
       closeLogin();
       showView('admin');
       renderAdminDash();
+      updateAdminHeaderUser();
       return;
     }
+    err.textContent = 'Incorrect password. Please try again.';
     err.classList.add('show');
     return;
   }
@@ -2848,11 +3007,21 @@ function doLogin() {
       updateSalesHeader();
       return;
     }
+    err.textContent = 'Incorrect password. Please try again.';
     err.classList.add('show');
     return;
   }
 }
 function logout() {
+  if (currentView === 'admin' && clerkReady && window.Clerk && window.Clerk.isSignedIn) {
+    window.Clerk.signOut().finally(function() {
+      showView('public');
+      if (location.pathname && location.pathname !== '/') {
+        try { history.replaceState({}, '', '/'); } catch(e) {}
+      }
+    });
+    return;
+  }
   setCurrentSalesUser(null);
   showView('public');
   // Drop the /admin or /sales path from the URL when signing out.
@@ -4907,14 +5076,30 @@ function getDraftDelta() {
 // Publish: POST current edits to the Netlify function so they're committed to git.
 async function publishToLiveSite(options) {
   options = options || {};
-  const pw = options.password || prompt('Publish şifrəsini daxil edin (canlı sayta yükləmək üçün):');
-  if (!pw) return { cancelled: true };
+  const headers = { 'Content-Type': 'application/json' };
+  const body = {};
+
+  if (useClerkAuth()) {
+    const token = await getClerkSessionToken();
+    if (!token) {
+      throw new Error('Clerk sessiya tapılmadı. Admin olaraq yenidən daxil olun.');
+    }
+    headers.Authorization = 'Bearer ' + token;
+  } else {
+    const pw = options.password || prompt('Publish şifrəsini daxil edin (canlı sayta yükləmək üçün):');
+    if (!pw) return { cancelled: true };
+    body.password = pw;
+  }
 
   const delta = options.contentDelta != null ? options.contentDelta : getDraftDelta();
   delta._meta = { publishedAt: new Date().toISOString() };
 
   const productsSnapshot = options.products != null ? options.products : getProductsForPublish();
   const salesUsersSnapshot = options.salesUsers != null ? options.salesUsers : getSalesUsersForPublish();
+  body.content = delta;
+  body.products = productsSnapshot;
+  body.salesUsers = salesUsersSnapshot;
+
   const usageCount = countProductsWithUsageAz(productsSnapshot);
   if (!options.skipUsageWarn && usageCount === 0) {
     const proceed = confirm(
@@ -4928,8 +5113,8 @@ async function publishToLiveSite(options) {
 
   const res = await fetch('/.netlify/functions/publish-site', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pw, content: delta, products: productsSnapshot, salesUsers: salesUsersSnapshot })
+    headers: headers,
+    body: JSON.stringify(body)
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {
@@ -4994,12 +5179,10 @@ async function publishProductsCatalog() {
 }
 
 async function vsePublish() {
-  const pw = prompt('Enter publish password to deploy your changes to the live site:');
-  if (!pw) return;
   const btn = document.getElementById('vse-publish-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Publishing...'; }
   try {
-    const result = await publishToLiveSite({ password: pw });
+    const result = await publishToLiveSite({});
     if (result.cancelled) return;
     const usageMsg = result.usageCount ? (' · ' + result.usageCount + ' məhsul istifadə qaydası') : '';
     if (typeof showToast === 'function') {
@@ -6618,7 +6801,13 @@ function setLang(lang) {
 function handleRouteFromPath() {
   const path = (location.pathname || '').toLowerCase().replace(/\/+$/, '');
   if(path === '/admin') {
-    // Admin requires login every time — there's no persistent admin session yet.
+    if (useClerkAuth() && window.Clerk && window.Clerk.isSignedIn) {
+      showView('admin');
+      renderAdminDash();
+      updateAdminHeaderUser();
+      return;
+    }
+    // Admin requires login every time — unless Clerk session is active.
     showView('public');
     openLogin('admin');
     return;
@@ -6640,6 +6829,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Pull the latest published site content + product catalog in parallel
   // before first render so non-admin visitors see the right data immediately.
   await Promise.all([fetchPublishedContent(), fetchPublishedProducts(), fetchPublishedSalesUsers()]);
+  await fetchClerkConfig();
+  await initClerkIfConfigured();
   setLang(currentLang);
   var pm = document.getElementById('product-modal'); if(pm) pm.addEventListener('click', function(e){ if(e.target===this) closeProductModal(); });
   var lm = document.getElementById('login-modal'); if(lm) lm.addEventListener('click', function(e){ if(e.target===this) cancelLogin(); });

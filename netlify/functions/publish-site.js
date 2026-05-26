@@ -3,9 +3,13 @@
 //   site-content.json   (always — header / tagline / hero text etc.)
 //   products.json       (optional — the full product catalog)
 // to GitHub.
-// Requires two env vars set on Netlify:
+// Requires env vars set on Netlify:
 //   GITHUB_TOKEN     - fine-grained PAT with Contents: read+write on this repo
-//   PUBLISH_PASSWORD - the password an admin types in the editor before publishing
+//   PUBLISH_PASSWORD - legacy admin password (used when CLERK_SECRET_KEY is unset)
+//   CLERK_SECRET_KEY - optional; when set, requires Authorization: Bearer <session>
+//                      from an allowed Clerk admin (org:admin or CLERK_ADMIN_USER_IDS)
+
+const { verifyClerkAuth } = require('./_clerk-auth');
 
 const OWNER  = 'OrkhanBa';
 const REPO   = 'vitaterra';
@@ -22,7 +26,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 function reply(status, body) {
@@ -77,14 +81,22 @@ exports.handler = async (event) => {
 
   const githubToken     = process.env.GITHUB_TOKEN;
   const publishPassword = process.env.PUBLISH_PASSWORD;
-  if (!githubToken)     return reply(500, { error: 'GITHUB_TOKEN env var not configured on Netlify' });
-  if (!publishPassword) return reply(500, { error: 'PUBLISH_PASSWORD env var not configured on Netlify' });
+  const clerkSecretKey  = process.env.CLERK_SECRET_KEY;
+  if (!githubToken) return reply(500, { error: 'GITHUB_TOKEN env var not configured on Netlify' });
+  if (!clerkSecretKey && !publishPassword) {
+    return reply(500, { error: 'Configure CLERK_SECRET_KEY or PUBLISH_PASSWORD on Netlify' });
+  }
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return reply(400, { error: 'Invalid JSON body' }); }
 
-  if (body.password !== publishPassword) return reply(401, { error: 'Incorrect publish password' });
+  if (clerkSecretKey) {
+    const auth = await verifyClerkAuth(event, { requireAdmin: true });
+    if (!auth.ok) return reply(auth.status, { error: auth.error });
+  } else if (body.password !== publishPassword) {
+    return reply(401, { error: 'Incorrect publish password' });
+  }
   if (!body.content || typeof body.content !== 'object') {
     return reply(400, { error: 'Missing or invalid content object' });
   }
