@@ -466,7 +466,7 @@
   #clerk-sign-in-container { margin-bottom: 12px; min-height: 280px; }
 
   /* ─── ADMIN DASHBOARD ─── */
-  #admin-view, #sales-view {
+  #admin-view, #sales-view, #finance-view {
     min-height:100vh; background:#f0f2f5;
     font-family:'DM Sans',sans-serif;
   }
@@ -1118,7 +1118,7 @@
     .vse-sidebar { max-height:50vh; }
   }
   .sales-layout-grid { display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start; }
-  #sales-view .dash-body { max-width:none; padding:24px 32px; }
+  #sales-view .dash-body, #finance-view .dash-body { max-width:none; padding:24px 32px; }
   .editor-layout-grid { display:grid; grid-template-columns:220px 1fr; gap:24px; align-items:start; }
   .sale-summary-sticky { position:sticky; top:80px; }
 
@@ -1453,6 +1453,62 @@
   .pricing-detail-title { font-family:'Playfair Display',serif; font-size:22px; color:var(--green-dark); margin-bottom:4px; }
   .pricing-detail-sub { font-size:13px; color:var(--text-mid); }
 
+  /* ─── FINANCE TAB ─── */
+  .finance-settings {
+    display:flex; gap:14px; flex-wrap:wrap; align-items:end;
+    background:var(--white); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .finance-kpis { margin-bottom:18px; }
+  .finance-kpis .kpi-card { min-width:140px; }
+  .finance-pl {
+    background:var(--white); border:1px solid var(--border); border-radius:14px;
+    padding:18px 22px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .finance-pl-title {
+    font-family:'Playfair Display',serif; font-size:18px; color:var(--green-dark); margin-bottom:14px;
+  }
+  .finance-pl-grid { display:grid; grid-template-columns:1fr auto; gap:8px 24px; max-width:520px; font-size:14px; }
+  .finance-pl-grid .pl-label { color:var(--text-mid); }
+  .finance-pl-grid .pl-val { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .finance-pl-grid .pl-section { grid-column:1/-1; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-light); margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+  .finance-pl-grid .pl-total { font-family:'Playfair Display',serif; font-size:17px; color:var(--green-dark); }
+  .finance-pl-grid .pl-negative { color:var(--danger); }
+  .finance-pl-grid .pl-positive { color:#2e7d32; }
+  .finance-subtabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .finance-subtab {
+    background:var(--white); border:1px solid var(--border); border-radius:8px;
+    padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-mid); transition:all 0.15s;
+  }
+  .finance-subtab.active { background:var(--green-dark); color:var(--white); border-color:var(--green-dark); }
+  .finance-panel { background:var(--white); border:1px solid var(--border); border-radius:14px; padding:18px; box-shadow:var(--shadow); }
+  .finance-panel-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .finance-panel-title { font-family:'Playfair Display',serif; font-size:17px; color:var(--green-dark); }
+  .finance-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:10px; }
+  .finance-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .finance-table th {
+    position:sticky; top:0; background:var(--cream); padding:9px 10px; text-align:left;
+    font-size:11px; text-transform:uppercase; color:var(--text-light); font-weight:700; letter-spacing:0.4px;
+    border-bottom:1px solid var(--border); z-index:1;
+  }
+  .finance-table th.num, .finance-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .finance-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .finance-table tbody tr:hover { background:rgba(62,140,88,0.04); }
+  .finance-month-bars { display:flex; align-items:flex-end; gap:8px; height:140px; padding:12px 0; }
+  .finance-month-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+  .finance-month-bar {
+    width:100%; max-width:48px; border-radius:6px 6px 0 0; min-height:4px;
+    background:linear-gradient(180deg, var(--green-accent), var(--green-dark));
+  }
+  .finance-month-bar.profit { background:linear-gradient(180deg, var(--gold-light), var(--gold)); }
+  .finance-month-bar-label { font-size:10px; color:var(--text-light); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .finance-expense-form {
+    background:var(--cream); border-radius:10px; padding:14px 16px; margin-bottom:14px;
+  }
+  .finance-pay-select {
+    border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:12px; background:var(--white);
+  }
+
   /* ─── LANGUAGE SWITCHER ─── */
   .lang-switcher {
     display:flex; align-items:center; gap:0;
@@ -1726,7 +1782,8 @@
     </div>
     <div class="login-tabs">
       <button class="login-tab active" onclick="setLoginRole('admin',this)">Admin</button>
-      <button class="login-tab" onclick="setLoginRole('sales',this)">Sales Team</button>
+      <button class="login-tab" onclick="setLoginRole('sales',this)">Sales</button>
+      <button class="login-tab" onclick="setLoginRole('finance',this)">Maliyyə</button>
     </div>
     <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
     <div id="clerk-sign-in-container" style="display:none;"></div>
@@ -2275,6 +2332,193 @@
   </div>
 </div><!-- end sales-view -->
 
+<!-- ══════════════ FINANCE PORTAL (Maliyyə / Mühasibat) ══════════════ -->
+<div id="finance-view" class="view">
+  <div class="dash-nav">
+    <div class="dash-nav-left">
+      <div class="dash-brand">🌿 Vita Terra</div>
+      <div class="dash-role-badge">Maliyyə Paneli</div>
+    </div>
+    <div class="dash-nav-right">
+      <span class="dash-user" id="finance-user-name">👤 Mühasibat</span>
+      <button class="btn-logout" onclick="logout()">Çıxış</button>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="dash-title">Maliyyə və Mühasibat</div>
+    <div class="dash-sub">Satış gəliri, mənfəət-zərər, xərclər və anbar dəyəri — mühasibat hesabatları</div>
+
+    <div class="finance-settings">
+      <div class="pricing-setting">
+        <label>Dövr</label>
+        <select id="finance-period" onchange="financeOnPeriodChange();financeRender();">
+          <option value="this-month">Bu ay</option>
+          <option value="last-month">Keçən ay</option>
+          <option value="this-quarter">Bu rüb</option>
+          <option value="this-year">Bu il</option>
+          <option value="all">Bütün dövr</option>
+          <option value="custom">Xüsusi ay</option>
+        </select>
+      </div>
+      <div class="pricing-setting" id="finance-custom-wrap" style="display:none;">
+        <label>Ay</label>
+        <input type="month" id="finance-custom-month" onchange="financeRender();"/>
+      </div>
+      <div class="pricing-setting">
+        <label>USD → AZN</label>
+        <input type="text" id="finance-fx-display" readonly style="background:var(--cream);cursor:default;"/>
+      </div>
+      <div class="pricing-setting" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-add" onclick="financeExportXlsx()">📥 Mühasibat Excel</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid finance-kpis" id="finance-kpis"></div>
+
+    <div class="finance-pl" id="finance-pl-summary"></div>
+
+    <div class="finance-subtabs">
+      <button class="finance-subtab active" onclick="financeSubTab('summary',this)">📈 Xülasə</button>
+      <button class="finance-subtab" onclick="financeSubTab('sales',this)">🧾 Satış registeri</button>
+      <button class="finance-subtab" onclick="financeSubTab('sellers',this)">👤 Satıcılar</button>
+      <button class="finance-subtab" onclick="financeSubTab('products',this)">📦 Məhsul marjası</button>
+      <button class="finance-subtab" onclick="financeSubTab('expenses',this)">💸 Xərclər</button>
+      <button class="finance-subtab" onclick="financeSubTab('inventory',this)">🏭 Anbar dəyəri</button>
+    </div>
+
+    <div id="finance-panel-summary" class="finance-panel">
+      <div class="finance-panel-head">
+        <div class="finance-panel-title">Aylıq gəlir və mənfəət</div>
+        <div style="font-size:12px;color:var(--text-light);">Son 6 ay · ₼ AZN</div>
+      </div>
+      <div class="finance-month-bars" id="finance-month-bars"></div>
+    </div>
+
+    <div id="finance-panel-sales" class="finance-panel hidden">
+      <div class="finance-panel-head">
+        <div class="finance-panel-title">Satış registeri (mühasibat)</div>
+        <div style="font-size:12px;color:var(--text-light);">Ödəniş növünü sətirdən dəyişə bilərsiniz</div>
+      </div>
+      <div class="finance-table-wrap">
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Tarix</th>
+              <th>Məhsul</th>
+              <th>Satıcı</th>
+              <th>Müştəri</th>
+              <th class="num">Say</th>
+              <th class="num">Gəlir ₼</th>
+              <th class="num">Maya ₼</th>
+              <th class="num">Mənfəət ₼</th>
+              <th class="num">Marja</th>
+              <th>Ödəniş</th>
+            </tr>
+          </thead>
+          <tbody id="finance-sales-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="finance-panel-sellers" class="finance-panel hidden">
+      <div class="finance-panel-title" style="margin-bottom:14px;">Satıcı üzrə hesabat</div>
+      <div class="finance-table-wrap">
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Satıcı</th>
+              <th class="num">Satış sayı</th>
+              <th class="num">Gəlir ₼</th>
+              <th class="num">Maya ₼</th>
+              <th class="num">Mənfəət ₼</th>
+              <th class="num">Marja %</th>
+              <th class="num">Endirim itkisi ₼</th>
+            </tr>
+          </thead>
+          <tbody id="finance-sellers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="finance-panel-products" class="finance-panel hidden">
+      <div class="finance-panel-title" style="margin-bottom:14px;">Məhsul üzrə satış mənfəəti</div>
+      <div class="finance-table-wrap">
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Məhsul</th>
+              <th class="num">Satılan miqdar</th>
+              <th class="num">Gəlir ₼</th>
+              <th class="num">Maya ₼</th>
+              <th class="num">Mənfəət ₼</th>
+              <th class="num">Marja %</th>
+            </tr>
+          </thead>
+          <tbody id="finance-products-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="finance-panel-expenses" class="finance-panel hidden">
+      <div class="finance-panel-head">
+        <div class="finance-panel-title">Əməliyyat xərcləri (OPEX)</div>
+        <button class="pricing-mini-btn pricing-mini-btn-primary" onclick="financeOpenExpenseForm()">+ Xərc əlavə et</button>
+      </div>
+      <div class="finance-expense-form" id="finance-expense-form" style="display:none;">
+        <div class="pricing-form-grid">
+          <div><label>Tarix</label><input type="date" id="fe-date"/></div>
+          <div><label>Kateqoriya</label><select id="fe-category"></select></div>
+          <div style="grid-column:span 2;"><label>Təsvir</label><input type="text" id="fe-desc" placeholder="Məs: Ofis kirayəsi — aprel"/></div>
+          <div><label>Məbləğ</label><input type="number" id="fe-amount" step="0.01" min="0" placeholder="0.00"/></div>
+          <div><label>Valyuta</label><select id="fe-currency"><option value="AZN">AZN ₼</option><option value="USD">USD $</option></select></div>
+          <div style="grid-column:span 2;"><label>Təchizatçı / qeyd</label><input type="text" id="fe-vendor" placeholder="İstəyə bağlı"/></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+          <button class="pricing-mini-btn" onclick="financeCloseExpenseForm()">Ləğv et</button>
+          <button class="pricing-mini-btn pricing-mini-btn-primary" onclick="financeSaveExpense()">Saxla</button>
+        </div>
+      </div>
+      <div class="finance-table-wrap">
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Tarix</th>
+              <th>Kateqoriya</th>
+              <th>Təsvir</th>
+              <th class="num">Məbləğ ₼</th>
+              <th>Qeyd</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="finance-expenses-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="finance-panel-inventory" class="finance-panel hidden">
+      <div class="finance-panel-head">
+        <div class="finance-panel-title">Anbar dəyəri (maya qiyməti ilə)</div>
+        <div id="finance-inventory-total" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);"></div>
+      </div>
+      <div class="finance-table-wrap">
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Məhsul</th>
+              <th>Kateqoriya</th>
+              <th class="num">Stok</th>
+              <th class="num">Maya/vahid ₼</th>
+              <th class="num">Anbar dəyəri ₼</th>
+            </tr>
+          </thead>
+          <tbody id="finance-inventory-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div><!-- end finance-view -->
+
 <!-- ══════════════ PRODUCT FORM MODAL ══════════════ -->
 <div class="form-modal-overlay" id="product-form-modal">
   <div class="form-modal">
@@ -2416,6 +2660,9 @@ const PRODUCTS_KEY    = 'vt_products';
 const SALES_KEY       = 'vt_sales';
 const SALES_USERS_KEY = 'vt_sales_users';
 const CURRENT_USER_KEY = 'vt_current_user';
+const FINANCE_SESSION_KEY = 'vt_finance_session';
+const FINANCE_PASS_KEY = 'vt_finance_pass';
+const FINANCE_USER = 'finance';
 
 // Default sales users — admin can add more from the Sales Log tab.
 const DEFAULT_SALES_USERS = [
@@ -2478,6 +2725,19 @@ function getCurrentSalesUser() {
 function setCurrentSalesUser(u) {
   if(u) sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
   else  sessionStorage.removeItem(CURRENT_USER_KEY);
+}
+
+function getFinancePass() {
+  return localStorage.getItem(FINANCE_PASS_KEY) || 'finance123';
+}
+
+function isFinanceSignedIn() {
+  return sessionStorage.getItem(FINANCE_SESSION_KEY) === '1';
+}
+
+function setFinanceSignedIn(signedIn) {
+  if(signedIn) sessionStorage.setItem(FINANCE_SESSION_KEY, '1');
+  else sessionStorage.removeItem(FINANCE_SESSION_KEY);
 }
 
 const CATEGORY_ICONS = {
@@ -2576,7 +2836,7 @@ var PUBLISHED_PRODUCTS = null;
 // Public vitaterra.az visitors always read products.json so they see the
 // same catalog on every domain — not whatever happens to be in one browser.
 function usesLocalProductDraft() {
-  return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales'));
+  return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales' || currentView === 'finance'));
 }
 
 // Raw catalog for reads/writes — never sanitized defaults that can clobber markups.
@@ -2753,6 +3013,7 @@ function showView(v) {
   currentView = v;
   window.scrollTo(0,0);
   if(v === 'sales') updateSalesHeader();
+  if(v === 'finance') setTimeout(financeInit, 50);
 }
 function scrollTo_(id) {
   const el = document.querySelector(id);
@@ -2953,6 +3214,21 @@ function onAdminClerkSignedIn() {
   updateAdminHeaderUser();
 }
 
+function loginRoleLabel(role) {
+  if(role === 'admin') return 'Admin Dashboard Access';
+  if(role === 'finance') return 'Maliyyə / Mühasibat Paneli';
+  return 'Sales Team Access';
+}
+
+function setActiveLoginTab(role) {
+  document.querySelectorAll('.login-tab').forEach(function(t, i) {
+    t.classList.toggle('active',
+      (i === 0 && role === 'admin') ||
+      (i === 1 && role === 'sales') ||
+      (i === 2 && role === 'finance'));
+  });
+}
+
 function openLogin(role) {
   if (role === 'admin' && useClerkAuth()) {
     showView('public');
@@ -2961,10 +3237,8 @@ function openLogin(role) {
   }
   loginTargetRole = role;
   document.getElementById('login-modal').classList.add('open');
-  document.querySelectorAll('.login-tab').forEach(function(t, i) {
-    t.classList.toggle('active', (i === 0 && role === 'admin') || (i === 1 && role === 'sales'));
-  });
-  document.getElementById('login-role-label').textContent = role === 'admin' ? 'Admin Dashboard Access' : 'Sales Team Access';
+  setActiveLoginTab(role);
+  document.getElementById('login-role-label').textContent = loginRoleLabel(role);
   document.getElementById('login-error').classList.remove('show');
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
@@ -2995,6 +3269,8 @@ function updateLoginHint(role) {
     hint.textContent = useClerkAuth()
       ? 'Admin girişi Clerk hesabınızla edilir.'
       : 'Admin: admin / admin123';
+  } else if(role === 'finance') {
+    hint.textContent = 'Maliyyə: ' + FINANCE_USER + ' / ' + getFinancePass();
   } else {
     hint.textContent = 'Satıcı girişi — şəxsi istifadəçi adınızı və şifrənizi daxil edin.';
   }
@@ -3008,7 +3284,7 @@ function setLoginRole(role, btn) {
   loginTargetRole = role;
   document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('login-role-label').textContent = role === 'admin' ? 'Admin Dashboard Access' : 'Sales Team Access';
+  document.getElementById('login-role-label').textContent = loginRoleLabel(role);
   updateLoginHint(role);
   updateLoginFormForRole(role);
 }
@@ -3052,6 +3328,18 @@ function doLogin() {
     err.classList.add('show');
     return;
   }
+
+  if(loginTargetRole === 'finance') {
+    if(user.toLowerCase() === FINANCE_USER && pass === getFinancePass()) {
+      setFinanceSignedIn(true);
+      closeLogin();
+      showView('finance');
+      return;
+    }
+    err.textContent = 'Incorrect password. Please try again.';
+    err.classList.add('show');
+    return;
+  }
 }
 function logout() {
   if (currentView === 'admin' && clerkReady && window.Clerk && window.Clerk.isSignedIn) {
@@ -3064,8 +3352,9 @@ function logout() {
     return;
   }
   setCurrentSalesUser(null);
+  setFinanceSignedIn(false);
   showView('public');
-  // Drop the /admin or /sales path from the URL when signing out.
+  // Drop portal paths from the URL when signing out.
   if(location.pathname && location.pathname !== '/') {
     try { history.replaceState({}, '', '/'); } catch(e) {}
   }
@@ -5695,6 +5984,7 @@ function adminTab(tab, btn) {
   });
   if(tab === 'site-editor') { setTimeout(vseInit, 80); }
   if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
+  if(tab === 'sales-log')   { renderSalesLog(); }
 }
 
 function vseLoadIframe() {
@@ -6840,8 +7130,7 @@ function setLang(lang) {
   if(allFilterBtn) allFilterBtn.textContent = lang === 'az' ? 'Hamısı' : 'All';
 }
 
-// Detect the current path (/admin or /sales) and open the right portal.
-// Re-runs on browser back/forward so the URL bar stays in sync.
+// Detect portal paths (/admin, /sales, /finance) and open the right view.
 function handleRouteFromPath() {
   const path = (location.pathname || '').toLowerCase().replace(/\/+$/, '');
   if(path === '/admin') {
@@ -6852,20 +7141,23 @@ function handleRouteFromPath() {
       updateAdminHeaderUser();
       return;
     }
-    // Admin requires login every time — unless Clerk session is active.
     showView('public');
     openLogin('admin');
     return;
   }
   if(path === '/sales') {
-    // If the salesperson is still signed in from sessionStorage, jump
-    // straight to the portal; otherwise show the login modal.
     const u = getCurrentSalesUser();
     if(u) { showView('sales'); renderSalesView(); updateSalesHeader(); }
     else  { showView('public'); openLogin('sales'); }
     return;
   }
-  // Default: stay on the public landing page.
+  if(path === '/finance' || path === '/maliyye') {
+    loginTargetRole = 'finance';
+    if(isFinanceSignedIn()) { showView('finance'); return; }
+    showView('public');
+    openLogin('finance');
+    return;
+  }
   showView('public');
 }
 
@@ -7677,6 +7969,568 @@ function pricingExportXlsx() {
   const stamp = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `VitaTerra-Pricing-${stamp}.xlsx`);
   if (typeof showToast === 'function') showToast('✅ Exported to Excel');
+}
+
+// ═══════════════════════════════════════════════════════
+// FINANCE TAB — maliyyə / mühasibat
+// ═══════════════════════════════════════════════════════
+const FINANCE_EXPENSES_KEY = 'vt_expenses';
+const FINANCE_EXPENSE_CATEGORIES = [
+  'Maaş',
+  'Kirayə / Ofis',
+  'Logistika / Çatdırılma',
+  'Gömrük',
+  'Reklam',
+  'Vergi / Ödəniş',
+  'Bank / Komissiya',
+  'Digər'
+];
+const FINANCE_PAYMENT_METHODS = [
+  { value: 'cash', label: 'Nağd' },
+  { value: 'bank', label: 'Bank köçürməsi' },
+  { value: 'credit', label: 'Borc (debitor)' }
+];
+var financeSubTabActive = 'summary';
+var financeEditingExpenseId = null;
+
+function financeGetFx() {
+  return (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : null) || 1.70;
+}
+
+function financeGetExpenses() {
+  try {
+    const d = localStorage.getItem(FINANCE_EXPENSES_KEY);
+    return d ? JSON.parse(d) : [];
+  } catch(e) { return []; }
+}
+
+function financeSaveExpenses(arr) {
+  localStorage.setItem(FINANCE_EXPENSES_KEY, JSON.stringify(arr));
+}
+
+function financeOnPeriodChange() {
+  const sel = document.getElementById('finance-period');
+  const wrap = document.getElementById('finance-custom-wrap');
+  if(wrap && sel) wrap.style.display = sel.value === 'custom' ? '' : 'none';
+}
+
+function financeGetPeriodRange() {
+  const sel = document.getElementById('finance-period');
+  const mode = sel ? sel.value : 'this-month';
+  const custom = document.getElementById('finance-custom-month');
+  const now = new Date();
+  let start = null;
+  let end = null;
+
+  if(mode === 'all') return { start, end };
+
+  if(mode === 'custom' && custom && custom.value) {
+    const parts = custom.value.split('-').map(Number);
+    start = new Date(parts[0], parts[1] - 1, 1);
+    end = new Date(parts[0], parts[1], 0, 23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if(mode === 'this-month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if(mode === 'last-month') {
+    start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  } else if(mode === 'this-quarter') {
+    const q = Math.floor(now.getMonth() / 3);
+    start = new Date(now.getFullYear(), q * 3, 1);
+    end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59, 999);
+  } else if(mode === 'this-year') {
+    start = new Date(now.getFullYear(), 0, 1);
+    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  }
+
+  return { start, end };
+}
+
+function financeInPeriod(ts, range) {
+  if(!range || (!range.start && !range.end)) return true;
+  const d = new Date(ts);
+  if(range.start && d < range.start) return false;
+  if(range.end && d > range.end) return false;
+  return true;
+}
+
+function financeExpenseAmountAzn(exp) {
+  const amt = parseFloat(exp.amount) || 0;
+  if((exp.currency || 'AZN') === 'USD') return amt * financeGetFx();
+  return amt;
+}
+
+function financeProductCostPackAzn(p) {
+  const costUsd = parseFloat(p.cost) || 0;
+  const mult = packMultiplier(packagingForProduct(p));
+  return costUsd * mult * financeGetFx();
+}
+
+function financeEnrichSale(s, products) {
+  const p = products.find(x => x.id === s.productId);
+  const costPerUnitAzn = p ? financeProductCostPackAzn(p) : 0;
+  const qty = parseFloat(s.qty) || 0;
+  const revenueAzn = parseFloat(s.total) || 0;
+  const cogsAzn = costPerUnitAzn * qty;
+  const profitAzn = revenueAzn - cogsAzn;
+  const marginPct = revenueAzn > 0 ? (profitAzn / revenueAzn * 100) : 0;
+  const discountLossAzn = (s.discountPct > 0 && s.unitPriceOriginal)
+    ? Math.max(0, (parseFloat(s.unitPriceOriginal) - parseFloat(s.unitPrice)) * qty)
+    : 0;
+  return {
+    sale: s,
+    costPerUnitAzn,
+    cogsAzn,
+    revenueAzn,
+    profitAzn,
+    marginPct,
+    discountLossAzn
+  };
+}
+
+function financeCollectMetrics(range) {
+  const products = getProducts();
+  const sales = getSales()
+    .filter(s => financeInPeriod(s.ts, range))
+    .map(s => financeEnrichSale(s, products));
+
+  const expenses = financeGetExpenses()
+    .filter(e => financeInPeriod(e.date || e.ts, range));
+
+  let revenue = 0;
+  let cogs = 0;
+  let discountLoss = 0;
+  sales.forEach(r => {
+    revenue += r.revenueAzn;
+    cogs += r.cogsAzn;
+    discountLoss += r.discountLossAzn;
+  });
+
+  const grossProfit = revenue - cogs;
+  const opex = expenses.reduce((sum, e) => sum + financeExpenseAmountAzn(e), 0);
+  const netProfit = grossProfit - opex;
+  const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
+  const vatIncluded = revenue;
+  const vatAmount = revenue > 0 ? (revenue * 18 / 118) : 0;
+  const revenueExVat = revenue - vatAmount;
+
+  let inventoryValue = 0;
+  products.forEach(p => {
+    const stock = parseInt(p.stock, 10) || 0;
+    inventoryValue += financeProductCostPackAzn(p) * stock;
+  });
+
+  const creditSales = sales.filter(r => (r.sale.paymentMethod || 'cash') === 'credit');
+  const receivables = creditSales.reduce((sum, r) => sum + r.revenueAzn, 0);
+
+  return {
+    sales,
+    expenses,
+    revenue,
+    cogs,
+    grossProfit,
+    grossMargin,
+    opex,
+    netProfit,
+    discountLoss,
+    vatIncluded,
+    vatAmount,
+    revenueExVat,
+    inventoryValue,
+    receivables,
+    saleCount: sales.length
+  };
+}
+
+function financeInit() {
+  financeOnPeriodChange();
+  const fxEl = document.getElementById('finance-fx-display');
+  if(fxEl) fxEl.value = financeGetFx().toFixed(2);
+  const catSel = document.getElementById('fe-category');
+  if(catSel && !catSel.options.length) {
+    catSel.innerHTML = FINANCE_EXPENSE_CATEGORIES.map(c => '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>').join('');
+  }
+  const dateEl = document.getElementById('fe-date');
+  if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+  financeRender();
+}
+
+function financeSubTab(name, btn) {
+  financeSubTabActive = name;
+  document.querySelectorAll('.finance-subtab').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const panels = ['summary', 'sales', 'sellers', 'products', 'expenses', 'inventory'];
+  panels.forEach(p => {
+    const el = document.getElementById('finance-panel-' + p);
+    if(el) el.classList.toggle('hidden', p !== name);
+  });
+  financeRender();
+}
+
+function financeFmtAzn(n) {
+  return '₼' + (+n).toFixed(2);
+}
+
+function financeRenderKPIs(m) {
+  const el = document.getElementById('finance-kpis');
+  if(!el) return;
+  el.innerHTML = [
+    { icon:'💵', cls:'kpi-gold', num:financeFmtAzn(m.revenue), label:'Gəlir (satış)' },
+    { icon:'📉', cls:'kpi-red', num:financeFmtAzn(m.cogs), label:'Maya (COGS)' },
+    { icon:'📈', cls:'kpi-green', num:financeFmtAzn(m.grossProfit), label:'Bruto mənfəət' },
+    { icon:'💸', cls:'kpi-red', num:financeFmtAzn(m.opex), label:'Xərclər (OPEX)' },
+    { icon:'✅', cls:'kpi-green', num:financeFmtAzn(m.netProfit), label:'Xalis mənfəət' },
+    { icon:'🏭', cls:'kpi-gold', num:financeFmtAzn(m.inventoryValue), label:'Anbar dəyəri' }
+  ].map(k => `
+    <div class="kpi-card">
+      <div class="kpi-icon ${k.cls}">${k.icon}</div>
+      <div><div class="kpi-num">${k.num}</div><div class="kpi-label">${k.label}</div></div>
+    </div>`).join('');
+}
+
+function financeRenderPL(m) {
+  const el = document.getElementById('finance-pl-summary');
+  if(!el) return;
+  const netCls = m.netProfit >= 0 ? 'pl-positive' : 'pl-negative';
+  const grossCls = m.grossProfit >= 0 ? 'pl-positive' : 'pl-negative';
+  el.innerHTML = `
+    <div class="finance-pl-title">Mənfəət və zərər (P&amp;L)</div>
+    <div class="finance-pl-grid">
+      <div class="pl-section">Gəlir</div>
+      <div class="pl-label">Satış gəliri (₼)</div><div class="pl-val">${financeFmtAzn(m.revenue)}</div>
+      <div class="pl-label">Endirim itkisi</div><div class="pl-val pl-negative">−${financeFmtAzn(m.discountLoss)}</div>
+      <div class="pl-label">ƏDV 18% (təxmini, daxil)</div><div class="pl-val">${financeFmtAzn(m.vatAmount)}</div>
+      <div class="pl-label">Gəlir (ƏDV xaric, təxmini)</div><div class="pl-val">${financeFmtAzn(m.revenueExVat)}</div>
+      <div class="pl-section">Maya</div>
+      <div class="pl-label">Satılan məhsul mayası (COGS)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.cogs)}</div>
+      <div class="pl-label">Bruto mənfəət</div><div class="pl-val ${grossCls}">${financeFmtAzn(m.grossProfit)} <span style="font-size:12px;font-weight:400;color:var(--text-light);">(${m.grossMargin.toFixed(1)}%)</span></div>
+      <div class="pl-section">Xərclər</div>
+      <div class="pl-label">Əməliyyat xərcləri (OPEX)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.opex)}</div>
+      <div class="pl-label pl-total">Xalis mənfəət</div><div class="pl-val pl-total ${netCls}">${financeFmtAzn(m.netProfit)}</div>
+      <div class="pl-section">Balans qeydləri</div>
+      <div class="pl-label">Debitor borclar (kredit satış)</div><div class="pl-val">${financeFmtAzn(m.receivables)}</div>
+      <div class="pl-label">Anbar dəyəri (cari maya)</div><div class="pl-val">${financeFmtAzn(m.inventoryValue)}</div>
+    </div>`;
+}
+
+function financeRenderMonthBars() {
+  const el = document.getElementById('finance-month-bars');
+  if(!el) return;
+  const products = getProducts();
+  const allSales = getSales();
+  const months = [];
+  const now = new Date();
+  for(let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
+      label: d.toLocaleString('az', { month: 'short' }),
+      start: new Date(d.getFullYear(), d.getMonth(), 1),
+      end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
+    });
+  }
+
+  const data = months.map(mo => {
+    const rows = allSales
+      .filter(s => financeInPeriod(s.ts, mo))
+      .map(s => financeEnrichSale(s, products));
+    const revenue = rows.reduce((sum, r) => sum + r.revenueAzn, 0);
+    const profit = rows.reduce((sum, r) => sum + r.profitAzn, 0);
+    return { ...mo, revenue, profit };
+  });
+
+  const maxVal = Math.max(1, ...data.map(d => Math.max(d.revenue, d.profit)));
+  el.innerHTML = data.map(d => {
+    const revH = Math.max(4, Math.round(d.revenue / maxVal * 110));
+    const profH = Math.max(4, Math.round(Math.max(0, d.profit) / maxVal * 110));
+    return `<div class="finance-month-bar-wrap" title="${d.label}: gəlir ${financeFmtAzn(d.revenue)}, mənfəət ${financeFmtAzn(d.profit)}">
+      <div style="display:flex;align-items:flex-end;gap:3px;height:120px;">
+        <div class="finance-month-bar" style="height:${revH}px;" title="Gəlir"></div>
+        <div class="finance-month-bar profit" style="height:${profH}px;" title="Mənfəət"></div>
+      </div>
+      <div class="finance-month-bar-label">${escapeHtml(d.label)}</div>
+    </div>`;
+  }).join('');
+}
+
+function financePaymentSelect(ts, current) {
+  const cur = current || 'cash';
+  const opts = FINANCE_PAYMENT_METHODS.map(m =>
+    `<option value="${m.value}"${m.value === cur ? ' selected' : ''}>${escapeHtml(m.label)}</option>`
+  ).join('');
+  return `<select class="finance-pay-select" onchange="financeSetPaymentMethod('${ts}', this.value)">${opts}</select>`;
+}
+
+function financeSetPaymentMethod(ts, method) {
+  const sales = getSales();
+  const idx = sales.findIndex(s => String(s.ts) === String(ts));
+  if(idx < 0) return;
+  sales[idx].paymentMethod = method;
+  saveSales(sales);
+  financeRender();
+}
+
+function financeRenderSalesRegister(rows) {
+  const tbody = document.getElementById('finance-sales-tbody');
+  if(!tbody) return;
+  if(!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-light);padding:28px;">Seçilmiş dövrdə satış yoxdur.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = [...rows].reverse().map(r => {
+    const s = r.sale;
+    const marginCls = r.marginPct >= 20 ? 'pl-positive' : (r.marginPct < 10 ? 'pl-negative' : '');
+    return `<tr>
+      <td>${new Date(s.ts).toLocaleString()}</td>
+      <td><strong>${escapeHtml(s.productName)}</strong></td>
+      <td>${escapeHtml(s.salesperson || '—')}</td>
+      <td>${escapeHtml(s.customer || '—')}</td>
+      <td class="num">${s.qty}</td>
+      <td class="num">${financeFmtAzn(r.revenueAzn)}</td>
+      <td class="num">${financeFmtAzn(r.cogsAzn)}</td>
+      <td class="num ${r.profitAzn >= 0 ? 'pl-positive' : 'pl-negative'}">${financeFmtAzn(r.profitAzn)}</td>
+      <td class="num ${marginCls}">${r.marginPct.toFixed(1)}%</td>
+      <td>${financePaymentSelect(s.ts, s.paymentMethod)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function financeRenderSellers(rows) {
+  const tbody = document.getElementById('finance-sellers-tbody');
+  if(!tbody) return;
+  const map = {};
+  rows.forEach(r => {
+    const key = r.sale.salespersonUsername || r.sale.salesperson || 'sales';
+    const name = r.sale.salesperson || key;
+    if(!map[key]) map[key] = { name, count: 0, revenue: 0, cogs: 0, discount: 0 };
+    map[key].count += 1;
+    map[key].revenue += r.revenueAzn;
+    map[key].cogs += r.cogsAzn;
+    map[key].discount += r.discountLossAzn;
+  });
+  const keys = Object.keys(map);
+  if(!keys.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:28px;">Məlumat yoxdur.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.sort((a, b) => map[b].revenue - map[a].revenue).map(k => {
+    const t = map[k];
+    const profit = t.revenue - t.cogs;
+    const margin = t.revenue > 0 ? (profit / t.revenue * 100) : 0;
+    return `<tr>
+      <td><strong>${escapeHtml(t.name)}</strong></td>
+      <td class="num">${t.count}</td>
+      <td class="num">${financeFmtAzn(t.revenue)}</td>
+      <td class="num">${financeFmtAzn(t.cogs)}</td>
+      <td class="num">${financeFmtAzn(profit)}</td>
+      <td class="num">${margin.toFixed(1)}%</td>
+      <td class="num">${financeFmtAzn(t.discount)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function financeRenderProducts(rows) {
+  const tbody = document.getElementById('finance-products-tbody');
+  if(!tbody) return;
+  const map = {};
+  rows.forEach(r => {
+    const name = r.sale.productName || '—';
+    if(!map[name]) map[name] = { qty: 0, revenue: 0, cogs: 0 };
+    map[name].qty += parseFloat(r.sale.qty) || 0;
+    map[name].revenue += r.revenueAzn;
+    map[name].cogs += r.cogsAzn;
+  });
+  const keys = Object.keys(map);
+  if(!keys.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:28px;">Məlumat yoxdur.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = keys.sort((a, b) => map[b].revenue - map[a].revenue).map(name => {
+    const t = map[name];
+    const profit = t.revenue - t.cogs;
+    const margin = t.revenue > 0 ? (profit / t.revenue * 100) : 0;
+    return `<tr>
+      <td><strong>${escapeHtml(name)}</strong></td>
+      <td class="num">${t.qty}</td>
+      <td class="num">${financeFmtAzn(t.revenue)}</td>
+      <td class="num">${financeFmtAzn(t.cogs)}</td>
+      <td class="num">${financeFmtAzn(profit)}</td>
+      <td class="num">${margin.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function financeRenderExpenses(expenses) {
+  const tbody = document.getElementById('finance-expenses-tbody');
+  if(!tbody) return;
+  if(!expenses.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:28px;">Xərc qeydi yoxdur. «+ Xərc əlavə et» ilə başlayın.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = [...expenses].reverse().map(e => `
+    <tr>
+      <td>${escapeHtml((e.date || '').slice(0, 10))}</td>
+      <td>${escapeHtml(e.category || '—')}</td>
+      <td>${escapeHtml(e.description || '—')}</td>
+      <td class="num">${financeFmtAzn(financeExpenseAmountAzn(e))}</td>
+      <td>${escapeHtml(e.vendor || '—')}</td>
+      <td><button class="pricing-comp-table del-btn" onclick="financeDeleteExpense('${escapeHtml(e.id)}')" title="Sil">×</button></td>
+    </tr>`).join('');
+}
+
+function financeRenderInventory(products) {
+  const tbody = document.getElementById('finance-inventory-tbody');
+  const totalEl = document.getElementById('finance-inventory-total');
+  if(!tbody) return;
+  let total = 0;
+  const rows = products.map(p => {
+    const stock = parseInt(p.stock, 10) || 0;
+    const unitCost = financeProductCostPackAzn(p);
+    const value = unitCost * stock;
+    total += value;
+    return { p, stock, unitCost, value };
+  }).filter(r => r.stock > 0).sort((a, b) => b.value - a.value);
+
+  if(totalEl) totalEl.textContent = 'Cəmi: ' + financeFmtAzn(total);
+  if(!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:28px;">Stokda məhsul yoxdur.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.p.name)}</strong></td>
+      <td>${escapeHtml(r.p.category || '—')}</td>
+      <td class="num">${r.stock}</td>
+      <td class="num">${financeFmtAzn(r.unitCost)}</td>
+      <td class="num">${financeFmtAzn(r.value)}</td>
+    </tr>`).join('');
+}
+
+function financeRender() {
+  const range = financeGetPeriodRange();
+  const m = financeCollectMetrics(range);
+  financeRenderKPIs(m);
+  financeRenderPL(m);
+  financeRenderMonthBars();
+  financeRenderSalesRegister(m.sales);
+  financeRenderSellers(m.sales);
+  financeRenderProducts(m.sales);
+  financeRenderExpenses(m.expenses);
+  financeRenderInventory(getProducts());
+}
+
+function financeOpenExpenseForm() {
+  financeEditingExpenseId = null;
+  const form = document.getElementById('finance-expense-form');
+  if(form) form.style.display = '';
+  const dateEl = document.getElementById('fe-date');
+  if(dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+  ['fe-desc', 'fe-amount', 'fe-vendor'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
+
+function financeCloseExpenseForm() {
+  const form = document.getElementById('finance-expense-form');
+  if(form) form.style.display = 'none';
+  financeEditingExpenseId = null;
+}
+
+function financeSaveExpense() {
+  const date = (document.getElementById('fe-date') || {}).value;
+  const category = (document.getElementById('fe-category') || {}).value;
+  const description = (document.getElementById('fe-desc') || {}).value.trim();
+  const amount = parseFloat((document.getElementById('fe-amount') || {}).value);
+  const currency = (document.getElementById('fe-currency') || {}).value || 'AZN';
+  const vendor = (document.getElementById('fe-vendor') || {}).value.trim();
+  if(!date || !description || !(amount > 0)) {
+    showToast('Tarix, təsvir və məbləğ doldurulmalıdır.', true);
+    return;
+  }
+  const arr = financeGetExpenses();
+  const entry = {
+    id: financeEditingExpenseId || ('exp-' + Date.now()),
+    date,
+    category,
+    description,
+    amount,
+    currency,
+    vendor
+  };
+  if(financeEditingExpenseId) {
+    const idx = arr.findIndex(e => e.id === financeEditingExpenseId);
+    if(idx >= 0) arr[idx] = entry; else arr.push(entry);
+  } else {
+    arr.push(entry);
+  }
+  financeSaveExpenses(arr);
+  financeCloseExpenseForm();
+  financeRender();
+  showToast('Xərc saxlanıldı.');
+}
+
+function financeDeleteExpense(id) {
+  if(!confirm('Bu xərc silinsin?')) return;
+  financeSaveExpenses(financeGetExpenses().filter(e => e.id !== id));
+  financeRender();
+  showToast('Xərc silindi.');
+}
+
+function financeExportXlsx() {
+  if(typeof XLSX === 'undefined') { showToast('Excel kitabxanası yüklənməyib.', true); return; }
+  const range = financeGetPeriodRange();
+  const m = financeCollectMetrics(range);
+  const periodLabel = (document.getElementById('finance-period') || {}).value || 'period';
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  const plRows = [
+    { 'Göstərici': 'Satış gəliri (AZN)', 'Məbləğ': +m.revenue.toFixed(2) },
+    { 'Göstərici': 'Endirim itkisi (AZN)', 'Məbləğ': +m.discountLoss.toFixed(2) },
+    { 'Göstərici': 'ƏDV 18% təxmini (AZN)', 'Məbləğ': +m.vatAmount.toFixed(2) },
+    { 'Göstərici': 'Gəlir ƏDV xaric (AZN)', 'Məbləğ': +m.revenueExVat.toFixed(2) },
+    { 'Göstərici': 'COGS / Maya (AZN)', 'Məbləğ': +m.cogs.toFixed(2) },
+    { 'Göstərici': 'Bruto mənfəət (AZN)', 'Məbləğ': +m.grossProfit.toFixed(2) },
+    { 'Göstərici': 'OPEX xərclər (AZN)', 'Məbləğ': +m.opex.toFixed(2) },
+    { 'Göstərici': 'Xalis mənfəət (AZN)', 'Məbləğ': +m.netProfit.toFixed(2) },
+    { 'Göstərici': 'Debitor borclar (AZN)', 'Məbləğ': +m.receivables.toFixed(2) },
+    { 'Göstərici': 'Anbar dəyəri (AZN)', 'Məbləğ': +m.inventoryValue.toFixed(2) },
+    { 'Göstərici': 'USD/AZN məzənnə', 'Məbləğ': financeGetFx() }
+  ];
+
+  const salesRows = m.sales.map(r => ({
+    'Tarix': new Date(r.sale.ts).toLocaleString(),
+    'Məhsul': r.sale.productName,
+    'Satıcı': r.sale.salesperson || '',
+    'Müştəri': r.sale.customer || '',
+    'Say': r.sale.qty,
+    'Gəlir AZN': +r.revenueAzn.toFixed(2),
+    'Maya AZN': +r.cogsAzn.toFixed(2),
+    'Mənfəət AZN': +r.profitAzn.toFixed(2),
+    'Marja %': +r.marginPct.toFixed(1),
+    'Endirim %': r.sale.discountPct || 0,
+    'Ödəniş': (FINANCE_PAYMENT_METHODS.find(x => x.value === (r.sale.paymentMethod || 'cash')) || {}).label || 'Nağd'
+  }));
+
+  const expenseRows = m.expenses.map(e => ({
+    'Tarix': e.date,
+    'Kateqoriya': e.category,
+    'Təsvir': e.description,
+    'Məbləğ': e.amount,
+    'Valyuta': e.currency || 'AZN',
+    'AZN ekvivalent': +financeExpenseAmountAzn(e).toFixed(2),
+    'Qeyd': e.vendor || ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(plRows), 'P&L');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesRows), 'Satışlar');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseRows), 'Xərclər');
+  XLSX.writeFile(wb, 'VitaTerra-Maliyye-' + periodLabel + '-' + stamp + '.xlsx');
+  showToast('✅ Mühasibat Excel faylı yükləndi');
 }
 </script>
 <!-- LIGHTBOX -->

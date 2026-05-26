@@ -27,6 +27,26 @@
   to = "/index.html"
   status = 200
 
+[[redirects]]
+  from = "/finance"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/finance/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/maliyye"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/maliyye/*"
+  to = "/index.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
