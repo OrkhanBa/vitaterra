@@ -1,16 +1,16 @@
 {
   "_meta": {
-    "publishedAt": "2026-05-25T16:52:23.584Z"
+    "publishedAt": "2026-05-26T08:57:45.077Z"
   },
   "products": [
     {
       "id": 1,
-      "name": "Paclobutrazol 250 g/l SC",
+      "name": "ZILAR 250 SC",
       "category": "Growth Regulator",
       "cost": 6.74,
       "markup": 30,
       "stock": 1000,
-      "unit": "unit",
+      "unit": "1 l",
       "desc": "Premium Cerrado Sol formulation. Active ingredient: Paclobutrazol 250 g/l SC.",
       "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place.",
       "activeIngredient": "Paclobutrazol 250 g/l SC",
