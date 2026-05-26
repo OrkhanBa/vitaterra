@@ -2497,18 +2497,31 @@
 
     <div id="finance-panel-inventory" class="finance-panel hidden">
       <div class="finance-panel-head">
-        <div class="finance-panel-title">Anbar dəyəri (maya qiyməti ilə)</div>
-        <div id="finance-inventory-total" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);"></div>
+        <div>
+          <div class="finance-panel-title">Anbar qalığı və dəyəri</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:4px;">Maya $/kq(l) · stok cəmi kq/litr · qablaşma üzrə ədəd</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="finance-subtabs" style="margin:0;">
+            <button type="button" class="finance-subtab finance-inv-mode active" id="finance-inv-mode-cost" onclick="financeSetInventoryPriceMode('cost',this)">Alış (maya)</button>
+            <button type="button" class="finance-subtab finance-inv-mode" id="finance-inv-mode-sale" onclick="financeSetInventoryPriceMode('sale',this)">Satış qiyməti</button>
+          </div>
+          <div id="finance-inventory-total" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);"></div>
+        </div>
       </div>
       <div class="finance-table-wrap">
         <table class="finance-table">
           <thead>
             <tr>
               <th>Məhsul</th>
-              <th>Kateqoriya</th>
-              <th class="num">Stok</th>
-              <th class="num">Maya/vahid ₼</th>
-              <th class="num">Anbar dəyəri ₼</th>
+              <th>Qablaşma</th>
+              <th class="num">Stok (ədəd)</th>
+              <th class="num">Stok (kq/l)</th>
+              <th class="num">Alış/qab ₼</th>
+              <th class="num">Alış/kq(l) ₼</th>
+              <th class="num">Satış/qab ₼</th>
+              <th class="num">Satış/kq(l) ₼</th>
+              <th class="num" id="finance-inv-value-col">Anbar dəyəri ₼</th>
             </tr>
           </thead>
           <tbody id="finance-inventory-tbody"></tbody>
@@ -7992,6 +8005,7 @@ const FINANCE_PAYMENT_METHODS = [
 ];
 var financeSubTabActive = 'summary';
 var financeEditingExpenseId = null;
+var financeInventoryPriceMode = 'cost';
 
 function financeGetFx() {
   return (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : null) || 1.70;
@@ -8063,6 +8077,84 @@ function financeExpenseAmountAzn(exp) {
   return amt;
 }
 
+// Stock in admin is total kg/L when pack size ≥ 1 kg/L; package count when pack < 1 kg (e.g. 500 g).
+function financeBaseUnitLabel(packStr) {
+  if(!packStr) return 'ədəd';
+  if(/ml|\bl\b|litre|liter/i.test(packStr)) return 'litr';
+  if(/kg|\bg\b|gr|gram|kilo/i.test(packStr)) return 'kq';
+  return 'vahid';
+}
+
+function financeResolveStock(p) {
+  const raw = parseFloat(p.stock) || 0;
+  const packStr = packagingForProduct(p);
+  const mult = packMultiplier(packStr) || 1;
+  let packages;
+  let baseUnits;
+
+  if(mult >= 1) {
+    baseUnits = raw;
+    packages = mult > 0 ? raw / mult : raw;
+  } else {
+    packages = raw;
+    baseUnits = raw * mult;
+  }
+
+  return {
+    raw,
+    packStr,
+    mult,
+    packages,
+    baseUnits,
+    packLabel: packStr ? formatPackAz(packStr) : 'ədəd',
+    baseUnitLabel: financeBaseUnitLabel(packStr)
+  };
+}
+
+function financeInventoryUnitPrices(p, stockMeta) {
+  const fx = financeGetFx();
+  const costBaseUsd = parseFloat(p.cost) || 0;
+  const saleBaseUsd = salePrice(p);
+  const mult = stockMeta ? stockMeta.mult : (packMultiplier(packagingForProduct(p)) || 1);
+  return {
+    costPackAzn: costBaseUsd * mult * fx,
+    salePackAzn: saleBaseUsd * mult * fx,
+    costBaseAzn: costBaseUsd * fx,
+    saleBaseAzn: saleBaseUsd * fx
+  };
+}
+
+function financeInventoryRow(p) {
+  const stock = financeResolveStock(p);
+  const prices = financeInventoryUnitPrices(p, stock);
+  const costValueAzn = prices.costBaseAzn * stock.baseUnits;
+  const saleValueAzn = prices.saleBaseAzn * stock.baseUnits;
+  return { p, stock, prices, costValueAzn, saleValueAzn };
+}
+
+function financeInventoryTotals(products, priceMode) {
+  let costTotal = 0;
+  let saleTotal = 0;
+  products.forEach(p => {
+    const row = financeInventoryRow(p);
+    if(row.stock.baseUnits <= 0) return;
+    costTotal += row.costValueAzn;
+    saleTotal += row.saleValueAzn;
+  });
+  return {
+    cost: costTotal,
+    sale: saleTotal,
+    value: priceMode === 'sale' ? saleTotal : costTotal
+  };
+}
+
+function financeSetInventoryPriceMode(mode, btn) {
+  financeInventoryPriceMode = mode === 'sale' ? 'sale' : 'cost';
+  document.querySelectorAll('.finance-inv-mode').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  financeRender();
+}
+
 function financeProductCostPackAzn(p) {
   const costUsd = parseFloat(p.cost) || 0;
   const mult = packMultiplier(packagingForProduct(p));
@@ -8118,10 +8210,10 @@ function financeCollectMetrics(range) {
   const revenueExVat = revenue - vatAmount;
 
   let inventoryValue = 0;
-  products.forEach(p => {
-    const stock = parseInt(p.stock, 10) || 0;
-    inventoryValue += financeProductCostPackAzn(p) * stock;
-  });
+  let inventorySaleValue = 0;
+  const invTotals = financeInventoryTotals(products, financeInventoryPriceMode);
+  inventoryValue = invTotals.cost;
+  inventorySaleValue = invTotals.sale;
 
   const creditSales = sales.filter(r => (r.sale.paymentMethod || 'cash') === 'credit');
   const receivables = creditSales.reduce((sum, r) => sum + r.revenueAzn, 0);
@@ -8140,6 +8232,8 @@ function financeCollectMetrics(range) {
     vatAmount,
     revenueExVat,
     inventoryValue,
+    inventorySaleValue,
+    inventoryDisplayValue: invTotals.value,
     receivables,
     saleCount: sales.length
   };
@@ -8155,6 +8249,9 @@ function financeInit() {
   }
   const dateEl = document.getElementById('fe-date');
   if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+  document.querySelectorAll('.finance-inv-mode').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'finance-inv-mode-' + financeInventoryPriceMode);
+  });
   financeRender();
 }
 
@@ -8177,13 +8274,15 @@ function financeFmtAzn(n) {
 function financeRenderKPIs(m) {
   const el = document.getElementById('finance-kpis');
   if(!el) return;
+  const invLabel = financeInventoryPriceMode === 'sale' ? 'Anbar dəyəri (satış)' : 'Anbar dəyəri (maya)';
+  const invVal = financeInventoryPriceMode === 'sale' ? m.inventorySaleValue : m.inventoryValue;
   el.innerHTML = [
     { icon:'💵', cls:'kpi-gold', num:financeFmtAzn(m.revenue), label:'Gəlir (satış)' },
     { icon:'📉', cls:'kpi-red', num:financeFmtAzn(m.cogs), label:'Maya (COGS)' },
     { icon:'📈', cls:'kpi-green', num:financeFmtAzn(m.grossProfit), label:'Bruto mənfəət' },
     { icon:'💸', cls:'kpi-red', num:financeFmtAzn(m.opex), label:'Xərclər (OPEX)' },
     { icon:'✅', cls:'kpi-green', num:financeFmtAzn(m.netProfit), label:'Xalis mənfəət' },
-    { icon:'🏭', cls:'kpi-gold', num:financeFmtAzn(m.inventoryValue), label:'Anbar dəyəri' }
+    { icon:'🏭', cls:'kpi-gold', num:financeFmtAzn(invVal), label:invLabel }
   ].map(k => `
     <div class="kpi-card">
       <div class="kpi-icon ${k.cls}">${k.icon}</div>
@@ -8212,7 +8311,8 @@ function financeRenderPL(m) {
       <div class="pl-label pl-total">Xalis mənfəət</div><div class="pl-val pl-total ${netCls}">${financeFmtAzn(m.netProfit)}</div>
       <div class="pl-section">Balans qeydləri</div>
       <div class="pl-label">Debitor borclar (kredit satış)</div><div class="pl-val">${financeFmtAzn(m.receivables)}</div>
-      <div class="pl-label">Anbar dəyəri (cari maya)</div><div class="pl-val">${financeFmtAzn(m.inventoryValue)}</div>
+      <div class="pl-label">Anbar dəyəri (maya / alış)</div><div class="pl-val">${financeFmtAzn(m.inventoryValue)}</div>
+      <div class="pl-label">Anbar dəyəri (satış qiyməti)</div><div class="pl-val">${financeFmtAzn(m.inventorySaleValue)}</div>
     </div>`;
 }
 
@@ -8384,29 +8484,46 @@ function financeRenderExpenses(expenses) {
 function financeRenderInventory(products) {
   const tbody = document.getElementById('finance-inventory-tbody');
   const totalEl = document.getElementById('finance-inventory-total');
+  const colEl = document.getElementById('finance-inv-value-col');
   if(!tbody) return;
-  let total = 0;
-  const rows = products.map(p => {
-    const stock = parseInt(p.stock, 10) || 0;
-    const unitCost = financeProductCostPackAzn(p);
-    const value = unitCost * stock;
-    total += value;
-    return { p, stock, unitCost, value };
-  }).filter(r => r.stock > 0).sort((a, b) => b.value - a.value);
 
-  if(totalEl) totalEl.textContent = 'Cəmi: ' + financeFmtAzn(total);
+  const mode = financeInventoryPriceMode;
+  const totals = financeInventoryTotals(products, mode);
+  const modeLabel = mode === 'sale' ? 'satış' : 'maya';
+  if(colEl) colEl.textContent = 'Anbar dəyəri (' + modeLabel + ') ₼';
+  if(totalEl) totalEl.textContent = 'Cəmi (' + modeLabel + '): ' + financeFmtAzn(totals.value);
+
+  const rows = products
+    .map(p => financeInventoryRow(p))
+    .filter(r => r.stock.baseUnits > 0)
+    .sort((a, b) => (mode === 'sale' ? b.saleValueAzn - a.saleValueAzn : b.costValueAzn - a.costValueAzn));
+
   if(!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:28px;">Stokda məhsul yoxdur.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-light);padding:28px;">Stokda məhsul yoxdur.</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td><strong>${escapeHtml(r.p.name)}</strong></td>
-      <td>${escapeHtml(r.p.category || '—')}</td>
-      <td class="num">${r.stock}</td>
-      <td class="num">${financeFmtAzn(r.unitCost)}</td>
-      <td class="num">${financeFmtAzn(r.value)}</td>
-    </tr>`).join('');
+
+  tbody.innerHTML = rows.map(r => {
+    const valueAzn = mode === 'sale' ? r.saleValueAzn : r.costValueAzn;
+    const pkgCount = r.stock.packages;
+    const pkgDisplay = Math.abs(pkgCount - Math.round(pkgCount)) < 0.01
+      ? Math.round(pkgCount).toLocaleString('az')
+      : pkgCount.toFixed(2);
+    const baseDisplay = Math.abs(r.stock.baseUnits - Math.round(r.stock.baseUnits)) < 0.01
+      ? Math.round(r.stock.baseUnits).toLocaleString('az')
+      : r.stock.baseUnits.toFixed(2);
+    return `<tr>
+      <td><strong>${escapeHtml(r.p.name)}</strong><div style="font-size:11px;color:var(--text-light);">${escapeHtml(r.p.category || '—')}</div></td>
+      <td>${escapeHtml(r.stock.packLabel)}</td>
+      <td class="num">${pkgDisplay}</td>
+      <td class="num">${baseDisplay} ${escapeHtml(r.stock.baseUnitLabel)}</td>
+      <td class="num">${financeFmtAzn(r.prices.costPackAzn)}</td>
+      <td class="num">${financeFmtAzn(r.prices.costBaseAzn)}</td>
+      <td class="num">${financeFmtAzn(r.prices.salePackAzn)}</td>
+      <td class="num">${financeFmtAzn(r.prices.saleBaseAzn)}</td>
+      <td class="num"><strong>${financeFmtAzn(valueAzn)}</strong></td>
+    </tr>`;
+  }).join('');
 }
 
 function financeRender() {
@@ -8497,9 +8614,26 @@ function financeExportXlsx() {
     { 'Göstərici': 'OPEX xərclər (AZN)', 'Məbləğ': +m.opex.toFixed(2) },
     { 'Göstərici': 'Xalis mənfəət (AZN)', 'Məbləğ': +m.netProfit.toFixed(2) },
     { 'Göstərici': 'Debitor borclar (AZN)', 'Məbləğ': +m.receivables.toFixed(2) },
-    { 'Göstərici': 'Anbar dəyəri (AZN)', 'Məbləğ': +m.inventoryValue.toFixed(2) },
+    { 'Göstərici': 'Anbar dəyəri — maya (AZN)', 'Məbləğ': +m.inventoryValue.toFixed(2) },
+    { 'Göstərici': 'Anbar dəyəri — satış (AZN)', 'Məbləğ': +m.inventorySaleValue.toFixed(2) },
     { 'Göstərici': 'USD/AZN məzənnə', 'Məbləğ': financeGetFx() }
   ];
+
+  const inventoryRows = getProducts()
+    .map(p => financeInventoryRow(p))
+    .filter(r => r.stock.baseUnits > 0)
+    .map(r => ({
+      'Məhsul': r.p.name,
+      'Qablaşma': r.stock.packLabel,
+      'Stok (ədəd)': +r.stock.packages.toFixed(2),
+      'Stok (kq/l)': +r.stock.baseUnits.toFixed(3),
+      'Alış/qab AZN': +r.prices.costPackAzn.toFixed(2),
+      'Alış/kq(l) AZN': +r.prices.costBaseAzn.toFixed(2),
+      'Satış/qab AZN': +r.prices.salePackAzn.toFixed(2),
+      'Satış/kq(l) AZN': +r.prices.saleBaseAzn.toFixed(2),
+      'Anbar maya AZN': +r.costValueAzn.toFixed(2),
+      'Anbar satış AZN': +r.saleValueAzn.toFixed(2)
+    }));
 
   const salesRows = m.sales.map(r => ({
     'Tarix': new Date(r.sale.ts).toLocaleString(),
@@ -8529,6 +8663,9 @@ function financeExportXlsx() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(plRows), 'P&L');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesRows), 'Satışlar');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseRows), 'Xərclər');
+  if(inventoryRows.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inventoryRows), 'Anbar');
+  }
   XLSX.writeFile(wb, 'VitaTerra-Maliyye-' + periodLabel + '-' + stamp + '.xlsx');
   showToast('✅ Mühasibat Excel faylı yükləndi');
 }
