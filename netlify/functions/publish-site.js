@@ -38,8 +38,9 @@ function reply(status, body) {
 }
 
 async function putFile(ghHeaders, path, payload, message) {
-  if (payload.length > MAX_BYTES) {
-    throw new Error(`Payload for ${path} too large (${payload.length} bytes, limit ${MAX_BYTES})`);
+  const buf = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload), 'utf8');
+  if (buf.length > MAX_BYTES) {
+    throw new Error(`Payload for ${path} too large (${buf.length} bytes, limit ${MAX_BYTES})`);
   }
 
   const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`;
@@ -56,7 +57,7 @@ async function putFile(ghHeaders, path, payload, message) {
 
   const putBody = {
     message,
-    content: Buffer.from(payload, 'utf8').toString('base64'),
+    content: buf.toString('base64'),
     branch: BRANCH,
     committer: { name: 'Vita Terra Editor', email: 'editor@vitaterra.az' },
   };
@@ -73,6 +74,44 @@ async function putFile(ghHeaders, path, payload, message) {
     throw new Error(`GitHub PUT for ${path} failed (${putRes.status}): ${t.slice(0, 300)}`);
   }
   return putRes.json();
+}
+
+function parseDataImage(dataUrl) {
+  if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:image/') !== 0) return null;
+  const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,(.+)$/i);
+  if (!match) return null;
+  const mime = match[1].toLowerCase();
+  const ext = mime.indexOf('png') >= 0 ? 'png'
+    : mime.indexOf('webp') >= 0 ? 'webp'
+    : mime.indexOf('gif') >= 0 ? 'gif'
+    : 'jpg';
+  return { buffer: Buffer.from(match[2], 'base64'), ext };
+}
+
+async function resolveProductImages(ghHeaders, products, stamp) {
+  const imagePaths = [];
+  const resolved = [];
+
+  for (const product of products) {
+    const copy = Object.assign({}, product);
+    const parsed = parseDataImage(copy.image);
+    if (parsed) {
+      const path = `assets/products/product-${product.id}.${parsed.ext}`;
+      await putFile(
+        ghHeaders,
+        path,
+        parsed.buffer,
+        `Publish product image: ${product.name || product.id} (${stamp})`
+      );
+      copy.image = '/' + path;
+      imagePaths.push(copy.image);
+    } else if (copy.image && String(copy.image).indexOf('/assets/products/') === 0) {
+      imagePaths.push(copy.image);
+    }
+    resolved.push(copy);
+  }
+
+  return { products: resolved, imagePaths };
 }
 
 exports.handler = async (event) => {
@@ -125,9 +164,10 @@ exports.handler = async (event) => {
 
     // 2. Product catalog — written only if an array was provided.
     if (Array.isArray(body.products)) {
+      const imageResult = await resolveProductImages(ghHeaders, body.products, stamp);
       const productsObj = {
         _meta: { publishedAt: stamp },
-        products: body.products,
+        products: imageResult.products,
       };
       const productsPayload = JSON.stringify(productsObj, null, 2);
       const prodRes = await putFile(
@@ -138,6 +178,7 @@ exports.handler = async (event) => {
       );
       results.productsCommit    = prodRes.commit && prodRes.commit.sha;
       results.productsCommitUrl = prodRes.commit && prodRes.commit.html_url;
+      results.productImages     = imageResult.imagePaths.length;
     }
 
     // 3. Sales portal logins — written when an array was provided.

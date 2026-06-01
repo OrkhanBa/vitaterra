@@ -2034,7 +2034,7 @@
               <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importExcel(event)"/>
             </label>
             <button class="btn-markup" onclick="openGlobalMarkup()">📊 Global Markup</button>
-            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="publishProductsCatalog()" title="Label mətnlərini vitaterra.az-a yükləyir">🚀 Kataloqu Publish et</button>
+            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="publishProductsCatalog()" title="Label mətnləri və məhsul şəkillərini vitaterra.az-a yükləyir">🚀 Kataloqu Publish et</button>
             <button class="btn-markup" onclick="clearAllProductImages()" title="Bütün məhsulların şəkillərini siler">🗑️ Şəkilləri sıfırla</button>
             <button class="btn-add" onclick="openProductForm()">+ Add Product</button>
           </div>
@@ -3119,7 +3119,7 @@ function mergePublishedLabelFields(products) {
   if (!Array.isArray(PUBLISHED_PRODUCTS) || !PUBLISHED_PRODUCTS.length) return products;
   var pubById = {};
   PUBLISHED_PRODUCTS.forEach(function(p) { pubById[p.id] = p; });
-  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category'];
+  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category', 'image'];
   return products.map(function(p) {
     var pub = pubById[p.id];
     if (!pub) return p;
@@ -3131,14 +3131,16 @@ function mergePublishedLabelFields(products) {
   });
 }
 
-// Full catalog snapshot for Publish — keeps all label/translation fields.
+// Full catalog snapshot for Publish — keeps label fields and product photos.
 function getProductsForPublish() {
   return getProducts().map(function(p, i) {
-    var s = sanitizeProduct(p, i);
-    // Keep products.json lean; large base64 images stay in admin localStorage.
-    if (s.image && s.image.indexOf('data:') === 0) s.image = '';
-    return s;
+    return sanitizeProduct(p, i);
   });
+}
+
+function countProductsWithImages(products) {
+  if (!Array.isArray(products)) return 0;
+  return products.filter(function(p) { return p.image && String(p.image).trim(); }).length;
 }
 
 function countProductsWithUsageAz(products) {
@@ -5843,24 +5845,29 @@ async function publishSalesUsers() {
 }
 
 async function publishProductsCatalog() {
-  const draftCount = countProductsWithUsageAz(getProducts());
+  const draft = getProducts();
+  const draftCount = countProductsWithUsageAz(draft);
+  const draftImages = countProductsWithImages(draft);
   const liveCount = countProductsWithUsageAz(PUBLISHED_PRODUCTS || []);
-  if (draftCount === 0) {
-    showToast('Heç bir məhsulda istifadə qaydası (usage_az) yoxdur. Əvvəl PDF label tətbiq edin.', true);
+  const liveImages = countProductsWithImages(PUBLISHED_PRODUCTS || []);
+  if (draftCount === 0 && draftImages === 0) {
+    showToast('Publish ediləcək label mətni və ya məhsul şəkli yoxdur.', true);
     return;
   }
-  if (draftCount > liveCount) {
-    if (!confirm(
-      'Draft-da ' + draftCount + ' məhsulun istifadə qaydası var, canlı saytda isə ' + liveCount + '.\n\n' +
-      'Publish edilsin? (~30 saniyə sonra vitaterra.az-da görünəcək)'
-    )) return;
+  if (draftCount > liveCount || draftImages > liveImages) {
+    var parts = [];
+    if (draftCount > liveCount) parts.push('label: ' + draftCount + ' (canlı: ' + liveCount + ')');
+    if (draftImages > liveImages) parts.push('şəkil: ' + draftImages + ' (canlı: ' + liveImages + ')');
+    if (!confirm('Draft yenilikləri:\n' + parts.join('\n') + '\n\nPublish edilsin? (~30 saniyə sonra vitaterra.az-da görünəcək)')) return;
   }
   try {
     showToast('⏳ Publish edilir...');
     const result = await publishToLiveSite({});
     if (result.cancelled) return;
-    const usageMsg = result.usageCount ? (' · ' + result.usageCount + ' məhsul istifadə qaydası') : '';
-    showToast('✅ Kataloq publish olundu! vitaterra.az ~30 saniyəyə yenilənir.' + usageMsg);
+    const imgCount = countProductsWithImages(getProducts());
+    const imgMsg = imgCount ? (' · ' + imgCount + ' məhsul şəkli') : '';
+    const uploaded = (result.data && result.data.productImages) ? (' · ' + result.data.productImages + ' şəkil yükləndi') : imgMsg;
+    showToast('✅ Kataloq publish olundu! vitaterra.az ~30 saniyəyə yenilənir.' + usageMsg + uploaded);
   } catch (e) {
     showToast('Publish uğursuz: ' + e.message, true);
   }
