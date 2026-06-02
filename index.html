@@ -154,9 +154,49 @@
     padding:148px 40px 88px;
     position:relative; overflow:hidden;
   }
+  .hero-bg-photo {
+    position:absolute; inset:0; z-index:0;
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+    opacity:0; transition:opacity 0.35s ease;
+  }
+  .hero[data-hero-bg="valley"] .hero-bg-photo--valley,
+  .hero[data-hero-bg="fields"] .hero-bg-photo--fields { opacity:1; }
+  .hero[data-hero-bg="valley"],
+  .hero[data-hero-bg="fields"] {
+    background:#1a3a2a;
+  }
+  .hero[data-hero-bg="valley"]::before,
+  .hero[data-hero-bg="fields"]::before {
+    background:
+      linear-gradient(115deg, rgba(26,58,42,0.92) 0%, rgba(26,58,42,0.68) 42%, rgba(26,58,42,0.55) 100%),
+      linear-gradient(to top, rgba(26,58,42,0.75) 0%, transparent 45%);
+    opacity:1;
+  }
+  .hero[data-hero-bg="valley"]::after,
+  .hero[data-hero-bg="fields"]::after { display:none; }
+  .hero-bg-photo--valley { background-image:url('/assets/hero/hero-valley.png'); }
+  .hero-bg-photo--fields { background-image:url('/assets/hero/hero-fields.png'); }
+  .hero-bg-preview {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    z-index:10001; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 14px; border-radius:999px;
+    background:rgba(26,58,42,0.94); border:1px solid rgba(201,168,76,0.35);
+    box-shadow:0 12px 40px rgba(0,0,0,0.35);
+    font-family:'DM Sans',sans-serif; font-size:12px; color:rgba(255,255,255,0.85);
+  }
+  .hero-bg-preview[hidden] { display:none !important; }
+  .hero-bg-preview-btn {
+    border:1px solid rgba(255,255,255,0.22); background:rgba(255,255,255,0.08);
+    color:#fff; padding:6px 12px; border-radius:999px; cursor:pointer;
+    font-size:12px; font-family:inherit; transition:background 0.15s, border-color 0.15s;
+  }
+  .hero-bg-preview-btn:hover { background:rgba(255,255,255,0.16); }
+  .hero-bg-preview-btn.active {
+    background:rgba(201,168,76,0.22); border-color:rgba(201,168,76,0.55); color:var(--gold-light);
+  }
   .hero::before {
     content:'';
-    position:absolute; inset:0;
+    position:absolute; inset:0; z-index:1;
     background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
     pointer-events:none; opacity:0.35;
   }
@@ -171,7 +211,7 @@
   .hero-grid {
     max-width:var(--page-max); margin:0 auto; width:100%;
     display:grid; grid-template-columns:1.05fr 0.95fr; gap:72px; align-items:center;
-    position:relative; z-index:1;
+    position:relative; z-index:2;
   }
   .hero-badge {
     display:inline-flex; align-items:center; gap:8px;
@@ -1738,7 +1778,9 @@
 
   <!-- HERO -->
   <section id="home" style="padding:0;">
-    <div class="hero">
+    <div class="hero" data-hero-bg="fields">
+      <div class="hero-bg-photo hero-bg-photo--valley" aria-hidden="true"></div>
+      <div class="hero-bg-photo hero-bg-photo--fields" aria-hidden="true"></div>
       <div class="hero-grid">
         <div class="hero-content reveal">
           <div class="hero-badge" data-en="🇪🇸 Exclusive Distributor · Spain · Cerrado Sol" data-az="🇪🇸 EKSKLUZİV DİSTRİBÜTOR · İSPANİYA · CERRADO SOL">🇪🇸 Exclusive Distributor · Spain · Cerrado Sol</div>
@@ -7462,6 +7504,58 @@ document.addEventListener('keydown', function(e) {
   else if (e.key === 'ArrowRight') shiftLightbox(1);
 });
 
+(function initHeroBgPreview() {
+  function boot() {
+    var hero = document.querySelector('.hero');
+    var panel = document.getElementById('hero-bg-preview');
+    if (!hero) return;
+
+    function setHeroBg(mode) {
+      var next = mode === 'valley' || mode === 'fields' ? mode : 'default';
+      hero.setAttribute('data-hero-bg', next);
+      if (panel) {
+        panel.querySelectorAll('.hero-bg-preview-btn').forEach(function(btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-hero-bg') === next);
+        });
+      }
+      try { localStorage.setItem('vt_hero_bg_preview', next); } catch (e) {}
+    }
+
+    if (panel) {
+      panel.querySelectorAll('.hero-bg-preview-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          setHeroBg(btn.getAttribute('data-hero-bg'));
+        });
+      });
+    }
+
+    var host = location.hostname;
+    var isLocal = location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1';
+    var params = new URLSearchParams(location.search);
+    var fromUrl = params.get('hero');
+    var stored = '';
+    try { stored = localStorage.getItem('vt_hero_bg_preview') || ''; } catch (e) {}
+
+    if (fromUrl === 'valley' || fromUrl === 'fields' || fromUrl === 'default' || fromUrl === 'green') {
+      setHeroBg(fromUrl === 'green' ? 'default' : fromUrl);
+    } else if (isLocal && (stored === 'valley' || stored === 'fields' || stored === 'default')) {
+      setHeroBg(stored);
+    } else {
+      setHeroBg('fields');
+    }
+
+    if (panel && (isLocal || params.get('heroPreview') === '1')) {
+      panel.hidden = false;
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
@@ -9104,6 +9198,12 @@ function financeExportXlsx() {
   showToast('✅ Mühasibat Excel faylı yükləndi');
 }
 </script>
+<div class="hero-bg-preview" id="hero-bg-preview" hidden>
+  <span>Fon preview:</span>
+  <button type="button" class="hero-bg-preview-btn" data-hero-bg="default">Yaşıl</button>
+  <button type="button" class="hero-bg-preview-btn" data-hero-bg="valley">Vadi</button>
+  <button type="button" class="hero-bg-preview-btn" data-hero-bg="fields">Sahələr</button>
+</div>
 <!-- LIGHTBOX -->
 <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">×</button>
