@@ -121,6 +121,25 @@
     z-index:10000;
   }
   .lightbox-close:hover { color:var(--white); }
+  .lightbox-nav {
+    position:fixed; top:50%; transform:translateY(-50%);
+    width:48px; height:48px; border-radius:50%;
+    border:1px solid rgba(255,255,255,0.25);
+    background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.85);
+    font-size:28px; line-height:1; cursor:pointer;
+    display:none; align-items:center; justify-content:center;
+    z-index:10000; transition:background 0.15s, color 0.15s;
+  }
+  .lightbox-nav:hover { background:rgba(255,255,255,0.18); color:#fff; }
+  .lightbox-nav.prev { left:24px; }
+  .lightbox-nav.next { right:24px; }
+  .lightbox-overlay.has-gallery .lightbox-nav { display:flex; }
+  .lightbox-counter {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,0.75); font-size:13px; letter-spacing:0.5px;
+    display:none; z-index:10000;
+  }
+  .lightbox-overlay.has-gallery .lightbox-counter { display:block; }
   /* Zoom cursor on product images */
   .product-card-img { cursor:zoom-in; }
 
@@ -3039,6 +3058,7 @@ function sanitizeProduct(p, idx) {
     activeIngredient:p.activeIngredient  || '',
     formulation:     p.formulation       || '',
     image:           p.image             || '',
+    images:          Array.isArray(p.images) ? p.images.filter(function(u) { return u && String(u).trim(); }) : [],
     // AI-extracted label fields (Azerbaijani translations + extra metadata)
     desc_az:         p.desc_az           || '',
     usage_az:        p.usage_az          || '',
@@ -3119,12 +3139,18 @@ function mergePublishedLabelFields(products) {
   if (!Array.isArray(PUBLISHED_PRODUCTS) || !PUBLISHED_PRODUCTS.length) return products;
   var pubById = {};
   PUBLISHED_PRODUCTS.forEach(function(p) { pubById[p.id] = p; });
-  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category', 'image'];
+  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category', 'image', 'images'];
   return products.map(function(p) {
     var pub = pubById[p.id];
     if (!pub) return p;
     var out = Object.assign({}, p);
     labelKeys.forEach(function(k) {
+      if (k === 'images') {
+        if ((!Array.isArray(out.images) || !out.images.length) && Array.isArray(pub.images) && pub.images.length) {
+          out.images = pub.images.slice();
+        }
+        return;
+      }
       if ((!out[k] || out[k] === '') && pub[k]) out[k] = pub[k];
     });
     return out;
@@ -3731,8 +3757,9 @@ function buildProductCardHtml(p) {
     ? (p.desc_az || (/[əüöşçğıİ]/.test(p.desc || '') ? p.desc : 'Premium formula. Aktiv maddə: ' + (p.activeIngredient || p.name) + '.'))
     : (p.desc || 'Premium Cerrado Sol formulation.');
   var learnLabel = isAz ? 'Ətraflı Bax' : 'View Details';
-  var imgBlock = p.image
-    ? '<img class="tilted-card-img" src="' + escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" onclick="event.stopPropagation();openLightbox(\'' + String(p.image).replace(/'/g, "\\'") + '\',\'' + String(p.name).replace(/'/g, "\\'") + '\')"/>'
+  var productImages = getProductImages(p);
+  var imgBlock = productImages.length
+    ? '<img class="tilted-card-img" src="' + escapeHtml(productImages[0]) + '" alt="' + escapeHtml(p.name) + '" loading="lazy" onclick="event.stopPropagation();openLightboxForProduct(' + p.id + ',0)"/>'
     : '<div class="tilted-card-img tilted-card-placeholder">' + (CATEGORY_ICONS[p.category] || '📦') + '</div>';
   return '<div class="product-card" onclick="openProductModal(' + p.id + ')">' +
     '<figure class="tilted-card-figure product-tilted-card" data-tilted-card data-rotate-amplitude="12" data-scale-on-hover="1.05">' +
@@ -3814,11 +3841,12 @@ function openProductModal(id) {
   const p = getProducts().find(x=>x.id===id);
   if(!p) return;
   const mHeader = document.getElementById('product-modal').querySelector('.modal-header');
-  if(p.image) {
+  var modalImages = getProductImages(p);
+  if(modalImages.length) {
     mHeader.classList.add('has-img');
     mHeader.innerHTML = `
-      <img class="modal-header-img" src="${p.image}" alt="${p.name}" title="${currentLang==='az'?'Böyütmək üçün klikləyin':'Click to zoom'}"
-        style="cursor:zoom-in;" onclick="openLightbox('${p.image.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"/>
+      <img class="modal-header-img" src="${modalImages[0]}" alt="${p.name}" title="${currentLang==='az'?'Böyütmək üçün klikləyin':'Click to zoom'}"
+        style="cursor:zoom-in;" onclick="openLightboxForProduct(${p.id},0)"/>
       <div class="modal-header-content">
         <button class="modal-close" onclick="closeProductModal()" style="position:absolute;top:12px;right:12px;">×</button>
         <div class="modal-icon" id="m-icon" style="display:none;"></div>
@@ -7362,22 +7390,76 @@ function applySiteContent(c) {
 // ═══════════════════════════════════════════════════════
 // LIGHTBOX
 // ═══════════════════════════════════════════════════════
-function openLightbox(src, alt) {
+function getProductImages(p) {
+  if (!p) return [];
+  if (Array.isArray(p.images) && p.images.length) {
+    return p.images.filter(function(u) { return u && String(u).trim(); });
+  }
+  if (p.image && String(p.image).trim()) return [p.image];
+  return [];
+}
+
+function openLightboxForProduct(id, startIndex) {
+  var p = getProducts().find(function(x) { return x.id === id; });
+  if (!p) return;
+  var images = getProductImages(p);
+  if (!images.length) return;
+  openLightbox(images, p.name, startIndex || 0);
+}
+
+var _lightboxState = { images: [], index: 0, alt: '' };
+
+function renderLightboxSlide() {
   var lb = document.getElementById('lightbox');
   var img = document.getElementById('lightbox-img');
-  if(!lb || !img || !src) return;
-  img.src = src;
-  img.alt = alt || '';
+  var counter = document.getElementById('lightbox-counter');
+  if (!lb || !img || !_lightboxState.images.length) return;
+  var total = _lightboxState.images.length;
+  var idx = Math.max(0, Math.min(_lightboxState.index, total - 1));
+  _lightboxState.index = idx;
+  img.src = _lightboxState.images[idx];
+  img.alt = _lightboxState.alt || '';
+  if (counter) counter.textContent = (idx + 1) + ' / ' + total;
+  lb.classList.toggle('has-gallery', total > 1);
+}
+
+function openLightbox(imagesOrSrc, alt, startIndex) {
+  var lb = document.getElementById('lightbox');
+  var img = document.getElementById('lightbox-img');
+  if (!lb || !img) return;
+  var images = Array.isArray(imagesOrSrc)
+    ? imagesOrSrc.filter(function(u) { return u && String(u).trim(); })
+    : (imagesOrSrc ? [imagesOrSrc] : []);
+  if (!images.length) return;
+  _lightboxState = { images: images, index: startIndex || 0, alt: alt || '' };
+  renderLightboxSlide();
   lb.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
+
+function shiftLightbox(delta) {
+  if (!_lightboxState.images || _lightboxState.images.length < 2) return;
+  var total = _lightboxState.images.length;
+  _lightboxState.index = (_lightboxState.index + delta + total) % total;
+  renderLightboxSlide();
+}
+
 function closeLightbox() {
   var lb = document.getElementById('lightbox');
-  if(lb) lb.classList.remove('open');
+  if (lb) {
+    lb.classList.remove('open');
+    lb.classList.remove('has-gallery');
+  }
+  _lightboxState = { images: [], index: 0, alt: '' };
   document.body.style.overflow = '';
 }
+
 document.addEventListener('keydown', function(e) {
-  if(e.key === 'Escape') closeLightbox();
+  var lb = document.getElementById('lightbox');
+  if (!lb || !lb.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === 'ArrowLeft') shiftLightbox(-1);
+  else if (e.key === 'ArrowRight') shiftLightbox(1);
 });
 
 function showToast(msg, isError) {
@@ -9025,7 +9107,10 @@ function financeExportXlsx() {
 <!-- LIGHTBOX -->
 <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <button type="button" class="lightbox-nav prev" id="lightbox-prev" onclick="event.stopPropagation();shiftLightbox(-1)" aria-label="Previous image">‹</button>
   <img class="lightbox-img" id="lightbox-img" src="" alt="" onclick="event.stopPropagation()"/>
+  <button type="button" class="lightbox-nav next" id="lightbox-next" onclick="event.stopPropagation();shiftLightbox(1)" aria-label="Next image">›</button>
+  <div class="lightbox-counter" id="lightbox-counter"></div>
 </div>
 </body>
 </html>

@@ -108,6 +108,13 @@ async function resolveProductImages(ghHeaders, products, stamp) {
     } else if (copy.image && String(copy.image).indexOf('/assets/products/') === 0) {
       imagePaths.push(copy.image);
     }
+    if (Array.isArray(copy.images)) {
+      copy.images.forEach(function(img) {
+        if (img && String(img).indexOf('/assets/products/') === 0 && imagePaths.indexOf(img) < 0) {
+          imagePaths.push(img);
+        }
+      });
+    }
     resolved.push(copy);
   }
 
