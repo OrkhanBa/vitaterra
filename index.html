@@ -2626,6 +2626,14 @@
               <span id="sale-discount-amount-display">-₼0.00</span>
             </div>
 
+            <!-- VAT included line — visible only when the cart has ƏDV-applicable
+                 products; the amount is already inside the totals above, this
+                 just breaks it out so the sales rep can see it at a glance. -->
+            <div id="sale-vat-line" style="display:none;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-light);margin-bottom:10px;">
+              <span data-en="incl. VAT 18%" data-az="o cümlədən ƏDV 18%">o cümlədən ƏDV 18%</span>
+              <span id="sale-vat-amount-display">₼0.00</span>
+            </div>
+
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);">
               <div style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Yekun məbləğ</div>
               <div class="sale-total" id="sale-total-display">₼0.00</div>
@@ -2766,6 +2774,7 @@
               <th>Müştəri</th>
               <th class="num">Say</th>
               <th class="num">Gəlir ₼</th>
+              <th class="num" title="18% ƏDV, gəlirin daxilində">o cümlədən ƏDV ₼</th>
               <th class="num">Maya ₼</th>
               <th class="num">Mənfəət ₼</th>
               <th class="num">Marja</th>
@@ -2806,6 +2815,7 @@
               <th>Məhsul</th>
               <th class="num">Satılan miqdar</th>
               <th class="num">Gəlir ₼</th>
+              <th class="num" title="18% ƏDV, gəlirin daxilində">o cümlədən ƏDV ₼</th>
               <th class="num">Maya ₼</th>
               <th class="num">Mənfəət ₼</th>
               <th class="num">Marja %</th>
@@ -5539,22 +5549,41 @@ function updateCartPrice(id, val) {
   refreshCartTotals();
 }
 
+// Cart line prices are always VAT-inclusive gross amounts, so the VAT
+// portion shown here is backed out of the total (gross * rate/(100+rate))
+// rather than added on top — matches how Finance computes vatAmount.
+function cartItemVatLabel(grossAmt) {
+  const vat = (parseFloat(grossAmt) || 0) * VAT_RATE / (100 + VAT_RATE);
+  return 'o cümlədən ƏDV 18%: ' + formatAzn(vat);
+}
+
 function refreshCartItemSubtotal(id) {
   const item = cartItems[id];
   if(!item) return;
+  const subtotal = item.customPrice * item.qty;
   const el = document.getElementById('cs-' + id);
-  if(el) el.textContent = 'Cəm: ' + formatAzn(item.customPrice * item.qty);
+  if(el) el.textContent = 'Cəm: ' + formatAzn(subtotal);
+  const vatEl = document.getElementById('cv-' + id);
+  if(vatEl) vatEl.textContent = cartItemVatLabel(subtotal);
 }
 
 function refreshCartTotals() {
   const ids = Object.keys(cartItems).map(Number);
-  let subtotal = 0, totalQty = 0;
+  const products = getProducts();
+  let subtotal = 0, totalQty = 0, vatGross = 0;
   ids.forEach(id => {
     const item = cartItems[id];
-    if(item) { subtotal += item.customPrice * item.qty; totalQty += item.qty; }
+    if(!item) return;
+    const rowTotal = item.customPrice * item.qty;
+    subtotal += rowTotal; totalQty += item.qty;
+    const p = products.find(x => x.id === id);
+    if(p && productHasVat(p)) vatGross += rowTotal;
   });
   const discountAmt = subtotal * (cartDiscount / 100);
   const grandTotal  = subtotal - discountAmt;
+  // Discount is applied proportionally, so the VAT-inclusive portion shrinks
+  // by the same ratio as the rest of the order.
+  const vatAmt = vatGross * (1 - cartDiscount / 100) * VAT_RATE / (100 + VAT_RATE);
 
   const subEl     = document.getElementById('sale-subtotal-display');
   const totalEl   = document.getElementById('sale-total-display');
@@ -5562,6 +5591,8 @@ function refreshCartTotals() {
   const lineEl    = document.getElementById('sale-discount-line');
   const pctEl     = document.getElementById('sale-discount-pct-display');
   const amtEl     = document.getElementById('sale-discount-amount-display');
+  const vatLineEl = document.getElementById('sale-vat-line');
+  const vatAmtEl  = document.getElementById('sale-vat-amount-display');
 
   if(subEl)   subEl.textContent   = formatAzn(subtotal);
   if(totalEl) totalEl.textContent = formatAzn(grandTotal);
@@ -5573,6 +5604,13 @@ function refreshCartTotals() {
     if(amtEl)  amtEl.textContent    = '-' + formatAzn(discountAmt);
   } else if(lineEl) {
     lineEl.style.display = 'none';
+  }
+
+  if(vatGross > 0) {
+    if(vatLineEl) vatLineEl.style.display = 'flex';
+    if(vatAmtEl)  vatAmtEl.textContent     = formatAzn(vatAmt);
+  } else if(vatLineEl) {
+    vatLineEl.style.display = 'none';
   }
 }
 
@@ -5632,6 +5670,9 @@ function renderCart() {
     const item     = cartItems[id];
     const subtotal = item.customPrice * item.qty;
     const packLbl  = salePackLabel(p, 'az');
+    // customPrice is always VAT-inclusive (see salePackPriceAZN), so the VAT
+    // portion is backed out of the subtotal rather than added on top.
+    const vatNote  = productHasVat(p) ? `<div class="cart-item-vat" id="cv-${id}" style="font-size:11px;color:var(--text-light);margin-top:2px;">${cartItemVatLabel(subtotal)}</div>` : '';
     return `<div class="cart-item" id="cart-item-${id}">
       <div class="cart-item-header">
         <div>
@@ -5656,7 +5697,7 @@ function renderCart() {
             min="0" step="0.01" onchange="updateCartPrice(${id},this.value)" placeholder="0.00"/>
         </div>
       </div>
-      <div class="cart-item-subtotal" id="cs-${id}">Cəm: ${formatAzn(subtotal)}</div>
+      <div class="cart-item-subtotal" id="cs-${id}">Cəm: ${formatAzn(subtotal)}</div>${vatNote}
     </div>`;
   });
 
@@ -5904,14 +5945,20 @@ function exportSaleSlipPdf(saleId) {
   }
 
   const first = items[0];
-  let grandTotal = 0;
+  let grandTotal = 0, grandVat = 0;
   const rowsHtml = items.map(function(it) {
-    grandTotal += (+it.total) || 0;
+    const total = (+it.total) || 0;
+    grandTotal += total;
+    // it.total is VAT-inclusive (see salePackPriceAZN), so the VAT shown here
+    // is backed out of it rather than added on top — same math as Finance.
+    const vatAmt = it.vatApplicable ? total * VAT_RATE / (100 + VAT_RATE) : 0;
+    grandVat += vatAmt;
     return '<tr>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;">' + escapeHtml(it.productName) + '</td>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + it.qty + '</td>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(+it.unitPrice) + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(+it.total) + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(total) + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;color:#666;">' + (it.vatApplicable ? formatAzn(vatAmt) : '—') + '</td>'
       + '</tr>';
   }).join('');
 
@@ -5933,11 +5980,13 @@ function exportSaleSlipPdf(saleId) {
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Miqdar</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Vahid qiymət</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Cəmi</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;" title="18% ƏDV">o cümlədən ƏDV</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>
-    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:10px;">Yekun: ${formatAzn(grandTotal)}</div>
+    ${grandVat > 0 ? '<div style="text-align:right;font-size:12px;color:#666;margin-top:10px;">o cümlədən ƏDV 18%: ' + formatAzn(grandVat) + '</div>' : ''}
+    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:4px;">Yekun: ${formatAzn(grandTotal)}</div>
     <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:13px;">
       <div>Anbar məsulu: _______________________&nbsp;&nbsp;Tarix: __________</div>
     </div>
@@ -9646,6 +9695,10 @@ function financeEnrichSale(s, products) {
   const discountLossAzn = (s.discountPct > 0 && s.unitPriceOriginal)
     ? Math.max(0, (parseFloat(s.unitPriceOriginal) - parseFloat(s.unitPrice)) * qty)
     : 0;
+  // revenueAzn is VAT-inclusive, so the VAT amount is backed out of it rather
+  // than added on top — mirrors financeCollectMetrics' aggregate vatAmount.
+  const hasVat = !!s.vatApplicable || (p && productHasVat(p));
+  const vatAmountAzn = hasVat ? revenueAzn * VAT_RATE / (100 + VAT_RATE) : 0;
   return {
     sale: s,
     costPerUnitAzn,
@@ -9653,7 +9706,8 @@ function financeEnrichSale(s, products) {
     revenueAzn,
     profitAzn,
     marginPct,
-    discountLossAzn
+    discountLossAzn,
+    vatAmountAzn
   };
 }
 
@@ -9680,11 +9734,7 @@ function financeCollectMetrics(range) {
   const netProfit = grossProfit - opex;
   const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
   let vatAmount = 0;
-  sales.forEach(r => {
-    if (r.sale.vatApplicable || (r.sale.productId && productHasVat(products.find(x => x.id === r.sale.productId) || {}))) {
-      vatAmount += r.revenueAzn * VAT_RATE / (100 + VAT_RATE);
-    }
-  });
+  sales.forEach(r => { vatAmount += r.vatAmountAzn; });
   const vatIncluded = revenue;
   const revenueExVat = revenue - vatAmount;
 
@@ -9860,7 +9910,7 @@ function financeRenderSalesRegister(rows) {
   const tbody = document.getElementById('finance-sales-tbody');
   if(!tbody) return;
   if(!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-light);padding:28px;">Seçilmiş dövrdə satış yoxdur.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-light);padding:28px;">Seçilmiş dövrdə satış yoxdur.</td></tr>';
     return;
   }
   tbody.innerHTML = [...rows].reverse().map(r => {
@@ -9873,6 +9923,7 @@ function financeRenderSalesRegister(rows) {
       <td>${escapeHtml(s.customer || '—')}</td>
       <td class="num">${s.qty}</td>
       <td class="num">${financeFmtAzn(r.revenueAzn)}</td>
+      <td class="num">${r.vatAmountAzn > 0 ? financeFmtAzn(r.vatAmountAzn) : '—'}</td>
       <td class="num">${financeFmtAzn(r.cogsAzn)}</td>
       <td class="num ${r.profitAzn >= 0 ? 'pl-positive' : 'pl-negative'}">${financeFmtAzn(r.profitAzn)}</td>
       <td class="num ${marginCls}">${r.marginPct.toFixed(1)}%</td>
@@ -9921,14 +9972,15 @@ function financeRenderProducts(rows) {
   const map = {};
   rows.forEach(r => {
     const name = r.sale.productName || '—';
-    if(!map[name]) map[name] = { qty: 0, revenue: 0, cogs: 0 };
+    if(!map[name]) map[name] = { qty: 0, revenue: 0, vat: 0, cogs: 0 };
     map[name].qty += parseFloat(r.sale.qty) || 0;
     map[name].revenue += r.revenueAzn;
+    map[name].vat += r.vatAmountAzn;
     map[name].cogs += r.cogsAzn;
   });
   const keys = Object.keys(map);
   if(!keys.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:28px;">Məlumat yoxdur.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:28px;">Məlumat yoxdur.</td></tr>';
     return;
   }
   tbody.innerHTML = keys.sort((a, b) => map[b].revenue - map[a].revenue).map(name => {
@@ -9939,6 +9991,7 @@ function financeRenderProducts(rows) {
       <td><strong>${escapeHtml(name)}</strong></td>
       <td class="num">${t.qty}</td>
       <td class="num">${financeFmtAzn(t.revenue)}</td>
+      <td class="num">${t.vat > 0 ? financeFmtAzn(t.vat) : '—'}</td>
       <td class="num">${financeFmtAzn(t.cogs)}</td>
       <td class="num">${financeFmtAzn(profit)}</td>
       <td class="num">${margin.toFixed(1)}%</td>
