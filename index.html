@@ -989,7 +989,6 @@
     .sales-layout-grid { grid-template-columns:1fr !important; }
     .sale-form-card { padding:20px 16px; }
     .sale-product-select { grid-template-columns:1fr; }
-    .sale-summary-sticky { position:relative !important; top:0 !important; }
 
     /* SITE EDITOR */
     .editor-layout-grid { grid-template-columns:1fr !important; }
@@ -1339,7 +1338,12 @@
   .sales-layout-grid { display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start; }
   #sales-view .dash-body, #finance-view .dash-body { max-width:none; padding:24px 32px; }
   .editor-layout-grid { display:grid; grid-template-columns:220px 1fr; gap:24px; align-items:start; }
-  .sale-summary-sticky { position:sticky; top:80px; }
+  /* Deliberately NOT position:sticky — sticky here caused the summary card
+     to visually overlap the "Recent Sales" card below it once the cart grew
+     (Chrome doesn't reliably re-run sticky layout after JS innerHTML updates
+     to the sibling below), covering the total and Confirm button so it
+     couldn't be clicked. Normal flow guarantees it always pushes content
+     below it down instead. */
 
   /* Scrollbar */
   ::-webkit-scrollbar { width:6px; height:6px; }
