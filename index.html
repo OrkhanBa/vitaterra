@@ -836,6 +836,34 @@
   #cart-items-list {
     max-height:38vh; overflow-y:auto; padding-right:6px; margin-bottom:4px;
   }
+  .my-recent-sales-card { margin-top:8px; }
+  .my-sales-table-wrap { overflow-x:auto; }
+  .my-sales-slip-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .my-sales-slip-table thead th {
+    text-align:left; padding:10px 14px; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.6px; color:var(--text-mid);
+    border-bottom:2px solid rgba(0,0,0,0.08);
+  }
+  .my-sales-slip-table thead th.num { text-align:right; }
+  .my-sales-slip-row { cursor:pointer; transition:background 0.15s; }
+  .my-sales-slip-row:hover { background:rgba(45,92,63,0.04); }
+  .my-sales-slip-row.expanded { background:rgba(45,92,63,0.06); }
+  .my-sales-slip-row td {
+    padding:14px; border-bottom:1px solid rgba(0,0,0,0.06); vertical-align:middle;
+  }
+  .my-sales-slip-row td.num { text-align:right; font-weight:700; color:var(--green-dark); white-space:nowrap; }
+  .my-sales-slip-row td.toggle { width:36px; text-align:center; color:var(--text-light); font-size:12px; }
+  .my-sales-slip-detail td { padding:0 14px 14px; border-bottom:1px solid rgba(0,0,0,0.06); }
+  .my-sales-slip-items {
+    background:var(--cream); border-radius:10px; padding:10px 12px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .my-sales-line-item {
+    background:var(--white); border-radius:8px; padding:10px 14px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .my-sales-slip-row.voided-slip { opacity:0.65; }
+  .my-sales-slip-row.voided-slip .my-sales-slip-amount { text-decoration:line-through; }
   .sale-product-item {
     border:2px solid var(--border); border-radius:10px; padding:14px;
     cursor:pointer; transition:all 0.2s;
@@ -989,6 +1017,8 @@
     .sales-layout-grid { grid-template-columns:1fr !important; }
     .sale-form-card { padding:20px 16px; }
     .sale-product-select { grid-template-columns:1fr; }
+    .my-sales-slip-table { font-size:12px; }
+    .my-sales-slip-row td { padding:10px 8px; }
 
     /* SITE EDITOR */
     .editor-layout-grid { grid-template-columns:1fr !important; }
@@ -2602,11 +2632,19 @@
           <div id="sale-summary" style="display:none;background:var(--cream);border-radius:10px;padding:16px;margin-bottom:16px;">
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-light);margin-bottom:10px;">
               <span id="cart-items-count">0 məhsul</span>
-              <span data-en="Subtotal" data-az="Cəm">Cəm</span>
+              <span data-en="Subtotal" data-az="Ümumi">Ümumi</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <div style="font-size:13px;color:var(--text-light);" data-en="Subtotal" data-az="Cəm">Cəm</div>
+              <div id="sale-subtotal-label" style="font-size:13px;color:var(--text-light);" data-en="Subtotal" data-az="Ümumi">Ümumi</div>
               <div id="sale-subtotal-display" style="font-size:15px;font-weight:600;color:var(--text);">₼0.00</div>
+            </div>
+
+            <!-- VAT-to-add line — visible only when the cart has ƏDV-applicable
+                 products. "Ümumi" above is the net (VAT-excl.) value, this is
+                 the ƏDV to add on top, and "Yekun Qiymət" below is the sum. -->
+            <div id="sale-vat-line" style="display:none;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-light);margin-bottom:10px;">
+              <span data-en="+ VAT 18%" data-az="+ ƏDV 18%">+ ƏDV 18%</span>
+              <span id="sale-vat-amount-display">₼0.00</span>
             </div>
 
             <!-- Discount control (capped at 7%) -->
@@ -2632,28 +2670,32 @@
               <span id="sale-discount-amount-display">-₼0.00</span>
             </div>
 
-            <!-- VAT included line — visible only when the cart has ƏDV-applicable
-                 products; the amount is already inside the totals above, this
-                 just breaks it out so the sales rep can see it at a glance. -->
-            <div id="sale-vat-line" style="display:none;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-light);margin-bottom:10px;">
-              <span data-en="incl. VAT 18%" data-az="o cümlədən ƏDV 18%">o cümlədən ƏDV 18%</span>
-              <span id="sale-vat-amount-display">₼0.00</span>
-            </div>
-
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);">
-              <div style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Yekun məbləğ</div>
+              <div id="sale-total-label" style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Yekun məbləğ</div>
               <div class="sale-total" id="sale-total-display">₼0.00</div>
             </div>
           </div>
 
           <button class="btn-confirm-sale" id="btn-confirm-sale" onclick="confirmSale()" disabled style="opacity:0.5;" data-en="Confirm Sale" data-az="Satışı Təsdiq Et">Satışı Təsdiq Et</button>
         </div>
+      </div>
+    </div>
 
-        <!-- Recent sales -->
-        <div class="sale-form-card" style="margin-top:0;">
-          <div class="sale-form-title" style="font-size:15px;" data-en="My Recent Sales" data-az="Son satışlarım">Son satışlarım</div>
-          <div id="my-sales-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
+    <!-- Recent sales — full width below products + summary -->
+    <div class="sale-form-card my-recent-sales-card">
+      <div class="sale-form-title" style="font-size:18px;margin-bottom:16px;" data-en="My Recent Sales" data-az="Son satışlarım">Son satışlarım</div>
+      <div class="my-sales-table-wrap">
+        <table class="my-sales-slip-table">
+          <thead>
+            <tr>
+              <th data-en="Date" data-az="Tarix">Tarix</th>
+              <th data-en="Customer" data-az="Müştəri">Müştəri</th>
+              <th class="num" data-en="Amount" data-az="Məbləğ">Məbləğ</th>
+              <th class="toggle" aria-hidden="true"></th>
+            </tr>
+          </thead>
+          <tbody id="my-sales-list"></tbody>
+        </table>
       </div>
     </div>
     </div><!-- end sales-subview-sell -->
@@ -5493,6 +5535,7 @@ function salesSubTab(name, btn) {
 // ── CART STATE ──────────────────────────────────────────
 // cartItems = { productId: { qty, customPrice } }
 var cartItems = {};
+var mySalesExpandedSlip = null;
 
 // Order-level discount in percent, applied to the cart subtotal at confirmation.
 // Capped at MAX_CART_DISCOUNT so sales reps can't give away more than the policy.
@@ -5578,20 +5621,25 @@ function updateCartQty(id, val) {
   refreshCartTotals();
 }
 
-// Cart line prices are always VAT-inclusive gross amounts, so the VAT
-// portion shown here is backed out of the total (gross * rate/(100+rate))
-// rather than added on top — matches how Finance computes vatAmount.
+// Cart line prices are always VAT-inclusive gross amounts. This breaks the
+// gross amount into its net (VAT-excl.) price plus the ƏDV portion, shown
+// as "Qiymət + ƏDV", so the rep sees how the (VAT-inclusive) "Yekun" total
+// below is made up — matches how Finance computes vatAmount.
 function cartItemVatLabel(grossAmt) {
-  const vat = (parseFloat(grossAmt) || 0) * VAT_RATE / (100 + VAT_RATE);
-  return 'o cümlədən ƏDV 18%: ' + formatAzn(vat);
+  const g   = parseFloat(grossAmt) || 0;
+  const vat = g * VAT_RATE / (100 + VAT_RATE);
+  const net = g - vat;
+  return 'Qiymət: ' + formatAzn(net) + ' + ƏDV 18%: ' + formatAzn(vat);
 }
 
 function refreshCartItemSubtotal(id) {
   const item = cartItems[id];
   if(!item) return;
+  const p = getProducts().find(x => x.id === id);
+  const hasVat = !!(p && productHasVat(p));
   const subtotal = item.customPrice * item.qty;
   const el = document.getElementById('cs-' + id);
-  if(el) el.textContent = 'Cəm: ' + formatAzn(subtotal);
+  if(el) el.textContent = (hasVat ? 'Yekun (ƏDV daxil)' : 'Cəm') + ': ' + formatAzn(subtotal);
   const vatEl = document.getElementById('cv-' + id);
   if(vatEl) vatEl.textContent = cartItemVatLabel(subtotal);
 }
@@ -5608,24 +5656,31 @@ function refreshCartTotals() {
     const p = products.find(x => x.id === id);
     if(p && productHasVat(p)) vatGross += rowTotal;
   });
+  // "Ümumi" shows the VAT-excl. (net) value; ƏDV is added on top of it to
+  // reach the gross subtotal, which the discount is then applied to, giving
+  // the VAT-inclusive "Yekun Qiymət".
+  const vatAmt      = vatGross * VAT_RATE / (100 + VAT_RATE);
+  const subtotalNet = subtotal - vatAmt;
   const discountAmt = subtotal * (cartDiscount / 100);
   const grandTotal  = subtotal - discountAmt;
-  // Discount is applied proportionally, so the VAT-inclusive portion shrinks
-  // by the same ratio as the rest of the order.
-  const vatAmt = vatGross * (1 - cartDiscount / 100) * VAT_RATE / (100 + VAT_RATE);
 
-  const subEl     = document.getElementById('sale-subtotal-display');
-  const totalEl   = document.getElementById('sale-total-display');
-  const countEl   = document.getElementById('cart-items-count');
-  const lineEl    = document.getElementById('sale-discount-line');
-  const pctEl     = document.getElementById('sale-discount-pct-display');
-  const amtEl     = document.getElementById('sale-discount-amount-display');
-  const vatLineEl = document.getElementById('sale-vat-line');
-  const vatAmtEl  = document.getElementById('sale-vat-amount-display');
+  const subEl       = document.getElementById('sale-subtotal-display');
+  const subLabelEl  = document.getElementById('sale-subtotal-label');
+  const totalEl     = document.getElementById('sale-total-display');
+  const totalLabelEl= document.getElementById('sale-total-label');
+  const countEl     = document.getElementById('cart-items-count');
+  const lineEl      = document.getElementById('sale-discount-line');
+  const pctEl       = document.getElementById('sale-discount-pct-display');
+  const amtEl       = document.getElementById('sale-discount-amount-display');
+  const vatLineEl   = document.getElementById('sale-vat-line');
+  const vatAmtEl    = document.getElementById('sale-vat-amount-display');
 
-  if(subEl)   subEl.textContent   = formatAzn(subtotal);
+  if(subEl)   subEl.textContent   = formatAzn(vatGross > 0 ? subtotalNet : subtotal);
   if(totalEl) totalEl.textContent = formatAzn(grandTotal);
   if(countEl) countEl.textContent = totalQty + ' məhsul';
+
+  if(subLabelEl)   subLabelEl.textContent   = vatGross > 0 ? 'Ümumi (ƏDV-siz)' : 'Ümumi';
+  if(totalLabelEl) totalLabelEl.textContent = vatGross > 0 ? 'Yekun Qiymət (ƏDV daxil)' : 'Yekun məbləğ';
 
   if(cartDiscount > 0 && subtotal > 0) {
     if(lineEl) lineEl.style.display = 'flex';
@@ -5701,7 +5756,7 @@ function renderCart() {
     const packLbl  = salePackLabel(p, 'az');
     // customPrice is always VAT-inclusive (see salePackPriceAZN), so the VAT
     // portion is backed out of the subtotal rather than added on top.
-    const vatNote  = productHasVat(p) ? `<div class="cart-item-vat" id="cv-${id}" style="font-size:11px;color:var(--text-light);margin-top:2px;">${cartItemVatLabel(subtotal)}</div>` : '';
+    const vatNote  = productHasVat(p) ? `<div class="cart-item-vat" id="cv-${id}" style="font-size:11px;color:var(--text-light);margin-top:8px;text-align:right;">${cartItemVatLabel(subtotal)}</div>` : '';
     return `<div class="cart-item" id="cart-item-${id}">
       <div class="cart-item-header">
         <div>
@@ -5726,7 +5781,8 @@ function renderCart() {
             readonly title="Qiymət admin tərəfindən Pricing bölməsində təyin olunur"/>
         </div>
       </div>
-      <div class="cart-item-subtotal" id="cs-${id}">Cəm: ${formatAzn(subtotal)}</div>${vatNote}
+      ${vatNote}
+      <div class="cart-item-subtotal" id="cs-${id}">${productHasVat(p) ? 'Yekun (ƏDV daxil)' : 'Cəm'}: ${formatAzn(subtotal)}</div>
     </div>`;
   });
 
@@ -5828,6 +5884,58 @@ function selectSaleProduct() {}
 function updateSaleSummary() {}
 function changeQty() {}
 
+function toggleMySalesSlip(saleId) {
+  mySalesExpandedSlip = mySalesExpandedSlip === saleId ? null : saleId;
+  renderMySales();
+}
+
+function groupMySalesSlips(salesRows) {
+  const groups = {};
+  salesRows.forEach(function(s) {
+    const id = s.saleId || ('legacy-' + s.ts);
+    if (!groups[id]) {
+      groups[id] = {
+        saleId: id, ts: s.ts, customer: s.customer || '',
+        items: [], total: 0, allVoided: true
+      };
+    }
+    groups[id].items.push(s);
+    if (!s.voided) {
+      groups[id].total += (+s.total) || 0;
+      groups[id].allVoided = false;
+    }
+    if (s.ts < groups[id].ts) groups[id].ts = s.ts;
+    if (s.customer) groups[id].customer = s.customer;
+  });
+  return Object.keys(groups).map(function(k) { return groups[k]; }).sort(function(a, b) { return b.ts - a.ts; });
+}
+
+function renderMySalesLineItem(s) {
+  const discBadge = (s.discountPct > 0)
+    ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;margin-right:6px;">−' + s.discountPct + '%</span>'
+    : '';
+  const editedBadge = s.edited
+    ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;">REDAKTƏ EDİLDİ</span>'
+    : '';
+  const voidedBadge = s.voided
+    ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-weight:600;">LƏĞV EDİLİB</span>'
+    : '';
+  const actions = s.voided
+    ? '<span style="font-size:11px;color:var(--text-light);flex-shrink:0;">Ləğv edilib</span>'
+    : '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+        '<button type="button" class="btn-edit" style="padding:4px 10px;font-size:11px;" onclick="event.stopPropagation();openEditSale(\'' + s.ts + '\')">Redaktə</button>' +
+        '<button type="button" class="btn-del" style="padding:4px 10px;font-size:11px;" onclick="event.stopPropagation();undoSale(\'' + s.ts + '\')">Geri al</button>' +
+      '</div>';
+  return '<div class="my-sales-line-item" style="' + (s.voided ? 'opacity:0.7;' : '') + '">' +
+    '<div style="flex:1;min-width:0;">' +
+      '<div style="font-size:13px;font-weight:600;' + (s.voided ? 'text-decoration:line-through;' : '') + '">' + escapeHtml(s.productName) + '</div>' +
+      '<div style="font-size:11px;color:var(--text-light);">Say: ' + s.qty + ' &middot; ' + formatAzn(s.total) + '</div>' +
+      (discBadge || editedBadge || voidedBadge ? '<div style="margin-top:4px;">' + discBadge + editedBadge + voidedBadge + '</div>' : '') +
+    '</div>' +
+    actions +
+  '</div>';
+}
+
 function renderMySales() {
   const sales = getSales();
   const list = document.getElementById('my-sales-list');
@@ -5837,33 +5945,34 @@ function renderMySales() {
   const mine = myKey
     ? sales.filter(s => (s.salespersonUsername || '') === myKey || (!s.salespersonUsername && (s.salesperson || '') === me.name))
     : sales;
-  const recent = [...mine].reverse().slice(0,20);
-  if(!recent.length){list.innerHTML='<div style="color:var(--text-light);font-size:13px;text-align:center;padding:12px;">Hələ satış yoxdur.</div>';return;}
-  list.innerHTML = recent.map(s => {
-    const discBadge = (s.discountPct > 0)
-      ? `<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;margin-right:6px;">−${s.discountPct}%</span>`
+  const slips = groupMySalesSlips(mine).slice(0, 30);
+  if(!slips.length) {
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);font-size:13px;padding:24px;">Hələ satış yoxdur.</td></tr>';
+    return;
+  }
+  list.innerHTML = slips.map(function(slip) {
+    const expanded = mySalesExpandedSlip === slip.saleId;
+    const slipIdEsc = String(slip.saleId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const rowClass = 'my-sales-slip-row' + (expanded ? ' expanded' : '') + (slip.allVoided ? ' voided-slip' : '');
+    const customer = slip.customer || '—';
+    const slipTotal = slip.items.reduce(function(sum, it) { return sum + ((+it.total) || 0); }, 0);
+    const amountHtml = slip.allVoided
+      ? '<span class="my-sales-slip-amount">' + formatAzn(slipTotal) + '</span>'
+      : '<span class="my-sales-slip-amount">' + formatAzn(slip.total) + '</span>';
+    const itemCount = slip.items.length;
+    const detailRow = expanded
+      ? '<tr class="my-sales-slip-detail"><td colspan="4">' +
+          '<div class="my-sales-slip-items">' +
+            slip.items.map(renderMySalesLineItem).join('') +
+          '</div>' +
+        '</td></tr>'
       : '';
-    const editedBadge = s.edited
-      ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;">REDAKTƏ EDİLDİ</span>'
-      : '';
-    const voidedBadge = s.voided
-      ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-weight:600;">LƏĞV EDİLİB</span>'
-      : '';
-    const actions = s.voided
-      ? '<span style="font-size:11px;color:var(--text-light);flex-shrink:0;">Ləğv edilib</span>'
-      : `<div style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn-edit" style="padding:4px 10px;font-size:11px;" onclick="openEditSale('${s.ts}')">Redaktə</button>
-        <button class="btn-del" style="padding:4px 10px;font-size:11px;" onclick="undoSale('${s.ts}')">Geri al</button>
-      </div>`;
-    return `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;${s.voided ? 'opacity:0.6;' : ''}">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;${s.voided ? 'text-decoration:line-through;' : ''}">${s.productName}</div>
-        <div style="font-size:11px;color:var(--text-light);">Say: ${s.qty} &middot; ${formatAzn(s.total)} &middot; ${new Date(s.ts).toLocaleString()}</div>
-        ${s.customer ? `<div style="font-size:11px;color:var(--text-light);">${s.customer}</div>` : ''}
-        ${discBadge}${editedBadge}${voidedBadge}
-      </div>
-      ${actions}
-    </div>`;
+    return '<tr class="' + rowClass + '" onclick="toggleMySalesSlip(\'' + slipIdEsc + '\')">' +
+      '<td style="white-space:nowrap;">' + new Date(slip.ts).toLocaleString() + '</td>' +
+      '<td>' + escapeHtml(customer) + (itemCount > 1 ? ' <span style="font-size:11px;color:var(--text-light);">(' + itemCount + ' məhsul)</span>' : '') + '</td>' +
+      '<td class="num">' + amountHtml + '</td>' +
+      '<td class="toggle">' + (expanded ? '▲' : '▼') + '</td>' +
+    '</tr>' + detailRow;
   }).join('');
 }
 
