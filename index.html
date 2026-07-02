@@ -3500,6 +3500,36 @@ function migrateProductVat(products) {
   return products;
 }
 
+var VAT_MIGRATION_KEY_V2 = 'vt_vat_migration_v2';
+
+// v1 above only backfilled vatApplicable when it was `undefined`. Browsers
+// whose local draft (vt_products) had already round-tripped through
+// sanitizeProduct before this flag existed got `vatApplicable: false` baked
+// in explicitly, which v1 can never reach (its check is strictly
+// `=== undefined`) — leaving admin/sales portals showing "no VAT" for
+// products that are actually VAT-applicable on the published catalog.
+// This one-time pass re-syncs each local product's flag from the last
+// published snapshot (the source of truth admin manages via the ⚙️ ƏDV
+// checkbox + Publish), correcting any stale mismatch.
+function migrateProductVatV2(products) {
+  if(!Array.isArray(products) || !products.length) return products;
+  if(localStorage.getItem(VAT_MIGRATION_KEY_V2)) return products;
+  if(!Array.isArray(PUBLISHED_PRODUCTS) || !PUBLISHED_PRODUCTS.length) return products;
+  var pubById = {};
+  PUBLISHED_PRODUCTS.forEach(function(p) { pubById[p.id] = p; });
+  var changed = false;
+  products.forEach(function(p) {
+    var pub = pubById[p.id];
+    if(pub && !!pub.vatApplicable !== !!p.vatApplicable) {
+      p.vatApplicable = !!pub.vatApplicable;
+      changed = true;
+    }
+  });
+  localStorage.setItem(VAT_MIGRATION_KEY_V2, '1');
+  if(changed) saveProducts(products);
+  return products;
+}
+
 // Raw catalog for reads/writes — never sanitized defaults that can clobber markups.
 function loadRawProducts() {
   try {
@@ -3507,7 +3537,7 @@ function loadRawProducts() {
     if (d) {
       var parsed = JSON.parse(d);
       if (Array.isArray(parsed) && parsed.length) {
-        return applyLiveInventory(migrateStockToBaseUnits(mergePublishedLabelFields(migrateProductVat(parsed))));
+        return applyLiveInventory(migrateStockToBaseUnits(mergePublishedLabelFields(migrateProductVatV2(migrateProductVat(parsed)))));
       }
     }
   } catch (e) { /* fall through */ }
