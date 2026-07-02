@@ -2922,6 +2922,7 @@
             <button type="button" class="finance-subtab finance-inv-mode" id="finance-inv-mode-sale" onclick="financeSetInventoryPriceMode('sale',this)">Satış qiyməti</button>
           </div>
           <div id="finance-inventory-total" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);"></div>
+          <button type="button" class="btn-add" style="padding:8px 14px;font-size:13px;" onclick="financeExportInventoryXlsx()">📥 Excel-ə ixrac et</button>
         </div>
       </div>
       <div class="finance-table-wrap">
@@ -3509,24 +3510,19 @@ function usesLocalProductDraft() {
   return (typeof currentView !== 'undefined' && (currentView === 'admin' || currentView === 'sales' || currentView === 'finance'));
 }
 
-// One-time: old builds stored sub-1 kg/L pack stock as package count; convert to kg/L base units.
+// DISABLED (2026-07-02): this one-time migration assumed sub-1 kg/L pack
+// products (500 g / 0.5 L packaging) had their `stock` stored as a package
+// count, and "fixed" it by multiplying by the pack fraction (e.g. x0.5).
+// Stock was actually already in correct base kg/L units (verified against
+// the DVA Agro sales contract Addendum 1 and 5 AFSA customs "idxal reyi"
+// clearance documents, which all agree with the pre-migration numbers) —
+// so this silently halved Inclinar 100 WG, Divisar 750 WG, Silex 500 WG,
+// Lamar 500 WG, Anillito 200 SP, Cercado 625 WG and Corriente 480 SC on
+// every browser/device that had not yet run it, each time re-pushing the
+// wrong halved value to the shared Supabase inventory table via
+// saveProducts(). Left as a no-op (rather than deleted) so the migration
+// key and call site stay in place as a record of what happened.
 function migrateStockToBaseUnits(products) {
-  if(!Array.isArray(products) || !products.length) return products;
-  if(localStorage.getItem(STOCK_KG_MIGRATION_KEY)) return products;
-  var changed = false;
-  products.forEach(function(p) {
-    var mult = packMultiplier(packagingForProduct(p)) || 1;
-    if(mult >= 1) return;
-    var raw = parseFloat(p.stock) || 0;
-    if(raw <= 0) return;
-    var kg = Math.round(raw * mult * 1000) / 1000;
-    if(kg !== raw) {
-      p.stock = kg;
-      changed = true;
-    }
-  });
-  localStorage.setItem(STOCK_KG_MIGRATION_KEY, '1');
-  if(changed) saveProducts(products);
   return products;
 }
 
@@ -10342,6 +10338,47 @@ function financeExportXlsx() {
   }
   XLSX.writeFile(wb, 'VitaTerra-Maliyye-' + periodLabel + '-' + stamp + '.xlsx');
   showToast('✅ Mühasibat Excel faylı yükləndi');
+}
+
+// Standalone export for just the "Anbar qalığı və dəyəri" panel — lets
+// Finance pull a stock snapshot without generating the full P&L workbook.
+function financeExportInventoryXlsx() {
+  if(typeof XLSX === 'undefined') { showToast('Excel kitabxanası yüklənməyib.', true); return; }
+
+  const mode = financeInventoryPriceMode;
+  const modeLabel = mode === 'sale' ? 'satış' : 'maya';
+  const valueKey = 'Anbar dəyəri (' + modeLabel + ') AZN';
+
+  const rows = getProducts()
+    .map(p => financeInventoryRow(p))
+    .filter(r => r.stock.baseUnits > 0)
+    .sort((a, b) => (mode === 'sale' ? b.saleValueAzn - a.saleValueAzn : b.costValueAzn - a.costValueAzn));
+
+  if(!rows.length) { showToast('Stokda məhsul yoxdur, ixrac ediləcək məlumat yoxdur.', true); return; }
+
+  const exportRows = rows.map(r => ({
+    'Məhsul': r.p.name,
+    'Kateqoriya': r.p.category || '',
+    'Qablaşma': r.stock.packLabel,
+    'Stok (ədəd)': +r.stock.packages.toFixed(2),
+    'Stok (kq/l)': +r.stock.baseUnits.toFixed(3),
+    'Alış/qab AZN': +r.prices.costPackAzn.toFixed(2),
+    'Alış/kq(l) AZN': +r.prices.costBaseAzn.toFixed(2),
+    'Satış/qab AZN': +r.prices.salePackAzn.toFixed(2),
+    'Satış/kq(l) AZN': +r.prices.saleBaseAzn.toFixed(2),
+    [valueKey]: +(mode === 'sale' ? r.saleValueAzn : r.costValueAzn).toFixed(2)
+  }));
+
+  const totalValue = rows.reduce((sum, r) => sum + (mode === 'sale' ? r.saleValueAzn : r.costValueAzn), 0);
+  const totalRow = { 'Məhsul': 'CƏMİ' };
+  totalRow[valueKey] = +totalValue.toFixed(2);
+  exportRows.push(totalRow);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows), 'Anbar qalığı');
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, 'VitaTerra-Anbar-Qaligi-' + modeLabel + '-' + stamp + '.xlsx');
+  showToast('✅ Anbar qalığı Excel faylı yükləndi');
 }
 </script>
 <div class="hero-bg-preview" id="hero-bg-preview" hidden>
