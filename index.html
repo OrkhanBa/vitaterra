@@ -446,6 +446,9 @@
   .product-price-strip .pp-amount { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; color:var(--green-dark); }
   .product-price-strip .pp-per { font-size:11px; color:var(--text-light); }
   .product-price-strip .pp-contact { font-size:12px; color:var(--text-light); font-style:italic; }
+  .product-price-strip .pp-vat { font-size:11px; color:var(--text-mid); margin-top:4px; line-height:1.35; }
+  .modal-price-badge .mpb-vat { display:block; font-size:11px; font-family:'DM Sans',sans-serif; opacity:0.85; font-weight:400; margin-top:2px; }
+  .admin-vat-cb { width:16px; height:16px; cursor:pointer; accent-color:var(--green-accent); }
 
   .product-card-footer {
     padding:12px 28px 22px;
@@ -2077,6 +2080,7 @@
     <div class="dash-tabs">
       <button class="dash-tab active" onclick="adminTab('products',this)">📦 Products</button>
       <button class="dash-tab" onclick="adminTab('sales-log',this)">📊 Sales Log</button>
+      <button class="dash-tab" onclick="adminTab('activity-log',this)">🕵️ Fəaliyyət Jurnalı</button>
       <button class="dash-tab" onclick="adminTab('site-editor',this)">✏️ Site Editor</button>
       <button class="dash-tab" onclick="adminTab('pdf-labels',this)">📄 PDF Labels</button>
       <button class="dash-tab" onclick="adminTab('pricing',this)">💰 Pricing</button>
@@ -2118,6 +2122,7 @@
                   </div>
                 </th>
                 <th style="width:56px;">Image</th>
+                <th style="width:44px;" title="18% ƏDV">ƏDV</th>
                 <th>Product Name</th>
                 <th>Category</th>
                 <th>Cost Price ($)</th>
@@ -2161,11 +2166,13 @@
             <select id="sales-log-filter" class="search-input" style="min-width:180px;" onchange="renderSalesLog()">
               <option value="">Bütün satıcılar</option>
             </select>
+            <button class="btn-add" onclick="manualSyncSales(this)">☁️ Sinxronlaşdır</button>
             <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="restoreOriginalStock()">🔄 Stock-u sıfırla</button>
             <button class="btn-add" onclick="clearSalesLog()">Hamısını sil</button>
           </div>
         </div>
         <div id="sales-totals-by-user" style="padding:14px 22px 4px;display:flex;flex-wrap:wrap;gap:14px;"></div>
+        <div style="padding:0 22px 12px;font-size:12px;color:var(--text-light);">Ləğv edilmiş satışlar cəmlərə daxil edilmir, lakin audit üçün cədvəldə solğun görünür. Tam tarixçə üçün <strong>🕵️ Fəaliyyət Jurnalı</strong> tabına baxın.</div>
         <div style="overflow-x:auto;">
           <table>
             <thead>
@@ -2181,6 +2188,45 @@
               </tr>
             </thead>
             <tbody id="sales-log-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Log Tab (audit trail — admin visibility into sales operations) -->
+    <div id="admin-tab-activity-log" class="hidden">
+      <div class="table-wrap">
+        <div class="table-header" style="flex-wrap:wrap;gap:10px;">
+          <div class="table-title">Fəaliyyət Jurnalı</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn-add" onclick="manualSyncSales(this)">☁️ Sinxronlaşdır</button>
+            <select id="activity-log-actor-filter" class="search-input" style="min-width:180px;" onchange="renderActivityLog()">
+              <option value="">Bütün istifadəçilər</option>
+            </select>
+            <select id="activity-log-action-filter" class="search-input" style="min-width:180px;" onchange="renderActivityLog()">
+              <option value="">Bütün əməliyyatlar</option>
+              <option value="sale_confirmed">Satış təsdiqləndi</option>
+              <option value="sale_edited">Satış redaktə edildi</option>
+              <option value="sale_voided">Satış ləğv edildi</option>
+              <option value="sales_log_cleared">Toplu ləğv</option>
+            </select>
+          </div>
+        </div>
+        <div style="padding:0 22px 12px;font-size:12px;color:var(--text-light);">
+          Bu, dəyişdirilə bilməyən əməliyyat qeydidir — bir satış redaktə edilsə və ya ləğv edilsə belə, burada həmişə qalır. Sales rep-lərin nə vaxt satış təsdiqlədiyi, redaktə etdiyi və ya ləğv etdiyi bu siyahıda görünür.
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarix</th>
+                <th>Əməliyyat</th>
+                <th>İcra edən</th>
+                <th>Məhsul</th>
+                <th>Detallar</th>
+              </tr>
+            </thead>
+            <tbody id="activity-log-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -2498,6 +2544,12 @@
     <div class="dash-title" data-en="Record a Sale" data-az="Satış qeyd et">Satış qeyd et</div>
     <div class="dash-sub" data-en="Select multiple products, set quantities and custom prices, then confirm" data-az="Məhsulları seçin, miqdar və fərdi qiymətləri təyin edin, sonra təsdiq edin">Məhsulları seçin, miqdar və fərdi qiymətləri təyin edin, sonra təsdiq edin</div>
 
+    <div class="dash-tabs" style="margin:14px 0 20px;">
+      <button class="dash-tab active" onclick="salesSubTab('sell', this)">🛒 Satış et</button>
+      <button class="dash-tab" onclick="salesSubTab('warehouse', this)">📦 Anbar</button>
+    </div>
+
+    <div id="sales-subview-sell">
     <div class="sales-layout-grid">
       <!-- LEFT: Product picker -->
       <div>
@@ -2580,6 +2632,48 @@
         </div>
       </div>
     </div>
+    </div><!-- end sales-subview-sell -->
+
+    <!-- ANBAR (warehouse) subsection: every confirmed order shows up here as a
+         slip the sales team can mark "Anbarda" → "Çatdırıldı" as goods leave
+         the warehouse, with a full dated history and a reprintable PDF. -->
+    <div id="sales-subview-warehouse" style="display:none;">
+      <div class="sale-form-card" style="margin-bottom:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div class="sale-form-title" style="margin:0;" data-en="Warehouse Orders" data-az="Anbar Sifarişləri">Anbar Sifarişləri</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="warehouse-status-filter" class="search-input" style="padding:8px 10px;width:auto;" onchange="renderWarehouseOrders()">
+              <option value="">Bütün statuslar</option>
+              <option value="Anbarda">Anbarda</option>
+              <option value="Çatdırıldı">Çatdırıldı</option>
+            </select>
+            <button class="btn-cancel" style="font-size:12px;padding:8px 14px;" onclick="manualSyncSales(this)">☁️ Sinxronlaşdır</button>
+          </div>
+        </div>
+        <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">
+          Hər təsdiqlənmiş satış burada bir sifariş kimi görünür. Məhsul fiziki olaraq anbardan çıxanda statusu "Çatdırıldı" olaraq dəyişin — tarixçə avtomatik saxlanılır.
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="text-align:left;border-bottom:2px solid rgba(0,0,0,0.08);">
+                <th style="padding:8px 6px;">Satış ID</th>
+                <th style="padding:8px 6px;">Tarix</th>
+                <th style="padding:8px 6px;">Müştəri</th>
+                <th style="padding:8px 6px;">Məhsullar</th>
+                <th style="padding:8px 6px;">Cəmi</th>
+                <th style="padding:8px 6px;">Status</th>
+                <th style="padding:8px 6px;">Tarixçə</th>
+                <th style="padding:8px 6px;">Sənəd</th>
+              </tr>
+            </thead>
+            <tbody id="warehouse-orders-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">Yüklənir...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- end sales-subview-warehouse -->
   </div>
 </div><!-- end sales-view -->
 
@@ -2895,7 +2989,15 @@
         <div class="price-row"><span class="price-label">Markup məbləği</span><span class="price-val" id="calc-markup-amt">$0.00</span></div>
         <div class="price-row total"><span class="price-label">Satış qiyməti (USD)</span><span class="price-val" id="calc-sale">$0.00</span></div>
         <div class="price-row total" id="calc-sale-azn-row" style="background:rgba(46,125,50,0.08);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" style="font-weight:600;color:var(--green-dark);">Satış qiyməti (₼)</span><span class="price-val" id="calc-sale-azn-val" style="color:var(--green-dark);font-size:17px;">₼0.00</span></div>
+        <div class="price-row" id="calc-vat-row" style="display:none;"><span class="price-label">+ ƏDV 18%</span><span class="price-val" id="calc-vat-amt">₼0.00</span></div>
+        <div class="price-row total" id="calc-total-vat-row" style="display:none;background:rgba(201,168,76,0.12);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" style="font-weight:600;color:var(--green-dark);">Müştəriyə (ƏDV daxil)</span><span class="price-val" id="calc-total-vat-val" style="color:var(--green-dark);font-size:17px;">₼0.00</span></div>
         <div class="price-row total" id="calc-pack-row" style="display:none;background:rgba(201,168,76,0.1);border-radius:6px;padding:8px 10px;margin-top:6px;"><span class="price-label" id="calc-pack-label" style="font-weight:600;color:var(--green-dark);">Paket üzrə</span><span class="price-val" id="calc-pack-val" style="color:var(--green-dark);font-size:17px;">$0.00</span></div>
+        <div class="form-row" style="margin-top:14px;">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+            <input type="checkbox" id="fp-vat" onchange="updatePriceCalc()" style="width:16px;height:16px;accent-color:var(--green-accent);"/>
+            <span>18% ƏDV tətbiq et (idxalda ödənilmiş ƏDV — satışda müştəriyə əlavə olunur)</span>
+          </label>
+        </div>
       </div>
     </div>
     <div class="form-modal-footer">
@@ -2908,6 +3010,7 @@
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="/products-data.js"></script>
 <script>
 // Global state — declared first for safe hoisting
@@ -2923,6 +3026,218 @@ var vseRefreshTimer = null;
 // ═══════════════════════════════════════════════════════
 const PRODUCTS_KEY    = 'vt_products';
 const STOCK_KG_MIGRATION_KEY = 'vt_stock_kg_base_v2';
+// ─── Supabase sync (sales + activity log) ───────────────────
+// Internal sales-team tool, no per-user Supabase Auth — the anon key below is
+// meant to be public (same trust model this app already has for sales-users.json).
+// Row Level Security on the `sales` / `activity_log` tables restricts access to
+// insert/select/update only — nothing can ever be deleted through this key.
+const SUPABASE_URL      = 'https://gqhjntqfgwvyqpynfzut.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaGpudHFmZ3d2eXFweW5menV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODY1NDksImV4cCI6MjA5ODU2MjU0OX0.tezK6Q-UktN14NA1po5KhnliQvRgSn3UUunA9d90aDk';
+
+function supabaseHeaders(extra) {
+  return Object.assign({
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json',
+  }, extra || {});
+}
+
+// Fire-and-forget insert — local localStorage write already happened, so a
+// network failure here just means this row syncs on the next successful sync
+// instead of blocking the UI.
+function supabaseInsertSale(row) {
+  const payload = {
+    ts: row.ts, product_id: row.productId, product_name: row.productName,
+    qty: row.qty, unit_price: row.unitPrice, total: row.total,
+    customer: row.customer || null, salesperson: row.salesperson || null,
+    salesperson_username: row.salespersonUsername || null,
+    discount_pct: row.discountPct || null, unit_price_original: row.unitPriceOriginal || null,
+    vat_applicable: !!row.vatApplicable, edited: !!row.edited,
+    voided: !!row.voided, voided_at: row.voidedAt || null, voided_by: row.voidedBy || null,
+    payment_method: row.paymentMethod || 'cash',
+    sale_id: row.saleId || null, warehouse_status: row.warehouseStatus || WAREHOUSE_STATUS_DEFAULT,
+  };
+  return fetch(SUPABASE_URL + '/rest/v1/sales', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal,resolution=merge-duplicates' }),
+    body: JSON.stringify(payload)
+  }).catch(function(e) { console.warn('Supabase sale sync failed (will retry on next sync):', e); });
+}
+
+function supabaseUpdateSaleByTs(ts, patch) {
+  return fetch(SUPABASE_URL + '/rest/v1/sales?ts=eq.' + encodeURIComponent(ts), {
+    method: 'PATCH',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal' }),
+    body: JSON.stringify(patch)
+  }).catch(function(e) { console.warn('Supabase sale update sync failed:', e); });
+}
+
+function supabaseInsertActivity(entry) {
+  const payload = {
+    id: entry.id, ts: entry.ts, action: entry.action,
+    actor_username: entry.actorUsername || null, actor_name: entry.actorName || null,
+    actor_role: entry.actorRole || null, sale_ts: entry.saleTs || null,
+    product_id: entry.productId || null, product_name: entry.productName || null,
+    detail: entry,
+  };
+  return fetch(SUPABASE_URL + '/rest/v1/activity_log', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal,resolution=merge-duplicates' }),
+    body: JSON.stringify(payload)
+  }).catch(function(e) { console.warn('Supabase activity sync failed:', e); });
+}
+
+function supabaseRowToSale(r) {
+  return {
+    ts: r.ts, productId: r.product_id, productName: r.product_name,
+    qty: r.qty, unitPrice: r.unit_price, total: r.total,
+    customer: r.customer || '', salesperson: r.salesperson || '',
+    salespersonUsername: r.salesperson_username || '',
+    discountPct: r.discount_pct || undefined, unitPriceOriginal: r.unit_price_original || undefined,
+    vatApplicable: !!r.vat_applicable, edited: !!r.edited,
+    voided: !!r.voided, voidedAt: r.voided_at || undefined, voidedBy: r.voided_by || undefined,
+    paymentMethod: r.payment_method || 'cash',
+    saleId: r.sale_id || undefined, warehouseStatus: r.warehouse_status || WAREHOUSE_STATUS_DEFAULT,
+  };
+}
+
+function supabaseRowToActivity(r) {
+  const base = Object.assign({}, r.detail || {}, {
+    id: r.id, ts: r.ts, action: r.action,
+    actorUsername: r.actor_username, actorName: r.actor_name, actorRole: r.actor_role,
+  });
+  return base;
+}
+
+// ─── Live inventory (stock) sync ────────────────────────────
+// `inventory` in Supabase is the cross-device source of truth for stock —
+// products.json's `stock` field only updates when someone clicks Publish, so
+// relying on it alone means two devices can disagree about what's left.
+function supabaseUpsertStock(productId, productName, stock) {
+  return fetch(SUPABASE_URL + '/rest/v1/inventory', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal,resolution=merge-duplicates' }),
+    body: JSON.stringify({ product_id: productId, product_name: productName, stock: stock })
+  }).catch(function(e) { console.warn('Supabase stock sync failed (will retry on next save):', e); });
+}
+
+// productId -> stock, populated by syncInventoryFromServer(); applied
+// synchronously in loadRawProducts() so every render sees the live number.
+var _liveInventory = null;
+
+// Lightweight inventory-only fetch for the public storefront (and any other
+// place that just needs current stock, without pulling sales/activity data).
+async function syncInventoryFromServer() {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    const map = {};
+    rows.forEach(function(r) { map[r.product_id] = parseFloat(r.stock) || 0; });
+    _liveInventory = map;
+    return true;
+  } catch (e) { console.warn('Supabase inventory fetch failed (offline?):', e); return false; }
+}
+
+function applyLiveInventory(products) {
+  if (!_liveInventory) return products;
+  products.forEach(function(p) {
+    if (Object.prototype.hasOwnProperty.call(_liveInventory, p.id)) p.stock = _liveInventory[p.id];
+  });
+  return products;
+}
+
+// ─── Warehouse fulfillment tracking ─────────────────────────
+const WAREHOUSE_STATUSES = ['Anbarda', 'Çatdırıldı'];
+const WAREHOUSE_STATUS_DEFAULT = 'Anbarda';
+const WAREHOUSE_LOG_KEY = 'vt_warehouse_log';
+
+function getWarehouseLog() {
+  try { const d = localStorage.getItem(WAREHOUSE_LOG_KEY); return d ? JSON.parse(d) : []; }
+  catch(e) { return []; }
+}
+function saveWarehouseLog(arr) { localStorage.setItem(WAREHOUSE_LOG_KEY, JSON.stringify(arr)); }
+
+function supabaseInsertWarehouseLog(entry) {
+  return fetch(SUPABASE_URL + '/rest/v1/warehouse_status_log', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal' }),
+    body: JSON.stringify({
+      sale_id: entry.saleId, status: entry.status,
+      changed_by: entry.changedBy || null, changed_at: entry.changedAt
+    })
+  }).catch(function(e) { console.warn('Supabase warehouse log sync failed:', e); });
+}
+
+function supabaseRowToWarehouseLog(r) {
+  return { id: 'wl-' + r.id, saleId: r.sale_id, status: r.status, changedBy: r.changed_by, changedAt: r.changed_at };
+}
+
+// Records one status transition for an order (sale_id) — used both for the
+// initial "Anbarda" entry at confirm time and for later manual changes.
+function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverride) {
+  const actor = currentActivityActor();
+  const entry = { id: 'wl-local-' + saleId + '-' + changedAt, saleId: saleId, status: status, changedBy: changedByOverride || actor.name, changedAt: changedAt };
+  const log = getWarehouseLog();
+  log.push(entry);
+  saveWarehouseLog(log);
+  supabaseInsertWarehouseLog(entry);
+  return entry;
+}
+
+// Pulls the full sales + activity log + inventory + warehouse log from
+// Supabase and merges into localStorage so admin/finance/sales panels always
+// reflect what every device has synced — this is what makes sales, stock and
+// fulfillment status visible across devices without a GitHub publish.
+async function syncSalesFromServer() {
+  try {
+    const [salesRes, activityRes, inventoryRes, warehouseRes] = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/warehouse_status_log?select=*&order=changed_at.asc', { headers: supabaseHeaders() }),
+    ]);
+    if (salesRes.ok) {
+      const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
+      const localSales = getSales();
+      const byTs = {};
+      remoteSales.forEach(function(s) { byTs[s.ts] = s; });
+      // Keep any local-only rows that haven't synced yet (e.g. created offline).
+      localSales.forEach(function(s) { if (!byTs[s.ts]) byTs[s.ts] = s; });
+      const merged = Object.keys(byTs).map(function(k) { return byTs[k]; }).sort(function(a,b){ return a.ts - b.ts; });
+      saveSales(merged);
+    }
+    if (activityRes.ok) {
+      const remoteActivity = (await activityRes.json()).map(supabaseRowToActivity);
+      const localActivity = getActivityLog();
+      const byId = {};
+      remoteActivity.forEach(function(e) { byId[e.id] = e; });
+      localActivity.forEach(function(e) { if (!byId[e.id]) byId[e.id] = e; });
+      const merged = Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a,b){ return a.ts - b.ts; });
+      saveActivityLog(merged);
+    }
+    if (inventoryRes.ok) {
+      const rows = await inventoryRes.json();
+      const map = {};
+      rows.forEach(function(r) { map[r.product_id] = parseFloat(r.stock) || 0; });
+      _liveInventory = map;
+    }
+    if (warehouseRes.ok) {
+      const remoteLog = (await warehouseRes.json()).map(supabaseRowToWarehouseLog);
+      const localLog = getWarehouseLog();
+      const byId = {};
+      remoteLog.forEach(function(e) { byId[e.id] = e; });
+      localLog.forEach(function(e) { if (!byId[e.id]) byId[e.id] = e; });
+      const merged = Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a,b){ return a.changedAt - b.changedAt; });
+      saveWarehouseLog(merged);
+    }
+    return true;
+  } catch (e) {
+    console.warn('Supabase sync-from-server failed (offline?):', e);
+    return false;
+  }
+}
+
 const SALES_KEY       = 'vt_sales';
 const SALES_USERS_KEY = 'vt_sales_users';
 const CURRENT_USER_KEY = 'vt_current_user';
@@ -3107,6 +3422,7 @@ function sanitizeProduct(p, idx) {
     target_az:       p.target_az         || '',
     target:          p.target            || '',
     safetyInterval:  p.safetyInterval    || '',
+    vatApplicable:   !!p.vatApplicable,
   };
 }
 
@@ -3143,6 +3459,24 @@ function migrateStockToBaseUnits(products) {
   return products;
 }
 
+var VAT_MIGRATION_KEY = 'vt_vat_migration';
+
+// Growth regulators imported with 18% VAT — enable flag once for existing catalogs.
+function migrateProductVat(products) {
+  if(!Array.isArray(products) || !products.length) return products;
+  if(localStorage.getItem(VAT_MIGRATION_KEY)) return products;
+  var changed = false;
+  products.forEach(function(p) {
+    if(p.vatApplicable === undefined && p.category === 'Growth Regulator') {
+      p.vatApplicable = true;
+      changed = true;
+    }
+  });
+  localStorage.setItem(VAT_MIGRATION_KEY, '1');
+  if(changed) saveProducts(products);
+  return products;
+}
+
 // Raw catalog for reads/writes — never sanitized defaults that can clobber markups.
 function loadRawProducts() {
   try {
@@ -3150,14 +3484,14 @@ function loadRawProducts() {
     if (d) {
       var parsed = JSON.parse(d);
       if (Array.isArray(parsed) && parsed.length) {
-        return migrateStockToBaseUnits(mergePublishedLabelFields(parsed));
+        return applyLiveInventory(migrateStockToBaseUnits(mergePublishedLabelFields(migrateProductVat(parsed))));
       }
     }
   } catch (e) { /* fall through */ }
   if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
-    return migrateStockToBaseUnits(PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); }));
+    return applyLiveInventory(migrateStockToBaseUnits(PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); })));
   }
-  return migrateStockToBaseUnits(DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); }));
+  return applyLiveInventory(migrateStockToBaseUnits(migrateProductVat(DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); }))));
 }
 
 function getProducts() {
@@ -3181,7 +3515,7 @@ function mergePublishedLabelFields(products) {
   if (!Array.isArray(PUBLISHED_PRODUCTS) || !PUBLISHED_PRODUCTS.length) return products;
   var pubById = {};
   PUBLISHED_PRODUCTS.forEach(function(p) { pubById[p.id] = p; });
-  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category', 'image', 'images'];
+  var labelKeys = ['desc', 'usage', 'desc_az', 'usage_az', 'target', 'target_az', 'activeIngredient', 'formulation', 'safetyInterval', 'category', 'image', 'images', 'vatApplicable'];
   return products.map(function(p) {
     var pub = pubById[p.id];
     if (!pub) return p;
@@ -3190,6 +3524,12 @@ function mergePublishedLabelFields(products) {
       if (k === 'images') {
         if ((!Array.isArray(out.images) || !out.images.length) && Array.isArray(pub.images) && pub.images.length) {
           out.images = pub.images.slice();
+        }
+        return;
+      }
+      if (k === 'vatApplicable') {
+        if (out.vatApplicable === undefined && pub.vatApplicable !== undefined) {
+          out.vatApplicable = !!pub.vatApplicable;
         }
         return;
       }
@@ -3214,19 +3554,115 @@ function countProductsWithImages(products) {
 function countProductsWithUsageAz(products) {
   return products.filter(function(p) { return (p.usage_az || '').trim().length > 20; }).length;
 }
-function saveProducts(arr) { localStorage.setItem(PRODUCTS_KEY, JSON.stringify(arr)); }
+// Central write point for the product catalog. Any stock change made through
+// here (sale confirm/void/edit, admin stock edits, migrations, ...) is
+// automatically diffed against the previous snapshot and pushed to the
+// Supabase `inventory` table — callers never need to remember to sync stock
+// themselves.
+function saveProducts(arr) {
+  try {
+    var prevRaw = localStorage.getItem(PRODUCTS_KEY);
+    var prev = prevRaw ? JSON.parse(prevRaw) : [];
+    var prevStockById = {};
+    prev.forEach(function(p) { prevStockById[p.id] = p.stock; });
+    arr.forEach(function(p) {
+      var prevStock = prevStockById[p.id];
+      if (prevStock === undefined || parseFloat(prevStock) !== parseFloat(p.stock)) {
+        supabaseUpsertStock(p.id, p.name, p.stock);
+        if (_liveInventory) _liveInventory[p.id] = parseFloat(p.stock) || 0;
+      }
+    });
+  } catch (e) { /* non-fatal — local save below still proceeds */ }
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(arr));
+}
 function getSales() {
   try { const d = localStorage.getItem(SALES_KEY); return d ? JSON.parse(d) : []; }
   catch(e) { return []; }
 }
 function saveSales(arr) { localStorage.setItem(SALES_KEY, JSON.stringify(arr)); }
 
-function salePrice(p) { return (parseFloat(p.cost)||0) * (1 + (parseFloat(p.markup)||0)/100); }
-function salePriceAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+// Sales that still count towards revenue/stats — voided (ləğv edilmiş) rows are
+// kept in the array forever for audit purposes but excluded from all totals.
+function getActiveSales() { return getSales().filter(function(s) { return !s.voided; }); }
 
-// AZN sale price for one physical pack (uses packaging multiplier, same as public site).
+// ─── Activity Log (audit trail) ─────────────────────────────
+// Append-only log of every sales-related action (confirm / edit / void / bulk-clear).
+// Never mutated or pruned by user actions — this is the one place admin can always
+// see what happened, even after a sale itself was edited or voided.
+const ACTIVITY_LOG_KEY = 'vt_activity_log';
+const ACTIVITY_LOG_MAX = 3000;
+
+function getActivityLog() {
+  try { const d = localStorage.getItem(ACTIVITY_LOG_KEY); return d ? JSON.parse(d) : []; }
+  catch(e) { return []; }
+}
+function saveActivityLog(arr) { localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(arr)); }
+
+const ACTIVITY_LABELS = {
+  sale_confirmed:     { label: 'Satış təsdiqləndi',  icon: '🟢' },
+  sale_edited:        { label: 'Satış redaktə edildi', icon: '✏️' },
+  sale_voided:        { label: 'Satış ləğv edildi',  icon: '↩️' },
+  sales_log_cleared:  { label: 'Toplu ləğv (Hamısını sil)', icon: '🗑️' },
+  warehouse_status_changed: { label: 'Anbar statusu dəyişdi', icon: '📦' },
+};
+
+// currentActor: who is performing the action right now, resolved from whichever
+// portal is active (sales rep on the sales portal, "Admin" from the admin panel).
+function currentActivityActor() {
+  try {
+    if (typeof currentView !== 'undefined' && currentView === 'sales' && typeof getCurrentSalesUser === 'function') {
+      const u = getCurrentSalesUser();
+      if (u) return { username: u.username, name: u.name || u.username, role: 'sales' };
+    }
+  } catch(e) { /* ignore */ }
+  return { username: 'admin', name: 'Admin', role: 'admin' };
+}
+
+function logActivity(action, detail) {
+  const log = getActivityLog();
+  const actor = currentActivityActor();
+  const entry = Object.assign({
+    id: 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+    ts: Date.now(),
+    action: action,
+    actorUsername: actor.username,
+    actorName: actor.name,
+    actorRole: actor.role,
+  }, detail || {});
+  log.push(entry);
+  if (log.length > ACTIVITY_LOG_MAX) log.splice(0, log.length - ACTIVITY_LOG_MAX);
+  saveActivityLog(log);
+  supabaseInsertActivity(entry);
+  return entry;
+}
+
+function salePrice(p) { return (parseFloat(p.cost)||0) * (1 + (parseFloat(p.markup)||0)/100); }
+
+var VAT_RATE = 18;
+
+function productHasVat(p) { return !!(p && p.vatApplicable); }
+
+function vatAmountOnNet(net) {
+  const n = parseFloat(net) || 0;
+  return n > 0 ? n * VAT_RATE / 100 : 0;
+}
+
+function salePriceNetAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+
+function salePriceAZN(p) { return salePriceNetAZN(p); }
+
+function salePackPriceNetAZN(p) {
+  return salePriceNetAZN(p) * packMultiplier(packagingForProduct(p));
+}
+
+function salePackVatAmountAZN(p) {
+  return productHasVat(p) ? vatAmountOnNet(salePackPriceNetAZN(p)) : 0;
+}
+
+// AZN sale price for one physical pack — includes 18% VAT when flagged.
 function salePackPriceAZN(p) {
-  return salePriceAZN(p) * packMultiplier(packagingForProduct(p));
+  const net = salePackPriceNetAZN(p);
+  return net + salePackVatAmountAZN(p);
 }
 
 // Human-readable pack label for sales UI (AZ by default).
@@ -3352,15 +3788,18 @@ function stockBadgeForProduct(p) {
 }
 
 function priceStripHTML(p, lang) {
-  const unitAzn  = salePriceAZN(p);              // price per kg or per litre
   const rawPack  = packagingForProduct(p);
-  const mult     = packMultiplier(rawPack);
-  const totalAzn = unitAzn * mult;
   const packStr  = lang === 'az' ? formatPackAz(rawPack) : rawPack;
   const per      = packStr ? ' / ' + packStr : '';
+  const netAzn   = salePackPriceNetAZN(p);
+  const vatAmt   = salePackVatAmountAZN(p);
+  const totalAzn = netAzn + vatAmt;
   if (totalAzn <= 0) return `<div class="product-price-strip"><span class="pp-contact">${lang==='az'?'Qiymət üçün əlaqə saxlayın':'Contact for price'}</span></div>`;
   const lbl = lang === 'az' ? 'Qiymət' : 'Price';
-  return `<div class="product-price-strip"><div><div class="pp-label">${lbl}</div><div class="pp-amount">₼${totalAzn.toFixed(2)}<span class="pp-per">${per}</span></div></div></div>`;
+  const vatLine = vatAmt > 0
+    ? `<div class="pp-vat">${lang === 'az' ? 'o cümlədən ƏDV 18%: ₼' + vatAmt.toFixed(2) : 'incl. VAT 18%: ₼' + vatAmt.toFixed(2)}</div>`
+    : '';
+  return `<div class="product-price-strip"><div><div class="pp-label">${lbl}${vatAmt > 0 ? (lang === 'az' ? ' (ƏDV daxil)' : ' (incl. VAT)') : ''}</div><div class="pp-amount">₼${totalAzn.toFixed(2)}<span class="pp-per">${per}</span></div>${vatLine}</div></div>`;
 }
 
 function stockBadge(qty) {
@@ -3410,6 +3849,11 @@ function showView(v) {
   window.scrollTo(0,0);
   if(v === 'sales') updateSalesHeader();
   if(v === 'finance') setTimeout(financeInit, 50);
+  // Keep sales data live across devices while any data-sensitive view is open;
+  // stop polling once back on the public site so we're not calling Supabase
+  // for nothing.
+  if(v === 'admin' || v === 'finance' || v === 'sales') startSalesAutoSync();
+  else stopSalesAutoSync();
 }
 function scrollTo_(id) {
   const el = document.querySelector(id);
@@ -3903,14 +4347,14 @@ function openProductModal(id) {
       <div class="modal-title" id="m-name">${p.name}</div>
       <div class="modal-category" id="m-category">${categoryLabel(p.category)} · Cerrado Sol, ${currentLang==='az'?'İspaniya':'Spain'}</div>`;
   }
-  // Price badge in modal header — multiply unit price by pack size
-  const modalUnitAzn  = salePriceAZN(p);
+  // Price badge in modal header — multiply unit price by pack size (+ VAT when flagged)
+  const modalNetAzn   = salePackPriceNetAZN(p);
+  const modalVatAmt   = salePackVatAmountAZN(p);
+  const modalTotalAzn = modalNetAzn + modalVatAmt;
   const modalRawPk    = packagingForProduct(p);
-  const modalMult     = packMultiplier(modalRawPk);
-  const modalTotalAzn = modalUnitAzn * modalMult;
   const modalPkStr    = currentLang === 'az' ? formatPackAz(modalRawPk) : modalRawPk;
   const modalPriceBadge = modalTotalAzn > 0
-    ? `<div class="modal-price-badge">₼${modalTotalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span></div>`
+    ? `<div class="modal-price-badge">₼${modalTotalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span>${modalVatAmt > 0 ? `<span class="mpb-vat">${currentLang === 'az' ? 'o cümlədən ƏDV 18%: ₼' + modalVatAmt.toFixed(2) : 'incl. VAT 18%: ₼' + modalVatAmt.toFixed(2)}</span>` : ''}</div>`
     : '';
   const mCatEl = document.getElementById('m-category');
   if (mCatEl) mCatEl.insertAdjacentHTML('afterend', modalPriceBadge);
@@ -3980,6 +4424,78 @@ function renderAdminDash() {
   renderAdminTable();
   renderSalesLog();
   renderCatalogPublishStatus();
+  refreshSalesFromServerAndRerender();
+}
+
+// Pulls the latest sales + activity log from Supabase in the background (so
+// sales made from other devices show up here too) and re-renders once done.
+// Local data is shown immediately above; this just catches it up.
+// Background auto-sync — runs every SALES_AUTO_SYNC_MS while an admin/finance/
+// sales view is open, so a sale confirmed on one device shows up on another
+// without anyone having to click a "Sync" button.
+const SALES_AUTO_SYNC_MS = 15000;
+var _salesAutoSyncTimer = null;
+
+function startSalesAutoSync() {
+  if (_salesAutoSyncTimer) return;
+  _salesAutoSyncTimer = setInterval(function() {
+    syncSalesFromServer().then(function(ok) {
+      if (!ok) return;
+      if (currentView === 'admin') {
+        renderAdminKPIs();
+        renderSalesLog();
+        renderActivityLog();
+        renderAdminTable();
+      } else if (currentView === 'finance') {
+        financeRender();
+      } else if (currentView === 'sales') {
+        renderMySales();
+        renderSaleProducts();
+        renderWarehouseOrders();
+      }
+    });
+  }, SALES_AUTO_SYNC_MS);
+}
+
+function stopSalesAutoSync() {
+  if (_salesAutoSyncTimer) { clearInterval(_salesAutoSyncTimer); _salesAutoSyncTimer = null; }
+}
+
+function manualSyncSales(btn) {
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sinxronlaşır...'; }
+  syncSalesFromServer().then(function(ok) {
+    // Guarded internally (each checks for its DOM first), so it's safe to call
+    // all of these regardless of which view/tab this button was clicked from.
+    renderAdminKPIs();
+    renderSalesLog();
+    renderActivityLog();
+    renderWarehouseOrders();
+    renderMySales();
+    showToast(ok ? 'Bütün cihazlardan sinxronlaşdırıldı.' : 'Sinxronizasiya alınmadı — internet bağlantısını yoxlayın.', !ok);
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  });
+}
+
+var _salesSyncInFlight = false;
+function refreshSalesFromServerAndRerender() {
+  if (_salesSyncInFlight) return;
+  _salesSyncInFlight = true;
+  syncSalesFromServer().then(function(ok) {
+    _salesSyncInFlight = false;
+    if (!ok) return;
+    renderAdminKPIs();
+    renderSalesLog();
+    renderActivityLog();
+    renderAdminTable();
+  }).catch(function() { _salesSyncInFlight = false; });
+}
+
+function generateSaleId() {
+  const d = new Date();
+  const ymd = String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return 'VT-' + ymd + '-' + rand;
 }
 
 function renderCatalogPublishStatus() {
@@ -4009,7 +4525,7 @@ function renderCatalogPublishStatus() {
 
 function renderAdminKPIs() {
   const products = getProducts();
-  const sales    = getSales();
+  const sales    = getActiveSales();
   const totalRevenue = sales.reduce((s,x)=>s+x.total,0);
   const lowStock = products.filter(p => { const n = maxSalePackages(p); return n > 0 && n <= 10; }).length;
   const outStock = products.filter(p => maxSalePackages(p) <= 0).length;
@@ -4039,6 +4555,13 @@ function renderAdminTable(filter) {
     const packSale = spUnit * mult;               // per package
     const packLbl  = (p.unit && p.unit !== 'unit') ? p.unit : (rawPack || '');
     const perPack  = packLbl ? ` <span style="font-size:10px;color:var(--text-light);font-weight:400;">/ ${packLbl}</span>` : '';
+    const fx = (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : 1.70) || 1.70;
+    const packSaleAznNet = packSale * fx;
+    const packVatAzn = productHasVat(p) ? vatAmountOnNet(packSaleAznNet) : 0;
+    const packSaleAznGross = packSaleAznNet + packVatAzn;
+    const saleCell = productHasVat(p)
+      ? `<strong title="Net: ₼${packSaleAznNet.toFixed(2)} + ƏDV: ₼${packVatAzn.toFixed(2)}">₼${packSaleAznGross.toFixed(2)}${perPack}</strong><div style="font-size:10px;color:var(--text-light);">+ƏDV ₼${packVatAzn.toFixed(2)}</div>`
+      : `<strong title="Vahid: $${spUnit.toFixed(2)}">$${packSale.toFixed(2)}${perPack}</strong>`;
     return `<tr id="row-${p.id}">
       <td style="width:40px;">
         <div class="cb-wrap">
@@ -4050,11 +4573,14 @@ function renderAdminTable(filter) {
           ? `<img src="${p.image}" style="width:44px;height:36px;object-fit:cover;border-radius:5px;display:block;" loading="lazy"/>`
           : `<div style="width:44px;height:36px;border-radius:5px;background:var(--green-dark);display:flex;align-items:center;justify-content:center;font-size:18px;">${CATEGORY_ICONS[p.category]||'📦'}</div>`}
       </td>
-      <td><strong>${p.name||'\u2014'}</strong></td>
+      <td style="text-align:center;">
+        <input type="checkbox" class="admin-vat-cb" ${p.vatApplicable ? 'checked' : ''} onchange="toggleProductVat(${p.id}, this.checked)" title="18% ƏDV"/>
+      </td>
+      <td><strong>${p.name||'\u2014'}</strong>${p.vatApplicable ? ' <span style="font-size:10px;color:var(--green-accent);font-weight:600;">ƏDV</span>' : ''}</td>
       <td>${CATEGORY_ICONS[p.category]||'📦'} ${p.category||'Other'}</td>
       <td style="color:var(--text-light);font-style:italic;" title="Vahid: $${cost.toFixed(2)} / ${mult > 0 ? (mult >= 1 ? mult + ' kq/L' : (mult*1000) + ' q/ml') : 'unit'}">$${packCost.toFixed(2)}${perPack}</td>
       <td>${markup}%</td>
-      <td><strong title="Vahid: $${spUnit.toFixed(2)}">$${packSale.toFixed(2)}${perPack}</strong></td>
+      <td>${saleCell}</td>
       <td>${packLbl || '\u2014'}</td>
       <td>${adminStockCellHtml(p)}</td>
       <td>${adminStatusBadge(p)}</td>
@@ -4071,6 +4597,20 @@ function renderAdminTable(filter) {
 }
 
 function filterAdminTable(v) { adminFilter=v; renderAdminTable(v); }
+
+function toggleProductVat(id, checked) {
+  const products = loadRawProducts();
+  const idx = products.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  products[idx].vatApplicable = !!checked;
+  saveProducts(products);
+  renderAdminDash();
+  renderPublicProducts();
+  if (typeof pricingRenderTable === 'function' && document.getElementById('pricing-main-tbody')) {
+    pricingRenderTable();
+  }
+  showToast(checked ? 'ƏDV aktiv edildi.' : 'ƏDV deaktiv edildi.');
+}
 
 // ─── BULK SELECTION ───
 function getCheckedIds() {
@@ -4228,6 +4768,8 @@ function openProductForm(id) {
       document.getElementById('fp-stock').value     = formatStockCount(stockPackages(p));
       document.getElementById('fp-cost').value      = p.cost;
       document.getElementById('fp-markup').value    = p.markup;
+      const vatEl = document.getElementById('fp-vat');
+      if (vatEl) vatEl.checked = !!p.vatApplicable;
       updatePriceCalc();
       setProductImagePreview(p.image||'');
     }
@@ -4238,6 +4780,8 @@ function openProductForm(id) {
     document.getElementById('fp-markup').value='30';
     const saleAznEl = document.getElementById('fp-sale-azn');
     if(saleAznEl) saleAznEl.value = '';
+    const vatEl = document.getElementById('fp-vat');
+    if (vatEl) vatEl.checked = false;
     updatePriceCalc();
     setProductImagePreview('');
   }
@@ -4251,15 +4795,33 @@ function updatePriceCalc() {
   const unit   = document.getElementById('fp-unit').value || '';
   const mult   = packMultiplier(unit) || 1;
   const fx     = (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : 1.70) || 1.70;
+  const vatOn  = !!(document.getElementById('fp-vat') && document.getElementById('fp-vat').checked);
   const markupAmt = cost * markup / 100;
   const sale = cost + markupAmt;
   const saleAzn = sale * fx;
+  const vatAzn = vatOn ? vatAmountOnNet(saleAzn) : 0;
+  const saleAznGross = saleAzn + vatAzn;
   // Per kg/L (base unit)
   document.getElementById('calc-cost').textContent       = '$' + cost.toFixed(2);
   document.getElementById('calc-markup-amt').textContent = '$' + markupAmt.toFixed(2);
   document.getElementById('calc-sale').textContent       = '$' + sale.toFixed(2);
   const saleAznEl = document.getElementById('calc-sale-azn-val');
   if(saleAznEl) saleAznEl.textContent = '₼' + saleAzn.toFixed(2);
+  const vatRow = document.getElementById('calc-vat-row');
+  const totalVatRow = document.getElementById('calc-total-vat-row');
+  const vatAmtEl = document.getElementById('calc-vat-amt');
+  const totalVatEl = document.getElementById('calc-total-vat-val');
+  if (vatRow && totalVatRow) {
+    if (vatOn && saleAzn > 0) {
+      vatRow.style.display = 'flex';
+      totalVatRow.style.display = 'flex';
+      if (vatAmtEl) vatAmtEl.textContent = '₼' + vatAzn.toFixed(2);
+      if (totalVatEl) totalVatEl.textContent = '₼' + saleAznGross.toFixed(2);
+    } else {
+      vatRow.style.display = 'none';
+      totalVatRow.style.display = 'none';
+    }
+  }
   // Reflect into the AZN-override field if it hasn't been manually focused
   const saleAznInput = document.getElementById('fp-sale-azn');
   if(saleAznInput && document.activeElement !== saleAznInput) {
@@ -4270,8 +4832,12 @@ function updatePriceCalc() {
   if(packEl) {
     if(unit && mult && mult !== 1) {
       packEl.style.display = 'flex';
+      const packNetAzn = saleAzn * mult;
+      const packVatAzn = vatOn ? vatAmountOnNet(packNetAzn) : 0;
       document.getElementById('calc-pack-label').textContent = 'Paket üzrə (' + unit + ')';
-      document.getElementById('calc-pack-val').textContent   = '$' + (sale * mult).toFixed(2) + ' / ₼' + (saleAzn * mult).toFixed(2);
+      document.getElementById('calc-pack-val').textContent   = '$' + (sale * mult).toFixed(2)
+        + ' / ₼' + packNetAzn.toFixed(2)
+        + (vatOn ? ' + ƏDV ₼' + packVatAzn.toFixed(2) + ' = ₼' + (packNetAzn + packVatAzn).toFixed(2) : '');
     } else {
       packEl.style.display = 'none';
     }
@@ -4317,6 +4883,7 @@ function saveProduct() {
     usage_az:  document.getElementById('fp-usage-az').value,
     target_az: document.getElementById('fp-target-az').value,
     unit:      document.getElementById('fp-unit').value,
+    vatApplicable: !!(document.getElementById('fp-vat') && document.getElementById('fp-vat').checked),
   };
   const products = loadRawProducts();
   if(editingId) {
@@ -4461,7 +5028,7 @@ function renderSalesLog() {
 
   renderSalesUsers();
   populateSalesFilter();
-  renderSalesTotalsByUser(sales);
+  renderSalesTotalsByUser(sales.filter(function(s) { return !s.voided; }));
 
   const filterEl = document.getElementById('sales-log-filter');
   const filterUser = filterEl ? filterEl.value : '';
@@ -4478,18 +5045,92 @@ function renderSalesLog() {
     const discBadge = (s.discountPct > 0)
       ? `<span title="Original: $${(+s.unitPriceOriginal).toFixed(2)}" style="display:inline-block;margin-left:6px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">−${s.discountPct}%</span>`
       : '';
-    return `<tr>
+    const voidedBadge = s.voided
+      ? `<span title="${s.voidedBy ? 'Ləğv edən: ' + escapeHtml(s.voidedBy) : ''}" style="display:inline-block;margin-left:6px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">LƏĞV EDİLİB</span>`
+      : '';
+    const rowActions = s.voided
+      ? `<span style="font-size:12px;color:var(--text-light);">—</span>`
+      : `<button class="btn-add" style="padding:5px 10px;font-size:12px;" onclick="adminEditSale('${s.ts}')">✏️ Redaktə</button>
+        <button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Ləğv et</button>`;
+    return `<tr${s.voided ? ' style="opacity:0.55;"' : ''}>
       <td>${new Date(s.ts).toLocaleString()}</td>
       <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(s.salesperson || 'Sales Team')}</span></td>
-      <td><strong>${escapeHtml(s.productName)}</strong></td>
+      <td><strong${s.voided ? ' style="text-decoration:line-through;"' : ''}>${escapeHtml(s.productName)}</strong>${voidedBadge}</td>
       <td>${s.qty}</td>
       <td>$${(+s.unitPrice).toFixed(2)}${discBadge}</td>
       <td><strong>$${(+s.total).toFixed(2)}</strong></td>
       <td>${escapeHtml(s.customer || '\u2014')}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn-add" style="padding:5px 10px;font-size:12px;" onclick="adminEditSale('${s.ts}')">✏️ Redaktə</button>
-        <button class="btn-del" style="padding:5px 10px;" onclick="adminDeleteSale('${s.ts}')">↩ Sil</button>
-      </td>
+      <td style="white-space:nowrap;">${rowActions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function activityDetailHtml(e) {
+  switch (e.action) {
+    case 'sale_confirmed':
+      return `${e.qty} ədəd &middot; $${(+e.total || 0).toFixed(2)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
+    case 'sale_edited': {
+      const parts = [];
+      if (e.oldQty !== undefined && e.newQty !== undefined && e.oldQty !== e.newQty) parts.push(`Sayı: ${e.oldQty} → ${e.newQty}`);
+      if (e.oldUnitPrice !== undefined && e.newUnitPrice !== undefined && e.oldUnitPrice !== e.newUnitPrice) parts.push(`Qiymət: $${(+e.oldUnitPrice).toFixed(2)} → $${(+e.newUnitPrice).toFixed(2)}`);
+      if (e.oldCustomer !== e.newCustomer) parts.push(`Müştəri: "${escapeHtml(e.oldCustomer || '\u2014')}" → "${escapeHtml(e.newCustomer || '\u2014')}"`);
+      if (e.oldTotal !== undefined && e.newTotal !== undefined) parts.push(`Cəm: $${(+e.oldTotal).toFixed(2)} → $${(+e.newTotal).toFixed(2)}`);
+      return parts.join(' &middot; ') || '\u2014';
+    }
+    case 'sale_voided':
+      return `${e.qty} ədəd &middot; $${(+e.total || 0).toFixed(2)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
+    case 'sales_log_cleared':
+      return `${e.count} aktiv satış ləğv edildi`;
+    case 'warehouse_status_changed':
+      return `${escapeHtml(e.saleId || '\u2014')} &middot; yeni status: <strong>${escapeHtml(e.status || '\u2014')}</strong>`;
+    default:
+      return '\u2014';
+  }
+}
+
+function renderActivityLog() {
+  const tbody = document.getElementById('activity-log-tbody');
+  if(!tbody) return;
+  const log = getActivityLog();
+
+  // Populate actor filter
+  const actorSel = document.getElementById('activity-log-actor-filter');
+  if(actorSel) {
+    const seen = {};
+    log.forEach(e => { if(e.actorUsername && !seen[e.actorUsername]) seen[e.actorUsername] = e.actorName || e.actorUsername; });
+    const prev = actorSel.value;
+    actorSel.innerHTML = ['<option value="">Bütün istifadəçilər</option>']
+      .concat(Object.keys(seen).map(k => `<option value="${escapeHtml(k)}">${escapeHtml(seen[k])}</option>`)).join('');
+    if(prev && seen[prev]) actorSel.value = prev;
+  }
+
+  const actorFilter  = actorSel ? actorSel.value : '';
+  const actionSel = document.getElementById('activity-log-action-filter');
+  const actionFilter = actionSel ? actionSel.value : '';
+
+  const filtered = log.filter(e => {
+    if(actorFilter && e.actorUsername !== actorFilter) return false;
+    if(actionFilter && e.action !== actionFilter) return false;
+    return true;
+  });
+
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">Hələ fəaliyyət qeydə alınmayıb.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = [...filtered].reverse().map(e => {
+    const meta = ACTIVITY_LABELS[e.action] || { label: e.action, icon: '•' };
+    const actionColor = e.action === 'sale_voided' || e.action === 'sales_log_cleared'
+      ? 'rgba(192,57,43,0.15)' : (e.action === 'sale_edited' ? 'rgba(230,126,34,0.15)' : 'rgba(62,140,88,0.15)');
+    const actionText = e.action === 'sale_voided' || e.action === 'sales_log_cleared'
+      ? 'var(--danger)' : (e.action === 'sale_edited' ? 'var(--warning)' : 'var(--green-dark)');
+    return `<tr>
+      <td style="white-space:nowrap;">${new Date(e.ts).toLocaleString()}</td>
+      <td><span style="display:inline-block;background:${actionColor};color:${actionText};padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;">${meta.icon} ${meta.label}</span></td>
+      <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(e.actorName || 'Sales Team')}</span></td>
+      <td>${escapeHtml(e.productName || '\u2014')}</td>
+      <td style="font-size:12px;color:var(--text-mid);">${activityDetailHtml(e)}</td>
     </tr>`;
   }).join('');
 }
@@ -4644,6 +5285,7 @@ function adminEditSale(ts) {
     saveProducts(products);
   }
 
+  const oldQty = s.qty, oldUnitPrice = s.unitPrice, oldTotal = s.total, oldCustomer = s.customer;
   sales[idx] = Object.assign({}, s, {
     qty: newQty,
     unitPrice: newPrice,
@@ -4651,19 +5293,29 @@ function adminEditSale(ts) {
     customer: newCustomer.trim()
   });
   saveSales(sales);
+  supabaseUpdateSaleByTs(s.ts, { qty: newQty, unit_price: newPrice, total: sales[idx].total, customer: newCustomer.trim() });
+  logActivity('sale_edited', {
+    saleTs: s.ts, productId: s.productId, productName: s.productName,
+    oldQty, newQty, oldUnitPrice, newUnitPrice: newPrice,
+    oldCustomer, newCustomer: newCustomer.trim(),
+    oldTotal, newTotal: sales[idx].total
+  });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
   showToast('Satış redaktə edildi.');
 }
 
-// Delete a single sale from admin log AND restore the product stock
+// Void a single sale from admin log AND restore the product stock.
+// Soft delete only — the row stays in getSales() (marked voided) so it remains
+// visible in the Activity Log / Sales Log for audit purposes.
 function adminDeleteSale(ts) {
   const sales = getSales();
   const idx = sales.findIndex(x => String(x.ts) === String(ts));
   if(idx < 0) return;
   const s = sales[idx];
-  if(!confirm(`Bu satışı silmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
+  if(s.voided) { showToast('Bu satış artıq ləğv edilib.', true); return; }
+  if(!confirm(`Bu satışı ləğv etmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
 
   // Restore stock
   const products = loadRawProducts();
@@ -4674,22 +5326,30 @@ function adminDeleteSale(ts) {
     saveProducts(products);
   }
 
-  sales.splice(idx, 1);
+  sales[idx].voided   = true;
+  sales[idx].voidedAt = Date.now();
+  sales[idx].voidedBy = 'Admin';
   saveSales(sales);
+  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy });
+  logActivity('sale_voided', {
+    saleTs: s.ts, productId: s.productId, productName: s.productName,
+    qty: s.qty, total: s.total, customer: s.customer
+  });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
-  showToast(`Satış silindi. ${s.qty} ədəd stock-a qaytarıldı.`);
+  showToast(`Satış ləğv edildi. ${s.qty} ədəd stock-a qaytarıldı.`);
 }
 
 function clearSalesLog() {
   const sales = getSales();
-  if(!sales.length) return;
-  if(!confirm(`Bütün satış tarixçəsini silmək və ${sales.length} satışdan stock-ları geri qaytarmaq?`)) return;
+  const active = sales.filter(function(s) { return !s.voided; });
+  if(!active.length) { showToast('Ləğv ediləcək aktiv satış yoxdur.'); return; }
+  if(!confirm(`Bütün AKTIV satışları (${active.length}) ləğv etmək və stock-ları geri qaytarmaq? Bu əməliyyat Fəaliyyət Jurnalında saxlanılacaq və geri qaytarıla bilməz.`)) return;
 
-  // Restore stock for every sale
+  // Restore stock for every active sale
   const products = loadRawProducts();
-  sales.forEach(s => {
+  active.forEach(s => {
     const pIdx = products.findIndex(p => p.id === s.productId);
     if(pIdx >= 0) {
       const p = products[pIdx];
@@ -4697,11 +5357,20 @@ function clearSalesLog() {
     }
   });
   saveProducts(products);
-  saveSales([]);
+
+  const now = Date.now();
+  sales.forEach(function(s) {
+    if(!s.voided) {
+      s.voided = true; s.voidedAt = now; s.voidedBy = 'Admin (toplu ləğv)';
+      supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: now, voided_by: s.voidedBy });
+    }
+  });
+  saveSales(sales);
+  logActivity('sales_log_cleared', { count: active.length });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
-  showToast(`Sales log təmizləndi. Bütün stock-lar geri qaytarıldı.`);
+  showToast(`${active.length} satış ləğv edildi (jurnalda saxlanılır). Bütün stock-lar geri qaytarıldı.`);
 }
 
 // One-off recovery: restore stock to original PRODUCTS_DATA quantity
@@ -4736,6 +5405,30 @@ function renderSalesView() {
   renderSaleProducts();
   renderCart();
   renderMySales();
+  renderWarehouseOrders();
+  // Pick up any edits/voids admin made from another device since last visit,
+  // plus the latest stock levels and warehouse statuses.
+  syncSalesFromServer().then(function(ok) {
+    if (!ok) return;
+    renderMySales();
+    renderSaleProducts();
+    renderWarehouseOrders();
+  });
+}
+
+// Toggle between "Satış et" (make a sale) and "Anbar" (warehouse/stock)
+// subsections inside the Sales portal.
+function salesSubTab(name, btn) {
+  const sellEl = document.getElementById('sales-subview-sell');
+  const whEl = document.getElementById('sales-subview-warehouse');
+  if (sellEl) sellEl.style.display = (name === 'sell') ? '' : 'none';
+  if (whEl) whEl.style.display = (name === 'warehouse') ? '' : 'none';
+  document.querySelectorAll('#sales-view .dash-tab').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (name === 'warehouse') {
+    renderWarehouseOrders();
+    syncSalesFromServer().then(function(ok) { if (ok) renderWarehouseOrders(); });
+  }
 }
 
 // ── CART STATE ──────────────────────────────────────────
@@ -4770,10 +5463,12 @@ function renderSaleProducts(filter) {
 
   grid.innerHTML = filtered.map(p => {
     const spAzn   = salePackPriceAZN(p);
+    const vatAmt  = salePackVatAmountAZN(p);
     const packLbl = salePackLabel(p, 'az');
     const inCart  = !!cartItems[p.id];
     const maxPkg  = maxSalePackages(p);
     const disabled = !productHasStock(p);
+    const vatNote = vatAmt > 0 ? `<div style="font-size:11px;color:var(--text-light);margin-top:2px;">o cümlədən ƏDV: ${formatAzn(vatAmt)}</div>` : '';
     return `<div class="sale-product-item${inCart?' in-cart':''}"
       style="${disabled?'opacity:0.45;cursor:not-allowed;':'cursor:pointer;'}"
       onclick="${disabled?'':'addToCart('+p.id+')'}">
@@ -4783,7 +5478,7 @@ function renderSaleProducts(filter) {
         ${inCart?'&#10003;':'&#43;'}
       </button>
       <div class="sale-product-name">${CATEGORY_ICONS[p.category]||'📦'} ${p.name}</div>
-      <div class="sale-product-price">${formatAzn(spAzn)} / ${packLbl}</div>
+      <div class="sale-product-price">${formatAzn(spAzn)} / ${packLbl}</div>${vatNote}
       <div class="sale-product-stock">${disabled?'Stokda yoxdur':formatStockCount(maxPkg)+' ədəd mövcud'}</div>
     </div>`;
   }).join('');
@@ -4973,6 +5668,7 @@ function confirmSale() {
   const sales = getSales();
   const customer = document.getElementById('sale-customer').value.trim();
   const ts = Date.now();
+  const saleId = generateSaleId();
   const currentUser = getCurrentSalesUser();
   const sellerName = currentUser ? (currentUser.name || currentUser.username) : 'Sales Team';
   const sellerUsername = currentUser ? currentUser.username : 'sales';
@@ -4998,13 +5694,23 @@ function confirmSale() {
     const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
     const total     = +(unitPrice * qty).toFixed(2);
     products[pIdx].stock -= stockDeltaRaw(p, qty);
-    const row = { ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer, salesperson: sellerName, salespersonUsername: sellerUsername };
+    const row = {
+      ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer,
+      salesperson: sellerName, salespersonUsername: sellerUsername,
+      saleId: saleId, warehouseStatus: WAREHOUSE_STATUS_DEFAULT
+    };
+    if (productHasVat(p)) row.vatApplicable = true;
     if(discountPct > 0) {
       row.discountPct       = discountPct;
       row.unitPriceOriginal = unitPriceOriginal;
     }
     sales.push(row);
     confirmed++;
+    supabaseInsertSale(row);
+    logActivity('sale_confirmed', {
+      saleTs: row.ts, productId: p.id, productName: p.name,
+      qty, unitPrice, total, customer, saleId: saleId
+    });
   });
 
   if(!confirmed) { showToast('Satılacaq etibarlı məhsul yoxdur', true); return; }
@@ -5012,9 +5718,17 @@ function confirmSale() {
   saveProducts(products);
   saveSales(sales);
 
+  // Seed the warehouse status history with the initial "Anbarda" entry so the
+  // Anbar tab has a first timestamp to show, right from confirmation.
+  recordWarehouseStatusChange(saleId, WAREHOUSE_STATUS_DEFAULT, ts);
+
   const grandTotal = sales.slice(-confirmed).reduce((s, x) => s + x.total, 0);
   const discountMsg = discountPct > 0 ? (' (−' + discountPct + '%)') : '';
-  showToast('Satış təsdiqləndi! ' + formatAzn(grandTotal) + discountMsg + ' · ' + confirmed + ' məhsul');
+  showToast('Satış təsdiqləndi! ' + saleId + ' · ' + formatAzn(grandTotal) + discountMsg + ' · ' + confirmed + ' məhsul');
+
+  // Fire off the warehouse release slip immediately — same click, so browsers
+  // don't block it as a pop-up (it's a synchronous save() call, not async).
+  exportSaleSlipPdf(saleId);
 
   cartItems = {};
   cartDiscount = 0;
@@ -5022,6 +5736,7 @@ function confirmSale() {
   renderSaleProducts();
   renderCart();
   renderMySales();
+  renderWarehouseOrders();
   renderAdminDash();
 }
 
@@ -5048,19 +5763,173 @@ function renderMySales() {
     const editedBadge = s.edited
       ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;">REDAKTƏ EDİLDİ</span>'
       : '';
-    return `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;">${s.productName}</div>
-        <div style="font-size:11px;color:var(--text-light);">Say: ${s.qty} &middot; ${formatAzn(s.total)} &middot; ${new Date(s.ts).toLocaleString()}</div>
-        ${s.customer ? `<div style="font-size:11px;color:var(--text-light);">${s.customer}</div>` : ''}
-        ${discBadge}${editedBadge}
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;">
+    const voidedBadge = s.voided
+      ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-weight:600;">LƏĞV EDİLİB</span>'
+      : '';
+    const actions = s.voided
+      ? '<span style="font-size:11px;color:var(--text-light);flex-shrink:0;">Ləğv edilib</span>'
+      : `<div style="display:flex;gap:6px;flex-shrink:0;">
         <button class="btn-edit" style="padding:4px 10px;font-size:11px;" onclick="openEditSale('${s.ts}')">Redaktə</button>
         <button class="btn-del" style="padding:4px 10px;font-size:11px;" onclick="undoSale('${s.ts}')">Geri al</button>
+      </div>`;
+    return `<div style="background:var(--cream);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;${s.voided ? 'opacity:0.6;' : ''}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;${s.voided ? 'text-decoration:line-through;' : ''}">${s.productName}</div>
+        <div style="font-size:11px;color:var(--text-light);">Say: ${s.qty} &middot; ${formatAzn(s.total)} &middot; ${new Date(s.ts).toLocaleString()}</div>
+        ${s.customer ? `<div style="font-size:11px;color:var(--text-light);">${s.customer}</div>` : ''}
+        ${discBadge}${editedBadge}${voidedBadge}
       </div>
+      ${actions}
     </div>`;
   }).join('');
+}
+
+// ─── Anbar (warehouse fulfillment) subsection ───────────────
+// Groups the flat `sales` rows (one per product line) back into orders/slips
+// by saleId, so the whole team can see and update fulfillment status per
+// customer order rather than per line item.
+function groupSalesIntoOrders(sales) {
+  const groups = {};
+  sales.forEach(function(s) {
+    if (s.voided) return;
+    // Sales made before this feature shipped have no saleId — treat each as
+    // its own single-line legacy order, already assumed delivered.
+    const id = s.saleId || ('legacy-' + s.ts);
+    if (!groups[id]) {
+      groups[id] = {
+        saleId: id, ts: s.ts, customer: s.customer, salesperson: s.salesperson,
+        status: s.warehouseStatus || (s.saleId ? WAREHOUSE_STATUS_DEFAULT : 'Çatdırıldı'),
+        items: [], total: 0
+      };
+    }
+    groups[id].items.push(s);
+    groups[id].total += (+s.total) || 0;
+    if (s.ts < groups[id].ts) groups[id].ts = s.ts;
+  });
+  return Object.keys(groups).map(function(k) { return groups[k]; }).sort(function(a, b) { return b.ts - a.ts; });
+}
+
+function _warehouseIdMatch(saleId, s) {
+  return saleId.indexOf('legacy-') === 0 ? String(s.ts) === saleId.slice(7) : s.saleId === saleId;
+}
+
+function renderWarehouseOrders() {
+  const tbody = document.getElementById('warehouse-orders-tbody');
+  if (!tbody) return;
+  const orders = groupSalesIntoOrders(getSales());
+  const filterEl = document.getElementById('warehouse-status-filter');
+  const filterStatus = filterEl ? filterEl.value : '';
+  const filtered = filterStatus ? orders.filter(function(o) { return o.status === filterStatus; }) : orders;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">Hələ sifariş yoxdur.</td></tr>';
+    return;
+  }
+
+  const wlog = getWarehouseLog();
+  tbody.innerHTML = filtered.map(function(o) {
+    const itemsHtml = o.items.map(function(it) { return escapeHtml(it.productName) + ' × ' + it.qty; }).join('<br/>');
+    const history = wlog.filter(function(h) { return h.saleId === o.saleId; }).sort(function(a, b) { return a.changedAt - b.changedAt; });
+    const historyHtml = history.length
+      ? history.map(function(h) { return new Date(h.changedAt).toLocaleString() + ' — <strong>' + escapeHtml(h.status) + '</strong>' + (h.changedBy ? ' (' + escapeHtml(h.changedBy) + ')' : ''); }).join('<br/>')
+      : '<span style="color:var(--text-light);">—</span>';
+    const statusOptions = WAREHOUSE_STATUSES.map(function(s) {
+      return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + s + '</option>';
+    }).join('');
+    const statusColor = o.status === 'Çatdırıldı' ? 'var(--green-accent)' : 'var(--warning)';
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.06);">' +
+      '<td style="padding:8px 6px;white-space:nowrap;"><strong>' + escapeHtml(o.saleId) + '</strong></td>' +
+      '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(o.ts).toLocaleString() + '</td>' +
+      '<td style="padding:8px 6px;">' + escapeHtml(o.customer || '—') + '</td>' +
+      '<td style="padding:8px 6px;font-size:12px;">' + itemsHtml + '</td>' +
+      '<td style="padding:8px 6px;white-space:nowrap;"><strong>' + formatAzn(o.total) + '</strong></td>' +
+      '<td style="padding:8px 6px;">' +
+        '<select class="search-input" style="padding:5px 8px;width:auto;color:' + statusColor + ';font-weight:600;" onchange="setWarehouseOrderStatus(\'' + o.saleId + '\', this.value)">' + statusOptions + '</select>' +
+      '</td>' +
+      '<td style="padding:8px 6px;font-size:11px;color:var(--text-light);max-width:220px;">' + historyHtml + '</td>' +
+      '<td style="padding:8px 6px;"><button class="btn-add" style="padding:5px 10px;font-size:12px;white-space:nowrap;" onclick="exportSaleSlipPdf(\'' + o.saleId + '\')">🖨 Sənəd</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function setWarehouseOrderStatus(saleId, status) {
+  const sales = getSales();
+  const now = Date.now();
+  let changed = false;
+  sales.forEach(function(s) {
+    if (_warehouseIdMatch(saleId, s)) {
+      s.warehouseStatus = status;
+      changed = true;
+      if (s.saleId) supabaseUpdateSaleByTs(s.ts, { warehouse_status: status });
+    }
+  });
+  if (!changed) return;
+  saveSales(sales);
+  recordWarehouseStatusChange(saleId, status, now);
+  logActivity('warehouse_status_changed', { saleId: saleId, status: status });
+  renderWarehouseOrders();
+  showToast('Anbar statusu yeniləndi: ' + status);
+}
+
+// Builds a printable "warehouse release slip" PDF for one order (all product
+// lines under a saleId) so it can be physically handed to warehouse staff.
+function exportSaleSlipPdf(saleId) {
+  const items = getSales().filter(function(s) { return _warehouseIdMatch(saleId, s); });
+  if (!items.length) { showToast('Bu sifariş üçün məlumat tapılmadı.', true); return; }
+  if (typeof window.jspdf === 'undefined') { showToast('PDF kitabxanası yüklənmədi — internetinizi yoxlayın.', true); return; }
+
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF();
+  const first = items[0];
+
+  doc.setFontSize(16);
+  doc.text('VITA TERRA MMC', 14, 18);
+  doc.setFontSize(11);
+  doc.text('Anbar Buraxılış Sənədi', 14, 26);
+
+  doc.setFontSize(10);
+  doc.text('Sifariş ID: ' + saleId, 14, 38);
+  doc.text('Tarix: ' + new Date(first.ts).toLocaleString(), 14, 44);
+  doc.text('Müştəri: ' + (first.customer || '—'), 14, 50);
+  doc.text('Satıcı: ' + (first.salesperson || '—'), 14, 56);
+
+  let y = 68;
+  doc.setFont(undefined, 'bold');
+  doc.text('Məhsul', 14, y);
+  doc.text('Miqdar', 122, y);
+  doc.text('Vahid qiymət', 148, y);
+  doc.text('Cəmi', 180, y);
+  doc.setFont(undefined, 'normal');
+  y += 4;
+  doc.line(14, y, 196, y);
+  y += 8;
+
+  let grandTotal = 0;
+  items.forEach(function(it) {
+    if (y > 265) { doc.addPage(); y = 20; }
+    doc.text(String(it.productName).slice(0, 48), 14, y);
+    doc.text(String(it.qty), 122, y);
+    doc.text('$' + (+it.unitPrice).toFixed(2), 148, y);
+    doc.text('$' + (+it.total).toFixed(2), 180, y);
+    grandTotal += (+it.total) || 0;
+    y += 7;
+  });
+
+  y += 3;
+  doc.line(14, y, 196, y);
+  y += 8;
+  doc.setFont(undefined, 'bold');
+  doc.text('Yekun: $' + grandTotal.toFixed(2), 148, y);
+  doc.setFont(undefined, 'normal');
+
+  y += 26;
+  doc.text('Anbar məsulu: _______________________', 14, y);
+  doc.text('Tarix: ____________', 148, y);
+  y += 18;
+  doc.text('Təhvil alan: _______________________', 14, y);
+  doc.text('Tarix: ____________', 148, y);
+
+  doc.save('VitaTerra-' + saleId + '.pdf');
 }
 
 function openEditSale(ts) {
@@ -5100,11 +5969,18 @@ function saveEditSale() {
     saveProducts(products);
   }
 
+  const oldQty = s.qty, oldCustomer = s.customer, oldTotal = s.total;
   sales[idx].qty      = newQty;
   sales[idx].total    = s.unitPrice * newQty;
   sales[idx].customer = newCustomer;
   sales[idx].edited   = true;
   saveSales(sales);
+  supabaseUpdateSaleByTs(s.ts, { qty: newQty, total: sales[idx].total, customer: newCustomer, edited: true });
+  logActivity('sale_edited', {
+    saleTs: s.ts, productId: s.productId, productName: s.productName,
+    oldQty, newQty, oldCustomer, newCustomer,
+    oldTotal, newTotal: sales[idx].total
+  });
 
   closeEditSale();
   renderMySales();
@@ -5113,13 +5989,14 @@ function saveEditSale() {
 }
 
 function undoSale(ts) {
-  if(!confirm('Bu satışı geri almaq? Stok bərpa olunacaq.')) return;
-  const sales    = getSales();
-  const products = loadRawProducts();
+  const sales = getSales();
   const idx = sales.findIndex(x => String(x.ts) === String(ts));
   if(idx < 0) return;
   const s = sales[idx];
+  if(s.voided) { showToast('Bu satış artıq ləğv edilib.', true); return; }
+  if(!confirm('Bu satışı geri almaq? Stok bərpa olunacaq və əməliyyat admin üçün Fəaliyyət Jurnalına yazılacaq.')) return;
 
+  const products = loadRawProducts();
   // Restore stock
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) {
@@ -5128,12 +6005,23 @@ function undoSale(ts) {
     saveProducts(products);
   }
 
-  sales.splice(idx, 1);
+  // Soft delete: keep the row (marked voided) so it stays visible to admin in
+  // the audit trail instead of silently vanishing from the system.
+  const actor = currentActivityActor();
+  sales[idx].voided   = true;
+  sales[idx].voidedAt = Date.now();
+  sales[idx].voidedBy = actor.name;
   saveSales(sales);
+  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy });
+  logActivity('sale_voided', {
+    saleTs: s.ts, productId: s.productId, productName: s.productName,
+    qty: s.qty, total: s.total, customer: s.customer
+  });
+
   renderMySales();
   renderSaleProducts();
   renderAdminDash();
-  showToast('Satış geri alındı. Stok bərpa edildi.');
+  showToast('Satış ləğv edildi (jurnalda saxlanılır). Stok bərpa edildi.');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -6409,14 +7297,15 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
   });
-  if(tab === 'site-editor') { setTimeout(vseInit, 80); }
-  if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
-  if(tab === 'sales-log')   { renderSalesLog(); }
+  if(tab === 'site-editor')   { setTimeout(vseInit, 80); }
+  if(tab === 'pricing')       { setTimeout(pricingInit, 50); }
+  if(tab === 'sales-log')     { renderSalesLog(); refreshSalesFromServerAndRerender(); }
+  if(tab === 'activity-log')  { renderActivityLog(); refreshSalesFromServerAndRerender(); }
 }
 
 function vseLoadIframe() {
@@ -6769,14 +7658,15 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
   });
-  if(tab === 'site-editor') { setTimeout(vseInit, 80); }
-  if(tab === 'pricing')     { setTimeout(pricingInit, 50); }
-  if(tab === 'sales-log')   { renderSalesLog(); }
+  if(tab === 'site-editor')   { setTimeout(vseInit, 80); }
+  if(tab === 'pricing')       { setTimeout(pricingInit, 50); }
+  if(tab === 'sales-log')     { renderSalesLog(); refreshSalesFromServerAndRerender(); }
+  if(tab === 'activity-log')  { renderActivityLog(); refreshSalesFromServerAndRerender(); }
 }
 
 function vseInit() {
@@ -7602,8 +8492,8 @@ function setLang(lang) {
   const sectionSub = document.querySelector('#products-section .section-sub');
   if(sectionSub) {
     sectionSub.textContent = lang === 'az'
-      ? 'Hər növ məhsul mühafizəsi ehtiyacı \u00fc\u00e7\u00fcn premium \u0130span formulal\u0131 pestisidlər. Tam m\u0259lumat, istifad\u0259 t\u0259limat\u0131 v\u0259 t\u0259hl\u00fck\u0259sizlik m\u0259lumatlar\u0131na baxmaq \u00fc\u00e7\u00fcn ist\u0259nil\u0259n m\u0259hsul\u0103 klikl\u0259yin.'
-      : 'Premium Spanish-formulated pesticides for every crop protection need. Click any product to view full details, usage guide, and safety information.';
+      ? (sectionSub.dataset.az || 'Hər növ məhsul mühafizəsi ehtiyacı üçün premium İspan formulalı pestisidlər. Tam məlumat, istifadə təlimatı və təhlükəsizlik məlumatlarına baxmaq üçün istənilən məhsula klikləyin.')
+      : (sectionSub.dataset.en || 'Premium Spanish-formulated pesticides for every crop protection need. Click any product to view full details, usage guide, and safety information.');
   }
 
   // ABOUT paragraphs
@@ -7743,6 +8633,15 @@ document.addEventListener('DOMContentLoaded', async function() {
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
   initScrollReveal();
+
+  // Pull live stock levels from Supabase once on load so whichever view is
+  // showing reflects real-time inventory, not just the last GitHub publish.
+  syncInventoryFromServer().then(function(ok) {
+    if (!ok) return;
+    if (currentView === 'public') renderPublicProducts();
+    else if (currentView === 'sales') { renderSaleProducts(); renderWarehouseOrders(); }
+    else if (currentView === 'admin') renderAdminTable();
+  });
 });
 
 // ═══════════════════════════════════════════════════════
@@ -7877,7 +8776,8 @@ function pricingCompPricePerUnit(row, fx) {
 function pricingMyPricePerUnit(prod, fx, ai) {
   const cost = parseFloat(prod.cost) || 0;
   const markup = parseFloat(prod.markup) || 0;
-  const myPrice = cost * (1 + markup / 100) * fx;
+  let myPrice = cost * (1 + markup / 100) * fx;
+  if (productHasVat(prod)) myPrice += vatAmountOnNet(myPrice);
   return { cost: cost * fx, myPrice, unit: ai.isSolid ? 'KG' : 'L' };
 }
 
@@ -8644,9 +9544,13 @@ function financeInventoryUnitPrices(p, stockMeta) {
   const costBaseUsd = parseFloat(p.cost) || 0;
   const saleBaseUsd = salePrice(p);
   const mult = stockMeta ? stockMeta.mult : (packMultiplier(packagingForProduct(p)) || 1);
+  const saleNetPackAzn = saleBaseUsd * mult * fx;
+  const saleVatPackAzn = productHasVat(p) ? vatAmountOnNet(saleNetPackAzn) : 0;
   return {
     costPackAzn: costBaseUsd * mult * fx,
-    salePackAzn: saleBaseUsd * mult * fx,
+    salePackAzn: saleNetPackAzn + saleVatPackAzn,
+    saleNetPackAzn: saleNetPackAzn,
+    saleVatPackAzn: saleVatPackAzn,
     costBaseAzn: costBaseUsd * fx,
     saleBaseAzn: saleBaseUsd * fx
   };
@@ -8656,7 +9560,8 @@ function financeInventoryRow(p) {
   const stock = financeResolveStock(p);
   const prices = financeInventoryUnitPrices(p, stock);
   const costValueAzn = prices.costBaseAzn * stock.baseUnits;
-  const saleValueAzn = prices.saleBaseAzn * stock.baseUnits;
+  const saleNetValueAzn = prices.saleBaseAzn * stock.baseUnits;
+  const saleValueAzn = saleNetValueAzn + (productHasVat(p) ? vatAmountOnNet(saleNetValueAzn) : 0);
   return { p, stock, prices, costValueAzn, saleValueAzn };
 }
 
@@ -8713,7 +9618,7 @@ function financeEnrichSale(s, products) {
 
 function financeCollectMetrics(range) {
   const products = getProducts();
-  const sales = getSales()
+  const sales = getActiveSales()
     .filter(s => financeInPeriod(s.ts, range))
     .map(s => financeEnrichSale(s, products));
 
@@ -8733,8 +9638,13 @@ function financeCollectMetrics(range) {
   const opex = expenses.reduce((sum, e) => sum + financeExpenseAmountAzn(e), 0);
   const netProfit = grossProfit - opex;
   const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
+  let vatAmount = 0;
+  sales.forEach(r => {
+    if (r.sale.vatApplicable || (r.sale.productId && productHasVat(products.find(x => x.id === r.sale.productId) || {}))) {
+      vatAmount += r.revenueAzn * VAT_RATE / (100 + VAT_RATE);
+    }
+  });
   const vatIncluded = revenue;
-  const vatAmount = revenue > 0 ? (revenue * 18 / 118) : 0;
   const revenueExVat = revenue - vatAmount;
 
   let inventoryValue = 0;
@@ -8781,6 +9691,9 @@ function financeInit() {
     btn.classList.toggle('active', btn.id === 'finance-inv-mode-' + financeInventoryPriceMode);
   });
   financeRender();
+  // Pull the latest sales from every device immediately on open, don't make
+  // finance wait for the first 15s poll tick.
+  syncSalesFromServer().then(function(ok) { if (ok) financeRender(); });
 }
 
 function financeSubTab(name, btn) {
@@ -8829,7 +9742,7 @@ function financeRenderPL(m) {
       <div class="pl-section">Gəlir</div>
       <div class="pl-label">Satış gəliri (₼)</div><div class="pl-val">${financeFmtAzn(m.revenue)}</div>
       <div class="pl-label">Endirim itkisi</div><div class="pl-val pl-negative">−${financeFmtAzn(m.discountLoss)}</div>
-      <div class="pl-label">ƏDV 18% (təxmini, daxil)</div><div class="pl-val">${financeFmtAzn(m.vatAmount)}</div>
+      <div class="pl-label">ƏDV 18% (yalnız ƏDV-li satışlar)</div><div class="pl-val">${financeFmtAzn(m.vatAmount)}</div>
       <div class="pl-label">Gəlir (ƏDV xaric, təxmini)</div><div class="pl-val">${financeFmtAzn(m.revenueExVat)}</div>
       <div class="pl-section">Maya</div>
       <div class="pl-label">Satılan məhsul mayası (COGS)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.cogs)}</div>
@@ -8848,7 +9761,7 @@ function financeRenderMonthBars() {
   const el = document.getElementById('finance-month-bars');
   if(!el) return;
   const products = getProducts();
-  const allSales = getSales();
+  const allSales = getActiveSales();
   const months = [];
   const now = new Date();
   for(let i = 5; i >= 0; i--) {
@@ -8898,6 +9811,7 @@ function financeSetPaymentMethod(ts, method) {
   if(idx < 0) return;
   sales[idx].paymentMethod = method;
   saveSales(sales);
+  supabaseUpdateSaleByTs(sales[idx].ts, { payment_method: method });
   financeRender();
 }
 

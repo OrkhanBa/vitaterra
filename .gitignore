@@ -8,3 +8,12 @@ deploy-*.zip
 desktop.ini
 # Weirdly named artifact directory
 {css,js,admin,sales}/
+
+# Raw/reference assets not needed for deploy (huge .tif source files)
+Product photos/
+
+# Cursor AI tooling data, not project code
+.cursor/skills/
+
+# Local business documents, not meant for the public site repo
+VitaTerra-Taxil-Qargidali-Uygunluq.xlsx
