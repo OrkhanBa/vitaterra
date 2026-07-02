@@ -830,6 +830,12 @@
     display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; margin-bottom:20px;
     max-height:calc(100vh - 280px); overflow-y:auto; padding-right:8px;
   }
+  /* Cart list scrolls internally so a large order never pushes the total/
+     confirm button out of the sticky card (was overlapping the "Recent
+     Sales" card below once the cart grew past a few items). */
+  #cart-items-list {
+    max-height:38vh; overflow-y:auto; padding-right:6px; margin-bottom:4px;
+  }
   .sale-product-item {
     border:2px solid var(--border); border-radius:10px; padding:14px;
     cursor:pointer; transition:all 0.2s;
