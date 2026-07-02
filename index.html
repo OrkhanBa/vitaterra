@@ -2635,8 +2635,9 @@
     </div><!-- end sales-subview-sell -->
 
     <!-- ANBAR (warehouse) subsection: every confirmed order shows up here as a
-         slip the sales team can mark "Anbarda" → "Çatdırıldı" as goods leave
-         the warehouse, with a full dated history and a reprintable PDF. -->
+         slip the sales team can mark "Anbarda" → "Anbardan çıxdı" → "Çatdırıldı"
+         as goods leave the warehouse, with a full dated history and a
+         reprintable PDF. -->
     <div id="sales-subview-warehouse" style="display:none;">
       <div class="sale-form-card" style="margin-bottom:0;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
@@ -2645,13 +2646,14 @@
             <select id="warehouse-status-filter" class="search-input" style="padding:8px 10px;width:auto;" onchange="renderWarehouseOrders()">
               <option value="">Bütün statuslar</option>
               <option value="Anbarda">Anbarda</option>
+              <option value="Anbardan çıxdı">Anbardan çıxdı</option>
               <option value="Çatdırıldı">Çatdırıldı</option>
             </select>
             <button class="btn-cancel" style="font-size:12px;padding:8px 14px;" onclick="manualSyncSales(this)">☁️ Sinxronlaşdır</button>
           </div>
         </div>
         <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">
-          Hər təsdiqlənmiş satış burada bir sifariş kimi görünür. Məhsul fiziki olaraq anbardan çıxanda statusu "Çatdırıldı" olaraq dəyişin — tarixçə avtomatik saxlanılır.
+          Hər təsdiqlənmiş satış burada bir sifariş kimi görünür. Məhsul fiziki olaraq anbardan çıxanda statusu "Anbardan çıxdı", müştəriyə çatanda isə "Çatdırıldı" olaraq dəyişin — tarixçə avtomatik saxlanılır.
         </div>
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -3149,7 +3151,7 @@ function applyLiveInventory(products) {
 }
 
 // ─── Warehouse fulfillment tracking ─────────────────────────
-const WAREHOUSE_STATUSES = ['Anbarda', 'Çatdırıldı'];
+const WAREHOUSE_STATUSES = ['Anbarda', 'Anbardan çıxdı', 'Çatdırıldı'];
 const WAREHOUSE_STATUS_DEFAULT = 'Anbarda';
 const WAREHOUSE_LOG_KEY = 'vt_warehouse_log';
 
@@ -5837,7 +5839,7 @@ function renderWarehouseOrders() {
     const statusOptions = WAREHOUSE_STATUSES.map(function(s) {
       return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + s + '</option>';
     }).join('');
-    const statusColor = o.status === 'Çatdırıldı' ? 'var(--green-accent)' : 'var(--warning)';
+    const statusColor = o.status === 'Çatdırıldı' ? 'var(--green-accent)' : (o.status === 'Anbardan çıxdı' ? '#2b6cb0' : 'var(--warning)');
     return '<tr style="border-bottom:1px solid rgba(0,0,0,0.06);">' +
       '<td style="padding:8px 6px;white-space:nowrap;"><strong>' + escapeHtml(o.saleId) + '</strong></td>' +
       '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(o.ts).toLocaleString() + '</td>' +
