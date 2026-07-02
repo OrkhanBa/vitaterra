@@ -3011,6 +3011,7 @@
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="/products-data.js"></script>
 <script>
 // Global state — declared first for safe hoisting
@@ -4533,7 +4534,7 @@ function renderAdminKPIs() {
   if(!el) return;
   el.innerHTML = `
     <div class="kpi-card"><div class="kpi-icon kpi-green">📦</div><div><div class="kpi-num">${products.length}</div><div class="kpi-label">Total Products</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon kpi-gold">💰</div><div><div class="kpi-num">$${totalRevenue.toFixed(0)}</div><div class="kpi-label">Total Revenue</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon kpi-gold">💰</div><div><div class="kpi-num">${formatAzn(totalRevenue)}</div><div class="kpi-label">Total Revenue</div></div></div>
     <div class="kpi-card"><div class="kpi-icon kpi-red">⚠️</div><div><div class="kpi-num">${lowStock}</div><div class="kpi-label">Low Stock Items</div></div></div>
     <div class="kpi-card"><div class="kpi-icon kpi-red">🚫</div><div><div class="kpi-num">${outStock}</div><div class="kpi-label">Out of Stock</div></div></div>
   `;
@@ -5043,7 +5044,7 @@ function renderSalesLog() {
 
   tbody.innerHTML = [...filtered].reverse().map(s => {
     const discBadge = (s.discountPct > 0)
-      ? `<span title="Original: $${(+s.unitPriceOriginal).toFixed(2)}" style="display:inline-block;margin-left:6px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">−${s.discountPct}%</span>`
+      ? `<span title="Original: ${formatAzn(+s.unitPriceOriginal)}" style="display:inline-block;margin-left:6px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">−${s.discountPct}%</span>`
       : '';
     const voidedBadge = s.voided
       ? `<span title="${s.voidedBy ? 'Ləğv edən: ' + escapeHtml(s.voidedBy) : ''}" style="display:inline-block;margin-left:6px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">LƏĞV EDİLİB</span>`
@@ -5057,8 +5058,8 @@ function renderSalesLog() {
       <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(s.salesperson || 'Sales Team')}</span></td>
       <td><strong${s.voided ? ' style="text-decoration:line-through;"' : ''}>${escapeHtml(s.productName)}</strong>${voidedBadge}</td>
       <td>${s.qty}</td>
-      <td>$${(+s.unitPrice).toFixed(2)}${discBadge}</td>
-      <td><strong>$${(+s.total).toFixed(2)}</strong></td>
+      <td>${formatAzn(+s.unitPrice)}${discBadge}</td>
+      <td><strong>${formatAzn(+s.total)}</strong></td>
       <td>${escapeHtml(s.customer || '\u2014')}</td>
       <td style="white-space:nowrap;">${rowActions}</td>
     </tr>`;
@@ -5068,17 +5069,17 @@ function renderSalesLog() {
 function activityDetailHtml(e) {
   switch (e.action) {
     case 'sale_confirmed':
-      return `${e.qty} ədəd &middot; $${(+e.total || 0).toFixed(2)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
+      return `${e.qty} ədəd &middot; ${formatAzn(+e.total || 0)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
     case 'sale_edited': {
       const parts = [];
       if (e.oldQty !== undefined && e.newQty !== undefined && e.oldQty !== e.newQty) parts.push(`Sayı: ${e.oldQty} → ${e.newQty}`);
-      if (e.oldUnitPrice !== undefined && e.newUnitPrice !== undefined && e.oldUnitPrice !== e.newUnitPrice) parts.push(`Qiymət: $${(+e.oldUnitPrice).toFixed(2)} → $${(+e.newUnitPrice).toFixed(2)}`);
+      if (e.oldUnitPrice !== undefined && e.newUnitPrice !== undefined && e.oldUnitPrice !== e.newUnitPrice) parts.push(`Qiymət: ${formatAzn(+e.oldUnitPrice)} → ${formatAzn(+e.newUnitPrice)}`);
       if (e.oldCustomer !== e.newCustomer) parts.push(`Müştəri: "${escapeHtml(e.oldCustomer || '\u2014')}" → "${escapeHtml(e.newCustomer || '\u2014')}"`);
-      if (e.oldTotal !== undefined && e.newTotal !== undefined) parts.push(`Cəm: $${(+e.oldTotal).toFixed(2)} → $${(+e.newTotal).toFixed(2)}`);
+      if (e.oldTotal !== undefined && e.newTotal !== undefined) parts.push(`Cəm: ${formatAzn(+e.oldTotal)} → ${formatAzn(+e.newTotal)}`);
       return parts.join(' &middot; ') || '\u2014';
     }
     case 'sale_voided':
-      return `${e.qty} ədəd &middot; $${(+e.total || 0).toFixed(2)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
+      return `${e.qty} ədəd &middot; ${formatAzn(+e.total || 0)}${e.customer ? ' &middot; ' + escapeHtml(e.customer) : ''}`;
     case 'sales_log_cleared':
       return `${e.count} aktiv satış ləğv edildi`;
     case 'warehouse_status_changed':
@@ -5173,7 +5174,7 @@ function renderSalesTotalsByUser(sales) {
   wrap.innerHTML = keys.map(k => `
     <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:160px;">
       <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(totals[k].name)}</div>
-      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--green-dark);">$${totals[k].total.toFixed(2)}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--green-dark);">${formatAzn(totals[k].total)}</div>
       <div style="font-size:12px;color:var(--text-light);">${totals[k].count} satış vahidi</div>
     </div>`).join('');
 }
@@ -5264,7 +5265,7 @@ function adminEditSale(ts) {
   const newQty = parseFloat(newQtyStr);
   if(!(newQty > 0)) { showToast('Sayı 0-dan böyük olmalıdır.', true); return; }
 
-  const newPriceStr = prompt(`Vahid qiyməti $ (mövcud: ${(+s.unitPrice).toFixed(2)}):`, String(s.unitPrice));
+  const newPriceStr = prompt(`Vahid qiyməti ₼ (mövcud: ${(+s.unitPrice).toFixed(2)}):`, String(s.unitPrice));
   if(newPriceStr == null) return;
   const newPrice = parseFloat(newPriceStr);
   if(!(newPrice >= 0)) { showToast('Qiymət düzgün deyil.', true); return; }
@@ -5873,63 +5874,91 @@ function setWarehouseOrderStatus(saleId, status) {
 
 // Builds a printable "warehouse release slip" PDF for one order (all product
 // lines under a saleId) so it can be physically handed to warehouse staff.
+//
+// jsPDF's built-in fonts (Helvetica/Times/Courier) only cover WinAnsi
+// encoding, which is missing Azerbaijani letters like ə, ı and ş — text
+// using them renders as garbled substitute glyphs. Rather than embedding a
+// custom Unicode font, we lay the slip out as plain HTML (using the page's
+// own 'DM Sans' font, which the browser already renders correctly) and
+// rasterize it with html2canvas, then drop that image into the PDF. This
+// guarantees the Azerbaijani text always looks right, at the cost of the
+// text not being selectable in the resulting PDF.
 function exportSaleSlipPdf(saleId) {
   const items = getSales().filter(function(s) { return _warehouseIdMatch(saleId, s); });
   if (!items.length) { showToast('Bu sifariş üçün məlumat tapılmadı.', true); return; }
-  if (typeof window.jspdf === 'undefined') { showToast('PDF kitabxanası yüklənmədi — internetinizi yoxlayın.', true); return; }
+  if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+    showToast('PDF kitabxanası yüklənmədi — internetinizi yoxlayın.', true);
+    return;
+  }
 
-  const jsPDF = window.jspdf.jsPDF;
-  const doc = new jsPDF();
   const first = items[0];
-
-  doc.setFontSize(16);
-  doc.text('VITA TERRA MMC', 14, 18);
-  doc.setFontSize(11);
-  doc.text('Anbar Buraxılış Sənədi', 14, 26);
-
-  doc.setFontSize(10);
-  doc.text('Sifariş ID: ' + saleId, 14, 38);
-  doc.text('Tarix: ' + new Date(first.ts).toLocaleString(), 14, 44);
-  doc.text('Müştəri: ' + (first.customer || '—'), 14, 50);
-  doc.text('Satıcı: ' + (first.salesperson || '—'), 14, 56);
-
-  let y = 68;
-  doc.setFont(undefined, 'bold');
-  doc.text('Məhsul', 14, y);
-  doc.text('Miqdar', 122, y);
-  doc.text('Vahid qiymət', 148, y);
-  doc.text('Cəmi', 180, y);
-  doc.setFont(undefined, 'normal');
-  y += 4;
-  doc.line(14, y, 196, y);
-  y += 8;
-
   let grandTotal = 0;
-  items.forEach(function(it) {
-    if (y > 265) { doc.addPage(); y = 20; }
-    doc.text(String(it.productName).slice(0, 48), 14, y);
-    doc.text(String(it.qty), 122, y);
-    doc.text('$' + (+it.unitPrice).toFixed(2), 148, y);
-    doc.text('$' + (+it.total).toFixed(2), 180, y);
+  const rowsHtml = items.map(function(it) {
     grandTotal += (+it.total) || 0;
-    y += 7;
+    return '<tr>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;">' + escapeHtml(it.productName) + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + it.qty + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(+it.unitPrice) + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(+it.total) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  const slip = document.createElement('div');
+  slip.style.cssText = 'position:fixed;left:-9999px;top:0;width:780px;background:#fff;padding:36px;font-family:"DM Sans",sans-serif;color:#222;box-sizing:border-box;';
+  slip.innerHTML = `
+    <div style="font-size:22px;font-weight:700;color:#1b4332;">VITA TERRA MMC</div>
+    <div style="font-size:15px;color:#555;margin-bottom:18px;">Anbar Buraxılış Sənədi</div>
+    <div style="font-size:13px;line-height:1.9;margin-bottom:18px;">
+      <div><strong>Sifariş ID:</strong> ${escapeHtml(saleId)}</div>
+      <div><strong>Tarix:</strong> ${new Date(first.ts).toLocaleString()}</div>
+      <div><strong>Müştəri:</strong> ${escapeHtml(first.customer || '—')}</div>
+      <div><strong>Satıcı:</strong> ${escapeHtml(first.salesperson || '—')}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f2f2f2;">
+          <th style="padding:6px 8px;text-align:left;border-bottom:2px solid #999;">Məhsul</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Miqdar</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Vahid qiymət</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Cəmi</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:10px;">Yekun: ${formatAzn(grandTotal)}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:13px;">
+      <div>Anbar məsulu: _______________________&nbsp;&nbsp;Tarix: __________</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:36px;font-size:13px;">
+      <div>Təhvil alan: _______________________&nbsp;&nbsp;&nbsp;&nbsp;Tarix: __________</div>
+    </div>
+  `;
+  document.body.appendChild(slip);
+
+  window.html2canvas(slip, { scale: 2, backgroundColor: '#ffffff' }).then(function(canvas) {
+    document.body.removeChild(slip);
+    const jsPDF = window.jspdf.jsPDF;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210, pageHeight = 297;
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgData = canvas.toDataURL('image/png');
+    let heightLeft = imgHeight;
+    let position = 0;
+    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    doc.save('VitaTerra-' + saleId + '.pdf');
+  }).catch(function(e) {
+    if (slip.parentNode) document.body.removeChild(slip);
+    console.error('PDF render failed:', e);
+    showToast('PDF yaradıla bilmədi.', true);
   });
-
-  y += 3;
-  doc.line(14, y, 196, y);
-  y += 8;
-  doc.setFont(undefined, 'bold');
-  doc.text('Yekun: $' + grandTotal.toFixed(2), 148, y);
-  doc.setFont(undefined, 'normal');
-
-  y += 26;
-  doc.text('Anbar məsulu: _______________________', 14, y);
-  doc.text('Tarix: ____________', 148, y);
-  y += 18;
-  doc.text('Təhvil alan: _______________________', 14, y);
-  doc.text('Tarix: ____________', 148, y);
-
-  doc.save('VitaTerra-' + saleId + '.pdf');
 }
 
 function openEditSale(ts) {
