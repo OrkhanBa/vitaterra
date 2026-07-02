@@ -1068,6 +1068,12 @@
     outline:none; color:var(--green-dark);
   }
   .cart-price-input:focus { border-color:var(--green-accent); }
+  /* Sale prices are set by admin (Pricing tab); sales reps can only view
+     them here, not edit — so this reads as a locked/disabled field. */
+  .cart-price-input[readonly] {
+    background:var(--cream); color:var(--text-light); cursor:not-allowed;
+  }
+  .cart-price-input[readonly]:focus { border-color:var(--border); }
   .cart-item-subtotal {
     font-size:13px; font-weight:700; color:var(--green-accent);
     text-align:right; margin-top:8px;
@@ -5572,13 +5578,6 @@ function updateCartQty(id, val) {
   refreshCartTotals();
 }
 
-function updateCartPrice(id, val) {
-  if(!cartItems[id]) return;
-  cartItems[id].customPrice = parseFloat(val) || 0;
-  refreshCartItemSubtotal(id);
-  refreshCartTotals();
-}
-
 // Cart line prices are always VAT-inclusive gross amounts, so the VAT
 // portion shown here is backed out of the total (gross * rate/(100+rate))
 // rather than added on top — matches how Finance computes vatAmount.
@@ -5724,7 +5723,7 @@ function renderCart() {
         <div>
           <div class="cart-item-label" data-en="Sale Price / pack" data-az="Satış qiyməti / qablaşdırma">Satış qiyməti / ${packLbl}</div>
           <input class="cart-price-input" id="cp-${id}" type="number" value="${item.customPrice.toFixed(2)}"
-            min="0" step="0.01" onchange="updateCartPrice(${id},this.value)" placeholder="0.00"/>
+            readonly title="Qiymət admin tərəfindən Pricing bölməsində təyin olunur"/>
         </div>
       </div>
       <div class="cart-item-subtotal" id="cs-${id}">Cəm: ${formatAzn(subtotal)}</div>${vatNote}
