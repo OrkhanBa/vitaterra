@@ -2096,7 +2096,7 @@
       <label class="form-label">Password</label>
       <input class="form-input" type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
-    <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
+    <button class="btn-primary" id="login-submit-btn" style="width:100%;margin-bottom:12px;" onclick="doLogin()">Sign In</button>
     </div>
     <button class="btn-secondary" style="width:100%;" onclick="cancelLogin()">Cancel</button>
     <p id="login-hint" style="text-align:center;font-size:12px;color:var(--text-light);margin-top:16px;">
@@ -2114,6 +2114,8 @@
     </div>
     <div class="dash-nav-right">
       <span class="dash-user" id="admin-user-name">👤 Administrator</span>
+      <button class="btn-logout" onclick="adminOpenSales()" title="Satış portalını aç" data-en="Sales" data-az="Satış">Satış</button>
+      <button class="btn-logout" onclick="adminOpenFinance()" title="Maliyyə panelini aç" data-en="Finance" data-az="Maliyyə">Maliyyə</button>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
   </div>
@@ -2192,10 +2194,10 @@
       <!-- Salespeople management -->
       <div class="table-wrap" style="margin-bottom:18px;">
         <div class="table-header">
-          <div class="table-title">👥 Satış Əməkdaşları</div>
+          <div class="table-title">👥 İstifadəçilər (Satış & Maliyyə)</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-add" style="background:var(--gold);color:var(--green-dark);" onclick="publishSalesUsers()" title="Mobil və digər cihazlarda login işləsin deyə">🚀 Loginləri Publish et</button>
-            <button class="btn-add" onclick="openSalesUserModal()">+ Yeni əməkdaş</button>
+            <button class="btn-add" onclick="refreshAppUsers()" title="Serverdən yenilə">☁️ Yenilə</button>
+            <button class="btn-add" onclick="openSalesUserModal()">+ Yeni istifadəçi</button>
           </div>
         </div>
         <div id="sales-users-publish-status" style="display:none;padding:0 18px 10px;font-size:12px;color:var(--text-light);"></div>
@@ -2586,6 +2588,7 @@
     </div>
     <div class="dash-nav-right">
       <span class="dash-user" id="sales-user-name">👤 Satış Komandası</span>
+      <button class="btn-logout" id="sales-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()" data-en="Sign Out" data-az="Çıxış">Çıxış</button>
     </div>
   </div>
@@ -2757,6 +2760,7 @@
     </div>
     <div class="dash-nav-right">
       <span class="dash-user" id="finance-user-name">👤 Mühasibat</span>
+      <button class="btn-logout" id="finance-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()">Çıxış</button>
     </div>
   </div>
@@ -2890,6 +2894,11 @@
           <div><label>Məbləğ</label><input type="number" id="fe-amount" step="0.01" min="0" placeholder="0.00"/></div>
           <div><label>Valyuta</label><select id="fe-currency"><option value="AZN">AZN ₼</option><option value="USD">USD $</option></select></div>
           <div style="grid-column:span 2;"><label>Təchizatçı / qeyd</label><input type="text" id="fe-vendor" placeholder="İstəyə bağlı"/></div>
+          <div style="grid-column:span 2;">
+            <label>Sənəd (çek, faktura/invoice, gömrük sənədi və s.)</label>
+            <input type="file" id="fe-files" accept="image/*,application/pdf" multiple onchange="financeHandleExpenseFilesChosen(event)"/>
+            <div id="fe-files-preview" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
           <button class="pricing-mini-btn" onclick="financeCloseExpenseForm()">Ləğv et</button>
@@ -2905,6 +2914,7 @@
               <th>Təsvir</th>
               <th class="num">Məbləğ ₼</th>
               <th>Qeyd</th>
+              <th>Sənəd</th>
               <th></th>
             </tr>
           </thead>
@@ -3109,10 +3119,119 @@ const STOCK_KG_MIGRATION_KEY = 'vt_stock_kg_base_v2';
 const SUPABASE_URL      = 'https://gqhjntqfgwvyqpynfzut.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaGpudHFmZ3d2eXFweW5menV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODY1NDksImV4cCI6MjA5ODU2MjU0OX0.tezK6Q-UktN14NA1po5KhnliQvRgSn3UUunA9d90aDk';
 
+// ─── Supabase Auth session (sales / finance / admin) ────────
+// After login the browser holds a real Supabase session JWT. Every REST call
+// sends it as the Bearer token so PostgREST treats the request as an
+// authenticated user (RLS then allows writes); the anon key stays as `apikey`.
+// The public storefront has no session and stays anonymous (read-only stock).
+var SUPABASE_SESSION_KEY = 'vt_sb_session';
+var supabaseSession = null; // { access_token, refresh_token, expires_at, role, name, username }
+
+function usernameToEmail(username) {
+  return String(username || '').trim().toLowerCase() + '@users.vitaterra.az';
+}
+
+function loadSupabaseSession() {
+  try {
+    var d = localStorage.getItem(SUPABASE_SESSION_KEY);
+    supabaseSession = d ? JSON.parse(d) : null;
+  } catch (e) { supabaseSession = null; }
+  return supabaseSession;
+}
+
+function saveSupabaseSession(sess) {
+  supabaseSession = sess;
+  try {
+    if (sess) localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(sess));
+    else localStorage.removeItem(SUPABASE_SESSION_KEY);
+  } catch (e) { /* ignore quota */ }
+}
+
+function supabaseSessionRole() { return supabaseSession && supabaseSession.role; }
+function hasSupabaseSession() { return !!(supabaseSession && supabaseSession.access_token); }
+
+function sessionFromTokenResponse(r) {
+  var meta = (r.user && r.user.app_metadata) || {};
+  return {
+    access_token: r.access_token,
+    refresh_token: r.refresh_token,
+    expires_at: Date.now() + ((r.expires_in || 3600) * 1000),
+    role: meta.role || 'sales',
+    name: meta.name || (r.user && r.user.email) || '',
+    username: meta.username || '',
+  };
+}
+
+// Sign in with a username + password against Supabase Auth. Resolves to the
+// stored session on success, or throws on bad credentials.
+async function supabaseSignIn(username, password) {
+  var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: usernameToEmail(username), password: password }),
+  });
+  if (!res.ok) throw new Error('invalid_credentials');
+  var data = await res.json();
+  var sess = sessionFromTokenResponse(data);
+  saveSupabaseSession(sess);
+  return sess;
+}
+
+// Adopt a session minted server-side (admin Clerk bridge) from raw tokens.
+function adoptSupabaseSession(access_token, refresh_token, role, name, username, expires_in) {
+  var sess = {
+    access_token: access_token, refresh_token: refresh_token,
+    expires_at: Date.now() + ((expires_in || 3600) * 1000),
+    role: role || 'admin', name: name || 'Administrator', username: username || 'admin',
+  };
+  saveSupabaseSession(sess);
+  return sess;
+}
+
+async function supabaseRefreshSession() {
+  if (!supabaseSession || !supabaseSession.refresh_token) return false;
+  try {
+    var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: supabaseSession.refresh_token }),
+    });
+    if (!res.ok) { saveSupabaseSession(null); return false; }
+    var data = await res.json();
+    // Preserve role/name (refresh response app_metadata is present too).
+    var next = sessionFromTokenResponse(data);
+    if (!next.role && supabaseSession) next.role = supabaseSession.role;
+    if (!next.name && supabaseSession) next.name = supabaseSession.name;
+    saveSupabaseSession(next);
+    return true;
+  } catch (e) { return false; }
+}
+
+// Refresh proactively when the token is within 5 minutes of expiry.
+async function ensureFreshSession() {
+  if (!supabaseSession) return false;
+  if (Date.now() < (supabaseSession.expires_at || 0) - 5 * 60 * 1000) return true;
+  return await supabaseRefreshSession();
+}
+
+async function supabaseSignOut() {
+  var sess = supabaseSession;
+  saveSupabaseSession(null);
+  if (sess && sess.access_token) {
+    try {
+      await fetch(SUPABASE_URL + '/auth/v1/logout', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + sess.access_token },
+      });
+    } catch (e) { /* best effort */ }
+  }
+}
+
 function supabaseHeaders(extra) {
+  var bearer = (supabaseSession && supabaseSession.access_token) || SUPABASE_ANON_KEY;
   return Object.assign({
     'apikey': SUPABASE_ANON_KEY,
-    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + bearer,
     'Content-Type': 'application/json',
   }, extra || {});
 }
@@ -3204,6 +3323,7 @@ var _liveInventory = null;
 // place that just needs current stock, without pulling sales/activity data).
 async function syncInventoryFromServer() {
   try {
+    await ensureFreshSession();
     const res = await fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() });
     if (!res.ok) return false;
     const rows = await res.json();
@@ -3263,6 +3383,7 @@ function supabaseInsertExpense(entry) {
     created_at_ms: entry.createdAtMs,
     updated_by: entry.updatedBy || null, updated_at_ms: entry.updatedAtMs || null,
     voided: !!entry.voided, voided_by: entry.voidedBy || null, voided_at_ms: entry.voidedAtMs || null,
+    attachments: entry.attachments || [],
   };
   return fetch(SUPABASE_URL + '/rest/v1/expenses', {
     method: 'POST',
@@ -3287,7 +3408,95 @@ function supabaseRowToExpense(r) {
     createdAtMs: r.created_at_ms,
     updatedBy: r.updated_by || undefined, updatedAtMs: r.updated_at_ms || undefined,
     voided: !!r.voided, voidedBy: r.voided_by || undefined, voidedAtMs: r.voided_at_ms || undefined,
+    attachments: Array.isArray(r.attachments) ? r.attachments : [],
   };
+}
+
+// ─── Expense receipt / invoice attachments ──────────────────
+// Supporting evidence for an expense (a receipt photo, a customs invoice
+// PDF, etc). Stored in the public `expense-receipts` Storage bucket, whose
+// RLS grants insert only — no update/delete — so once a document is
+// attached to a financial record it can never be swapped out or removed,
+// same append-only guarantee as the expense row itself.
+const EXPENSE_RECEIPTS_BUCKET = 'expense-receipts';
+const EXPENSE_FILE_MAX_BYTES = 15 * 1024 * 1024;
+
+async function supabaseUploadExpenseFile(expenseId, file) {
+  const safeName = String(file.name || 'sənəd').replace(/[^a-zA-Z0-9_.\-]/g, '_');
+  const path = expenseId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
+  const res = await fetch(SUPABASE_URL + '/storage/v1/object/' + EXPENSE_RECEIPTS_BUCKET + '/' + encodeURI(path), {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Content-Type': file.type || 'application/octet-stream' }),
+    body: file
+  });
+  if (!res.ok) throw new Error('Expense file upload failed with status ' + res.status);
+  return {
+    name: file.name || safeName,
+    path: path,
+    url: SUPABASE_URL + '/storage/v1/object/public/' + EXPENSE_RECEIPTS_BUCKET + '/' + encodeURI(path),
+    size: file.size || 0,
+    type: file.type || ''
+  };
+}
+
+// Uploads are best-effort: a receipt failing to upload (e.g. offline) must
+// never block recording the expense itself — the amount/date/category is
+// the financial fact that matters; the document is corroborating evidence
+// that can be retried/added later. Each failure surfaces its own toast.
+async function financeUploadPendingExpenseFiles(expenseId, files) {
+  const uploaded = [];
+  for (const file of files) {
+    try {
+      uploaded.push(await supabaseUploadExpenseFile(expenseId, file));
+    } catch (e) {
+      console.warn('Expense file upload failed:', e);
+      showToast('"' + (file.name || 'sənəd') + '" yüklənmədi (internet?). Xərc saxlanılır, sənədi sonra yenidən əlavə edə bilərsiniz.', true);
+    }
+  }
+  return uploaded;
+}
+
+// Files staged in the open expense form, not yet uploaded — cleared on
+// open/close/save so a leftover selection from a previous entry can't
+// silently attach itself to the next one.
+var financePendingExpenseFiles = [];
+
+function financeHandleExpenseFilesChosen(event) {
+  const chosen = Array.from((event.target && event.target.files) || []);
+  chosen.forEach(function(f) {
+    if (f.size > EXPENSE_FILE_MAX_BYTES) {
+      showToast('"' + f.name + '" 15MB-dan böyükdür, əlavə edilmədi.', true);
+      return;
+    }
+    financePendingExpenseFiles.push(f);
+  });
+  if (event.target) event.target.value = '';
+  financeRenderExpenseFilesPreview();
+}
+
+function financeRemovePendingExpenseFile(idx) {
+  financePendingExpenseFiles.splice(idx, 1);
+  financeRenderExpenseFilesPreview();
+}
+
+function financeRenderExpenseFilesPreview() {
+  const el = document.getElementById('fe-files-preview');
+  if (!el) return;
+  el.innerHTML = financePendingExpenseFiles.map(function(f, i) {
+    const label = f.name.length > 22 ? f.name.slice(0, 20) + '…' : f.name;
+    return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--cream);padding:3px 8px;border-radius:100px;font-size:11px;">'
+      + '📎 ' + escapeHtml(label)
+      + '<button type="button" onclick="financeRemovePendingExpenseFile(' + i + ')" style="border:none;background:none;color:var(--danger);cursor:pointer;font-weight:700;padding:0;">×</button>'
+      + '</span>';
+  }).join('');
+}
+
+function financeAttachmentsHtml(attachments) {
+  if (!attachments || !attachments.length) return '<span style="color:var(--text-light);font-size:12px;">—</span>';
+  return attachments.map(function(a) {
+    const label = (a.name || 'sənəd').length > 16 ? a.name.slice(0, 14) + '…' : (a.name || 'sənəd');
+    return '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener" title="' + escapeHtml(a.name || '') + '" style="display:inline-flex;align-items:center;gap:2px;font-size:11px;margin:0 6px 2px 0;white-space:nowrap;">📎 ' + escapeHtml(label) + '</a>';
+  }).join('');
 }
 
 // Records one status transition for an order (sale_id) — used both for the
@@ -3308,6 +3517,7 @@ function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverrid
 // fulfillment status visible across devices without a GitHub publish.
 async function syncSalesFromServer() {
   try {
+    await ensureFreshSession();
     const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
@@ -4008,6 +4218,13 @@ function showView(v) {
   window.scrollTo(0,0);
   if(v === 'sales') updateSalesHeader();
   if(v === 'finance') setTimeout(financeInit, 50);
+  // Show the "Admin" back-button in sales/finance only when an admin is signed
+  // in (master login) — regular sales/finance users never see it.
+  var adminAuthed = (typeof isAdminAuthed === 'function') && isAdminAuthed();
+  var sba = document.getElementById('sales-back-admin');
+  if (sba) sba.style.display = (v === 'sales' && adminAuthed) ? '' : 'none';
+  var fba = document.getElementById('finance-back-admin');
+  if (fba) fba.style.display = (v === 'finance' && adminAuthed) ? '' : 'none';
   // Keep sales data live across devices while any data-sensitive view is open;
   // stop polling once back on the public site so we're not calling Supabase
   // for nothing.
@@ -4204,10 +4421,54 @@ function updateAdminHeaderUser() {
   }
 }
 
+// Exchange the verified Clerk admin session for a Supabase admin session so
+// admin-panel reads/writes hit Supabase as an authenticated user (master login).
+async function acquireAdminSupabaseSession() {
+  try {
+    const token = await getClerkSessionToken();
+    if (!token) return false;
+    const res = await fetch('/.netlify/functions/admin-session', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) { console.warn('admin-session bridge failed:', res.status); return false; }
+    const data = await res.json();
+    adoptSupabaseSession(data.access_token, data.refresh_token, data.role, data.name, data.username, data.expires_in);
+    return true;
+  } catch (e) { console.warn('admin-session bridge error:', e); return false; }
+}
+
 function onAdminClerkSignedIn() {
   if (!window.Clerk || !window.Clerk.isSignedIn) return;
   clearClerkAuthHash();
   closeLogin();
+  showView('admin');
+  renderAdminDash();
+  updateAdminHeaderUser();
+  // Bridge to Supabase in the background; refresh data-bound views once ready.
+  acquireAdminSupabaseSession().then(function(ok) {
+    if (ok) refreshSalesFromServerAndRerender();
+  });
+}
+
+// Master-login navigation: an authenticated admin can jump straight into the
+// sales or finance portals without a separate password.
+function isAdminAuthed() {
+  return (clerkReady && window.Clerk && window.Clerk.isSignedIn) || supabaseSessionRole() === 'admin';
+}
+function adminOpenSales() {
+  if (!isAdminAuthed()) return;
+  setCurrentSalesUser({ username: 'admin', name: (supabaseSession && supabaseSession.name) || 'Administrator' });
+  showView('sales');
+  renderSalesView();
+  updateSalesHeader();
+}
+function adminOpenFinance() {
+  if (!isAdminAuthed()) return;
+  setFinanceSignedIn(true);
+  showView('finance');
+}
+function adminBackToAdmin() {
   showView('admin');
   renderAdminDash();
   updateAdminHeaderUser();
@@ -4267,9 +4528,9 @@ function updateLoginHint(role) {
   if(role === 'admin') {
     hint.textContent = useClerkAuth()
       ? 'Admin girişi Clerk hesabınızla edilir.'
-      : 'Admin: admin / admin123';
+      : 'Admin girişi Clerk ilə konfiqurasiya olunmalıdır.';
   } else if(role === 'finance') {
-    hint.textContent = 'Maliyyə: ' + FINANCE_USER + ' / ' + getFinancePass();
+    hint.textContent = 'Maliyyə girişi — istifadəçi adınızı və şifrənizi daxil edin.';
   } else {
     hint.textContent = 'Satıcı girişi — şəxsi istifadəçi adınızı və şifrənizi daxil edin.';
   }
@@ -4287,60 +4548,61 @@ function setLoginRole(role, btn) {
   updateLoginHint(role);
   updateLoginFormForRole(role);
 }
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value.trim();
   const err  = document.getElementById('login-error');
+  const btn  = document.getElementById('login-submit-btn');
   err.classList.remove('show');
 
+  // Admin is Clerk-only now — no client-side password. The admin login button
+  // opens the Clerk sign-in; there is no legacy fallback.
   if(loginTargetRole === 'admin') {
-    if (useClerkAuth()) {
-      openClerkAdminLogin();
-      return;
-    }
-    if(user === 'admin' && pass === 'admin123') {
-      closeLogin();
-      showView('admin');
-      renderAdminDash();
-      updateAdminHeaderUser();
-      return;
-    }
-    err.textContent = 'Incorrect password. Please try again.';
+    if (useClerkAuth()) { openClerkAdminLogin(); return; }
+    err.textContent = 'Admin girişi Clerk ilə konfiqurasiya olunmayıb. Zəhmət olmasa administratorla əlaqə saxlayın.';
     err.classList.add('show');
     return;
   }
 
-  if(loginTargetRole === 'sales') {
-    const users = getSalesUsersForLogin();
-    const match = users.find(u =>
-      u.username.toLowerCase() === user.toLowerCase() && u.password === pass
-    );
-    if(match) {
-      setCurrentSalesUser({ username: match.username, name: match.name || match.username });
+  if(loginTargetRole !== 'sales' && loginTargetRole !== 'finance') return;
+
+  if(btn) { btn.disabled = true; btn.dataset.prev = btn.textContent; btn.textContent = 'Yoxlanılır...'; }
+  try {
+    const sess = await supabaseSignIn(user, pass);
+    // A user may only enter the portal matching their role; an admin account
+    // (master login) may enter either sales or finance too.
+    const role = sess.role;
+    const allowed = (loginTargetRole === 'sales'  && (role === 'sales'  || role === 'admin'))
+                 || (loginTargetRole === 'finance' && (role === 'finance' || role === 'admin'));
+    if(!allowed) {
+      await supabaseSignOut();
+      err.textContent = 'Bu hesabın bu panelə girişi yoxdur.';
+      err.classList.add('show');
+      return;
+    }
+
+    if(loginTargetRole === 'sales') {
+      setCurrentSalesUser({ username: sess.username || user, name: sess.name || sess.username || user });
       closeLogin();
       showView('sales');
       renderSalesView();
       updateSalesHeader();
-      return;
-    }
-    err.textContent = 'Incorrect password. Please try again.';
-    err.classList.add('show');
-    return;
-  }
-
-  if(loginTargetRole === 'finance') {
-    if(user.toLowerCase() === FINANCE_USER && pass === getFinancePass()) {
+    } else {
       setFinanceSignedIn(true);
       closeLogin();
       showView('finance');
-      return;
     }
-    err.textContent = 'Incorrect password. Please try again.';
+  } catch (e) {
+    err.textContent = 'İstifadəçi adı və ya şifrə yanlışdır.';
     err.classList.add('show');
-    return;
+  } finally {
+    if(btn) { btn.disabled = false; if(btn.dataset.prev) btn.textContent = btn.dataset.prev; }
   }
 }
 function logout() {
+  setCurrentSalesUser(null);
+  setFinanceSignedIn(false);
+  supabaseSignOut();
   if (currentView === 'admin' && clerkReady && window.Clerk && window.Clerk.isSignedIn) {
     window.Clerk.signOut().finally(function() {
       showView('public');
@@ -4350,8 +4612,6 @@ function logout() {
     });
     return;
   }
-  setCurrentSalesUser(null);
-  setFinanceSignedIn(false);
   showView('public');
   // Drop portal paths from the URL when signing out.
   if(location.pathname && location.pathname !== '/') {
@@ -5368,57 +5628,103 @@ function renderSalesUsersPublishStatus() {
   }
 }
 
+// Sales/finance accounts now live in Supabase Auth. All management goes through
+// the admin-only manage-users Netlify function (verified by the Clerk admin
+// token). Passwords are hashed server-side and are never shown or stored here.
+var _appUsersCache = [];
+
+async function manageUsersCall(payload) {
+  const token = await getClerkSessionToken();
+  if (!token) throw new Error('Admin (Clerk) girişi tələb olunur.');
+  const res = await fetch('/.netlify/functions/manage-users', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(function(){ return {}; });
+  if (!res.ok) throw new Error(data.error || ('Xəta (' + res.status + ')'));
+  return data;
+}
+
+function roleLabelAz(role) { return role === 'finance' ? 'Maliyyə' : 'Satış'; }
+
+async function refreshAppUsers() {
+  const wrap = document.getElementById('sales-users-list');
+  if (wrap) wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;">Yüklənir...</div>';
+  try {
+    const data = await manageUsersCall({ action: 'list' });
+    _appUsersCache = data.users || [];
+    renderSalesUsers();
+  } catch (e) {
+    if (wrap) wrap.innerHTML = '<div style="color:#c0392b;font-size:13px;">İstifadəçilər yüklənmədi: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// Kept as the entry point the Sales Log tab calls on open.
 function renderSalesUsers() {
   const wrap = document.getElementById('sales-users-list');
   if(!wrap) return;
-  const users = getSalesUsers();
-  renderSalesUsersPublishStatus();
+  const status = document.getElementById('sales-users-publish-status');
+  if (status) {
+    status.style.display = 'block';
+    status.style.color = 'var(--text-light)';
+    status.innerHTML = '🔐 Loginlər Supabase-də saxlanılır — bütün cihazlarda dərhal işləyir (publish lazım deyil).';
+  }
+  const users = _appUsersCache;
   if(!users.length){
-    wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;">Hələ əməkdaş yoxdur. Yeni əməkdaş əlavə edin.</div>';
+    wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;">İstifadəçi yoxdur, yaxud siyahını yeniləyin.</div>';
     return;
   }
-  wrap.innerHTML = users.map((u, i) => `
-    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--green-dark);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
+  wrap.innerHTML = users.map((u) => `
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;opacity:${u.active ? '1' : '0.55'};">
+      <div style="width:36px;height:36px;border-radius:50%;background:${u.role==='finance'?'#8e44ad':'var(--green-dark)'};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
       <div>
-        <div style="font-weight:600;color:var(--green-dark);">${escapeHtml(u.name || u.username)}</div>
-        <div style="font-size:12px;color:var(--text-light);">@${escapeHtml(u.username)} · şifrə: ${escapeHtml(u.password)}</div>
+        <div style="font-weight:600;color:var(--green-dark);">${escapeHtml(u.name || u.username)} <span style="font-size:11px;color:var(--text-light);font-weight:500;">· ${roleLabelAz(u.role)}</span></div>
+        <div style="font-size:12px;color:var(--text-light);">@${escapeHtml(u.username)}${u.active ? '' : ' · deaktiv'}</div>
       </div>
       <div style="display:flex;gap:4px;margin-left:8px;">
-        <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="openSalesUserModal(${i})">✏️</button>
-        <button class="btn-del" style="padding:4px 10px;font-size:12px;" onclick="deleteSalesUser(${i})">🗑</button>
+        <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="appUserResetPassword('${escapeHtml(u.id)}','${escapeHtml(u.username)}')" title="Şifrəni dəyiş">🔑</button>
+        <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="appUserToggleActive('${escapeHtml(u.id)}',${u.active ? 'false' : 'true'})" title="${u.active ? 'Deaktiv et' : 'Aktivləşdir'}">${u.active ? '🚫' : '✅'}</button>
       </div>
     </div>`).join('');
 }
 
-function openSalesUserModal(idx) {
-  const users = getSalesUsers();
-  const editing = (typeof idx === 'number' && idx >= 0);
-  const u = editing ? users[idx] : { username:'', password:'', name:'' };
-  const name = prompt('Əməkdaşın adı:', u.name || '');
+async function openSalesUserModal() {
+  const name = prompt('İstifadəçinin adı:');
   if(name == null) return;
-  const username = prompt('İstifadəçi adı (login):', u.username || '');
+  const username = prompt('İstifadəçi adı (login):');
   if(username == null) return;
-  const password = prompt('Şifrə:', u.password || '');
+  const roleIn = prompt('Rol — "satis" yoxsa "maliyye"?', 'satis');
+  if(roleIn == null) return;
+  const role = /maliyy|finance/i.test(roleIn) ? 'finance' : 'sales';
+  const password = prompt('Şifrə (ən az 6 simvol):');
   if(password == null) return;
   if(!name.trim() || !username.trim() || !password.trim()) { showToast('Bütün sahələri doldurun.', true); return; }
-  const dup = users.findIndex((x, i) => x.username === username.trim() && i !== idx);
-  if(dup >= 0) { showToast('Bu istifadəçi adı artıq mövcuddur.', true); return; }
-  const entry = { username: username.trim(), password: password.trim(), name: name.trim() };
-  if(editing) users[idx] = entry; else users.push(entry);
-  saveSalesUsers(users);
-  renderSalesUsers();
-  showToast((editing ? 'Əməkdaş yeniləndi.' : 'Əməkdaş əlavə edildi.') + ' Mobil üçün Loginləri Publish edin.');
+  try {
+    await manageUsersCall({ action: 'create', username: username.trim(), password: password, role: role, name: name.trim() });
+    showToast('İstifadəçi əlavə edildi (' + roleLabelAz(role) + ').');
+    refreshAppUsers();
+  } catch (e) { showToast('Xəta: ' + e.message, true); }
 }
 
-function deleteSalesUser(idx) {
-  const users = getSalesUsers();
-  if(!users[idx]) return;
-  if(!confirm(`"${users[idx].name || users[idx].username}" əməkdaşını silmək istəyirsiniz?`)) return;
-  users.splice(idx, 1);
-  saveSalesUsers(users);
-  renderSalesUsers();
-  showToast('Əməkdaş silindi. Dəyişiklik üçün Loginləri Publish edin.');
+async function appUserResetPassword(id, username) {
+  const password = prompt('"' + username + '" üçün yeni şifrə (ən az 6 simvol):');
+  if(password == null) return;
+  if(password.trim().length < 6) { showToast('Şifrə ən az 6 simvol olmalıdır.', true); return; }
+  try {
+    await manageUsersCall({ action: 'update', id: id, password: password });
+    showToast('Şifrə yeniləndi.');
+  } catch (e) { showToast('Xəta: ' + e.message, true); }
+}
+
+async function appUserToggleActive(id, makeActive) {
+  const active = (makeActive === true || makeActive === 'true');
+  if(!confirm(active ? 'Bu istifadəçini aktivləşdirmək istəyirsiniz?' : 'Bu istifadəçini deaktiv etmək (girişi bağlamaq) istəyirsiniz?')) return;
+  try {
+    await manageUsersCall({ action: 'update', id: id, active: active });
+    showToast(active ? 'İstifadəçi aktivləşdirildi.' : 'İstifadəçi deaktiv edildi.');
+    refreshAppUsers();
+  } catch (e) { showToast('Xəta: ' + e.message, true); }
 }
 
 // ─── Edit sale entry ───────────────────────────────────────
@@ -8874,6 +9180,9 @@ function handleRouteFromPath() {
       showView('admin');
       renderAdminDash();
       updateAdminHeaderUser();
+      if (!hasSupabaseSession() || supabaseSessionRole() !== 'admin') {
+        acquireAdminSupabaseSession().then(function(ok) { if (ok) refreshSalesFromServerAndRerender(); });
+      }
       return;
     }
     showView('public');
@@ -8883,12 +9192,14 @@ function handleRouteFromPath() {
   if(path === '/sales') {
     const u = getCurrentSalesUser();
     if(u) { showView('sales'); renderSalesView(); updateSalesHeader(); }
+    else if(isAdminAuthed()) { adminOpenSales(); }
     else  { showView('public'); openLogin('sales'); }
     return;
   }
   if(path === '/finance' || path === '/maliyye') {
     loginTargetRole = 'finance';
     if(isFinanceSignedIn()) { showView('finance'); return; }
+    if(isAdminAuthed()) { adminOpenFinance(); return; }
     showView('public');
     openLogin('finance');
     return;
@@ -8919,6 +9230,10 @@ function initScrollReveal() {
 
 // INIT
 document.addEventListener('DOMContentLoaded', async function() {
+  // Restore any saved Supabase session (sales/finance/admin) and refresh it if
+  // it has expired while the tab was closed.
+  loadSupabaseSession();
+  if (hasSupabaseSession()) { ensureFreshSession(); }
   // Pull the latest published site content + product catalog in parallel
   // before first render so non-admin visitors see the right data immediately.
   await Promise.all([fetchPublishedContent(), fetchPublishedProducts(), fetchPublishedSalesUsers()]);
@@ -10279,7 +10594,7 @@ function financeRenderExpenses(expenses) {
   const tbody = document.getElementById('finance-expenses-tbody');
   if(!tbody) return;
   if(!expenses.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:28px;">Xərc qeydi yoxdur. «+ Xərc əlavə et» ilə başlayın.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:28px;">Xərc qeydi yoxdur. «+ Xərc əlavə et» ilə başlayın.</td></tr>';
     return;
   }
   // Voided expenses stay visible (pale, struck through) for audit — never
@@ -10298,6 +10613,7 @@ function financeRenderExpenses(expenses) {
       <td${e.voided ? ' style="text-decoration:line-through;"' : ''}>${escapeHtml(e.description || '—')}${voidedBadge}</td>
       <td class="num">${financeFmtAzn(financeExpenseAmountQepik(e))}</td>
       <td>${escapeHtml(e.vendor || '—')}</td>
+      <td>${financeAttachmentsHtml(e.attachments)}</td>
       <td>${rowAction}</td>
     </tr>`;
   }).join('');
@@ -10363,6 +10679,7 @@ function financeRender() {
 
 function financeOpenExpenseForm() {
   financeEditingExpenseId = null;
+  financePendingExpenseFiles = [];
   const form = document.getElementById('finance-expense-form');
   if(form) form.style.display = '';
   const dateEl = document.getElementById('fe-date');
@@ -10371,15 +10688,20 @@ function financeOpenExpenseForm() {
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
+  const filesEl = document.getElementById('fe-files');
+  if(filesEl) filesEl.value = '';
+  financeRenderExpenseFilesPreview();
 }
 
 function financeCloseExpenseForm() {
   const form = document.getElementById('finance-expense-form');
   if(form) form.style.display = 'none';
   financeEditingExpenseId = null;
+  financePendingExpenseFiles = [];
+  financeRenderExpenseFilesPreview();
 }
 
-function financeSaveExpense() {
+async function financeSaveExpense() {
   const date = (document.getElementById('fe-date') || {}).value;
   const category = (document.getElementById('fe-category') || {}).value;
   const description = (document.getElementById('fe-desc') || {}).value.trim();
@@ -10393,20 +10715,25 @@ function financeSaveExpense() {
   const actor = currentActivityActor();
   const now = Date.now();
   const arr = financeGetExpenses();
+  const filesToUpload = financePendingExpenseFiles.slice();
 
   if(financeEditingExpenseId) {
     const idx = arr.findIndex(e => e.id === financeEditingExpenseId);
     if(idx < 0) { financeCloseExpenseForm(); return; }
     const prev = arr[idx];
     if(prev.voided) { showToast('Ləğv edilmiş xərc redaktə edilə bilməz.', true); return; }
+    // Newly attached files are appended — previously attached receipts are
+    // never dropped or replaced by an edit, only added to.
+    const newAttachments = await financeUploadPendingExpenseFiles(prev.id, filesToUpload);
+    const attachments = (prev.attachments || []).concat(newAttachments);
     const updated = Object.assign({}, prev, {
-      date, category, description, amount, currency, vendor,
+      date, category, description, amount, currency, vendor, attachments,
       updatedBy: actor.name, updatedAtMs: now
     });
     arr[idx] = updated;
     financeSaveExpenses(arr);
     supabaseUpdateExpenseById(updated.id, {
-      date, category, description, amount, currency, vendor,
+      date, category, description, amount, currency, vendor, attachments,
       updated_by: actor.name, updated_at_ms: now
     });
     logActivity('expense_edited', {
@@ -10417,9 +10744,10 @@ function financeSaveExpense() {
     // id includes a random suffix (not just Date.now()) so two rapid
     // creates — e.g. an accidental double-click — never collide on the
     // same primary key and silently merge into one row.
+    const id = 'exp-' + now + '-' + Math.random().toString(36).slice(2, 8);
+    const attachments = await financeUploadPendingExpenseFiles(id, filesToUpload);
     const entry = {
-      id: 'exp-' + now + '-' + Math.random().toString(36).slice(2, 8),
-      date, category, description, amount, currency, vendor,
+      id, date, category, description, amount, currency, vendor, attachments,
       createdByUsername: actor.username, createdByName: actor.name, createdAtMs: now,
       voided: false
     };
@@ -10427,7 +10755,8 @@ function financeSaveExpense() {
     financeSaveExpenses(arr);
     supabaseInsertExpense(entry);
     logActivity('expense_added', {
-      expenseId: entry.id, category, description, amount, currency, vendor
+      expenseId: entry.id, category, description, amount, currency, vendor,
+      attachmentCount: attachments.length
     });
   }
   financeCloseExpenseForm();
@@ -10526,7 +10855,8 @@ function financeExportXlsx() {
     'Valyuta': e.currency || 'AZN',
     'AZN ekvivalent': qToAzn(financeExpenseAmountQepik(e)),
     'Status': e.voided ? 'Ləğv edilib' : 'Aktiv',
-    'Qeyd': e.vendor || ''
+    'Qeyd': e.vendor || '',
+    'Sənədlər': (e.attachments || []).map(a => a.url).join('; ')
   }));
 
   const wb = XLSX.utils.book_new();
