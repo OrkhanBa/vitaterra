@@ -3682,6 +3682,9 @@ async function syncSalesFromServer() {
         _productPricing = pmap;
       }
     }
+    // Refresh the authoritative catalog snapshot so portal edits from other
+    // devices show up here too (falls back to products.json on failure).
+    await syncCatalogFromServer();
     if (salesRes.ok) {
       const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
       const localSales = getSales();
@@ -4019,6 +4022,48 @@ async function supabaseUpsertPricing(items) {
     }
     return res.ok;
   } catch (e) { console.warn('product_pricing upsert failed:', e); return false; }
+}
+
+// ── Authoritative catalog snapshot (Supabase site_catalog) ──
+// Portals prefer this over the CDN products.json so a publish/edit from one
+// device is visible on every other device without waiting for a redeploy.
+// Public visitors never touch it (they use products.json).
+async function supabaseUpsertCatalog(productsSnapshot) {
+  if (!hasSupabaseSession() || !Array.isArray(productsSnapshot) || !productsSnapshot.length) return false;
+  try {
+    await ensureFreshSession();
+    var headers = supabaseHeaders();
+    headers['Prefer'] = 'resolution=merge-duplicates';
+    var res = await fetch(SUPABASE_URL + '/rest/v1/site_catalog?on_conflict=id', {
+      method: 'POST', headers: headers,
+      body: JSON.stringify([{ id: 1, data: productsSnapshot, updated_at: new Date().toISOString() }])
+    });
+    return res.ok;
+  } catch (e) { console.warn('site_catalog upsert failed:', e); return false; }
+}
+
+// Load the authoritative catalog snapshot for a logged-in user and use it as
+// the fresh published baseline. Seeds the snapshot from products.json on the
+// first admin visit. No-ops (keeps products.json) for anon or on any failure.
+async function syncCatalogFromServer() {
+  if (!hasSupabaseSession()) return false;
+  try {
+    await ensureFreshSession();
+    var res = await fetch(SUPABASE_URL + '/rest/v1/site_catalog?id=eq.1&select=data', { headers: supabaseHeaders() });
+    if (!res.ok) return false;
+    var rows = await res.json();
+    var snapshot = (Array.isArray(rows) && rows[0] && rows[0].data) ? rows[0].data : null;
+    if (Array.isArray(snapshot) && snapshot.length) {
+      PUBLISHED_PRODUCTS = snapshot;
+      return true;
+    }
+    // Empty snapshot: seed it once from the current products.json baseline so
+    // the table becomes authoritative going forward.
+    if (supabaseSessionRole() === 'admin' && Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
+      supabaseUpsertCatalog(PUBLISHED_PRODUCTS);
+    }
+    return false;
+  } catch (e) { console.warn('site_catalog fetch failed:', e); return false; }
 }
 
 function getProducts() {
@@ -7629,6 +7674,9 @@ async function publishToLiveSite(options) {
 
   PUBLISHED_PRODUCTS = productsSnapshot;
   saveProducts(productsSnapshot);
+  // Mirror the published catalog into Supabase so all portals share one fresh
+  // source of truth (not just the CDN products.json which needs a redeploy).
+  supabaseUpsertCatalog(productsSnapshot);
   if (typeof renderPublicProducts === 'function') renderPublicProducts();
   if (typeof renderAdminDash === 'function') renderAdminDash();
   return { ok: true, usageCount, data };
@@ -9483,6 +9531,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     else if (currentView === 'sales') { renderSaleProducts(); renderWarehouseOrders(); }
     else if (currentView === 'admin') renderAdminTable();
   });
+
+  // For a logged-in user, pull the authoritative catalog snapshot + secret
+  // pricing from Supabase so all portals share one source of truth, then
+  // re-render whichever portal is showing.
+  if (hasSupabaseSession()) {
+    Promise.all([syncCatalogFromServer(), syncProductPricingFromServer()]).then(function() {
+      if (currentView === 'sales') { renderSaleProducts(); renderWarehouseOrders(); }
+      else if (currentView === 'admin') { if (typeof renderAdminTable === 'function') renderAdminTable(); if (typeof renderAdminDash === 'function') renderAdminDash(); }
+      else if (currentView === 'finance' && typeof financeRender === 'function') financeRender();
+    });
+  }
 });
 
 // ═══════════════════════════════════════════════════════
