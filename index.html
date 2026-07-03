@@ -3666,13 +3666,22 @@ function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverrid
 async function syncSalesFromServer() {
   try {
     await ensureFreshSession();
-    const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes] = await Promise.all([
+    const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes, pricingRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/warehouse_status_log?select=*&order=changed_at.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/expenses?select=*&order=created_at_ms.asc', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/product_pricing?select=product_id,cost,markup', { headers: supabaseHeaders() }),
     ]);
+    if (pricingRes && pricingRes.ok) {
+      const prows = await pricingRes.json();
+      if (Array.isArray(prows)) {
+        const pmap = {};
+        prows.forEach(function(r) { pmap[r.product_id] = { cost: parseFloat(r.cost), markup: parseFloat(r.markup) }; });
+        _productPricing = pmap;
+      }
+    }
     if (salesRes.ok) {
       const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
       const localSales = getSales();
@@ -3781,51 +3790,51 @@ function categoryLabel(cat, lang) {
 }
 
 const DEFAULT_PRODUCTS = [
-  {"id": 1, "name": "Paclobutrazol 250 g/l SC", "activeIngredient": "Paclobutrazol 250 g/l SC", "formulation": "SC", "category": "Growth Regulator", "cost": 6.74, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Paclobutrazol 250 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 2, "name": "Ramon SL", "activeIngredient": "1-Naphthylacetic acid(NAA) 10 g/l SL", "formulation": "SL", "category": "Growth Regulator", "cost": 3.92, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: 1-Naphthylacetic acid(NAA) 10 g/l SL.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 3, "name": "Lancet SL", "activeIngredient": "6-benzylaminopurine (6-BA) 19 g/l SL", "formulation": "SL", "category": "Growth Regulator", "cost": 6.14, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: 6-benzylaminopurine (6-BA) 19 g/l SL.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 4, "name": "Odysseus 480 SC", "activeIngredient": "Thiacloprid 480 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 34.06, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiacloprid 480 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 5, "name": "Razor 280 SC", "activeIngredient": "Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 9.34, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 6, "name": "Inclinar 100 WG", "activeIngredient": "Emamectin benzoate 100 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "cost": 23.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Emamectin benzoate 100 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 7, "name": "Baiar 550 SC", "activeIngredient": "Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 21.0, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 8, "name": "Tocar 247 SC", "activeIngredient": "Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 9.54, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 9, "name": "Predador 220 EC", "activeIngredient": "Tebuconazole 125 g/l + Triadiminol 100 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 12.56, "markup": 30, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 125 g/l + Triadiminol 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 10, "name": "Divisar 750 WG", "activeIngredient": "Cyprodinil 750 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "cost": 38.08, "markup": 30, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 750 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 11, "name": "Coger 100 EC", "activeIngredient": "Pyriproxyfen 10% EC", "formulation": "EC", "category": "Insecticide", "cost": 6.25, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyriproxyfen 10% EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 12, "name": "Pyrat 800 WG", "activeIngredient": "Captan 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 7.5, "markup": 30, "stock": 10000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Captan 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 13, "name": "Atrapar 50 WG", "activeIngredient": "Abamectin 50 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "cost": 18.65, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Abamectin 50 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 14, "name": "Copiar 800 WP", "activeIngredient": "Mancozeb 800 g/kg WP", "formulation": "WP", "category": "Fungicide", "cost": 6.0, "markup": 30, "stock": 10000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Mancozeb 800 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 15, "name": "Guarura 800 WG", "activeIngredient": "Thiram 80% WG", "formulation": "WG", "category": "Fungicide", "cost": 7.38, "markup": 30, "stock": 6000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiram 80% WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 16, "name": "Afrontar 250 ME", "activeIngredient": "Bupirimate 250 g/l ME", "formulation": "ME", "category": "Fungicide", "cost": 30.0, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bupirimate 250 g/l ME.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 17, "name": "Curar 250 EC", "activeIngredient": "Cypermethrin 250 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 6.82, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cypermethrin 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 18, "name": "Tratar 700 WG", "activeIngredient": "Dithianon 700 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "cost": 43.5, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dithianon 700 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 19, "name": "Mandriguera 100 CS", "activeIngredient": "Lambda-cyhalothrin 100 g/l CS", "formulation": "CS", "category": "Insecticide", "cost": 11.91, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Lambda-cyhalothrin 100 g/l CS.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 20, "name": "Silex 500 WG", "activeIngredient": "Kresoxim-methyl 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 26.0, "markup": 30, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Kresoxim-methyl 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 21, "name": "Ajustar 200 WP", "activeIngredient": "Pyridaben 200 g/kg WP", "formulation": "WP", "category": "Insecticide", "cost": 8.64, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyridaben 200 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 22, "name": "Estrellar 100 EC", "activeIngredient": "Penconazole 100 g/L EC", "formulation": "EC", "category": "Fungicide", "cost": 13.08, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Penconazole 100 g/L EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 23, "name": "Curador 200 SC", "activeIngredient": "Chlorantraniliprole 200 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 28.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Chlorantraniliprole 200 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 24, "name": "Lamar 500 WG", "activeIngredient": "Pirimicarb 500 g/kg WG", "formulation": "WG", "category": "Insecticide", "cost": 29.38, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pirimicarb 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 25, "name": "Lamada 700 WP", "activeIngredient": "Thiophanate methyl 700 g/kg WP", "formulation": "WP", "category": "Fungicide", "cost": 8.87, "markup": 30, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiophanate methyl 700 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 26, "name": "Tono 400 SC", "activeIngredient": "Dodine 400 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 12.06, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dodine 400 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 27, "name": "Coronilla 800 WG", "activeIngredient": "Fosetyl aluminium 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 9.85, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Fosetyl aluminium 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 28, "name": "Argola 250 EC", "activeIngredient": "Deltamethrin 25 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 6.71, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Deltamethrin 25 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 29, "name": "Alianza 760 WG", "activeIngredient": "Ziram 76% WG", "formulation": "WG", "category": "Fungicide", "cost": 8.38, "markup": 30, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Ziram 76% WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 30, "name": "Hornillo 500 WG", "activeIngredient": "Trifloxystrobin 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 28.0, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Trifloxystrobin 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 31, "name": "Anillito 200 SP", "activeIngredient": "Acetamiprid 200 g/kg SP", "formulation": "SP", "category": "Insecticide", "cost": 7.54, "markup": 30, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Acetamiprid 200 g/kg SP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 32, "name": "Corro 240 SC", "activeIngredient": "Spirodiclofen 240 g/L SC", "formulation": "SP", "category": "Insecticide", "cost": 14.62, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 240 g/L SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 33, "name": "Zumbar 100 SC", "activeIngredient": "Spirotetramat 100 g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 22.0, "markup": 30, "stock": 1500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirotetramat 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 34, "name": "Camarilla 380 WG", "activeIngredient": "Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 34.09, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 35, "name": "Cercado 625 WG", "activeIngredient": "Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG", "formulation": "WG", "category": "Fungicide", "cost": 59.89, "markup": 30, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 36, "name": "Lumbre 250 EC", "activeIngredient": "Difenoconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "cost": 10.93, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 37, "name": "Sonos 300 SC", "activeIngredient": "Pyrimethanil 300 g/l SC", "formulation": "SC", "category": "Fungicide", "cost": 8.1, "markup": 30, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyrimethanil 300 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 38, "name": "Arco 250 EC", "activeIngredient": "Tebuconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "cost": 9.02, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 39, "name": "Acarus 240 SC", "activeIngredient": "Bifenazate 240 g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 16.92, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bifenazate 240 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 40, "name": "Detectar 200 EC", "activeIngredient": "Bifenthrin 20% EC", "formulation": "EC", "category": "Insecticide", "cost": 16.71, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bifenthrin 20% EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 41, "name": "Cosido 480 SC", "activeIngredient": "Diflubenzuron 480g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 17.03, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Diflubenzuron 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 42, "name": "Tapiar EC", "activeIngredient": "Hexythiazox 50 g/l EC", "formulation": "EC", "category": "Insecticide", "cost": 13.11, "markup": 30, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Hexythiazox 50 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 43, "name": "Amurallar 110 SC", "activeIngredient": "Etoxazole 110g/l SC", "formulation": "SC", "category": "Insecticide", "cost": 13.63, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Etoxazole 110g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 44, "name": "Corriente 480 SC", "activeIngredient": "Spinosad 480g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 195.0, "markup": 30, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spinosad 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
-  {"id": 45, "name": "Parador 240 SC", "activeIngredient": "Spirodiclofen 222 gr/l + Abamectin 18g/l SC", "formulation": "SP", "category": "Insecticide", "cost": 16.51, "markup": 30, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 222 gr/l + Abamectin 18g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 1, "name": "Paclobutrazol 250 g/l SC", "activeIngredient": "Paclobutrazol 250 g/l SC", "formulation": "SC", "category": "Growth Regulator", "priceAznNet": 76.5051, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Paclobutrazol 250 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 2, "name": "Ramon SL", "activeIngredient": "1-Naphthylacetic acid(NAA) 10 g/l SL", "formulation": "SL", "category": "Growth Regulator", "priceAznNet": 18.6992, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: 1-Naphthylacetic acid(NAA) 10 g/l SL.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 3, "name": "Lancet SL", "activeIngredient": "6-benzylaminopurine (6-BA) 19 g/l SL", "formulation": "SL", "category": "Growth Regulator", "priceAznNet": 22.0972, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: 6-benzylaminopurine (6-BA) 19 g/l SL.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 4, "name": "Odysseus 480 SC", "activeIngredient": "Thiacloprid 480 g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 85.0001, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiacloprid 480 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 5, "name": "Razor 280 SC", "activeIngredient": "Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 27.199, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Imidacloprid 200 g/l + Lambda-Cyhalothrin 80 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 6, "name": "Inclinar 100 WG", "activeIngredient": "Emamectin benzoate 100 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "priceAznNet": 50.9864, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Emamectin benzoate 100 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 7, "name": "Baiar 550 SC", "activeIngredient": "Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC", "formulation": "SC", "category": "Fungicide", "priceAznNet": 51.0153, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 200 g/l + Thiamethoxam 350 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 8, "name": "Tocar 247 SC", "activeIngredient": "Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 33.9929, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiamethoxam 141 g/l + Lambda Cyhalothrin 106 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 9, "name": "Predador 220 EC", "activeIngredient": "Tebuconazole 125 g/l + Triadiminol 100 g/l SC", "formulation": "SC", "category": "Fungicide", "priceAznNet": 51.0099, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 125 g/l + Triadiminol 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 10, "name": "Divisar 750 WG", "activeIngredient": "Cyprodinil 750 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "priceAznNet": 84.9984, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 750 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 11, "name": "Coger 100 EC", "activeIngredient": "Pyriproxyfen 10% EC", "formulation": "EC", "category": "Insecticide", "priceAznNet": 18.7, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyriproxyfen 10% EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 12, "name": "Pyrat 800 WG", "activeIngredient": "Captan 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 18.7043, "stock": 10000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Captan 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 13, "name": "Atrapar 50 WG", "activeIngredient": "Abamectin 50 g/kg WDG", "formulation": "WDG", "category": "Insecticide", "priceAznNet": 51.0133, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Abamectin 50 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 14, "name": "Copiar 800 WP", "activeIngredient": "Mancozeb 800 g/kg WP", "formulation": "WP", "category": "Fungicide", "priceAznNet": 13.5966, "stock": 10000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Mancozeb 800 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 15, "name": "Guarura 800 WG", "activeIngredient": "Thiram 80% WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 16.9998, "stock": 6000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiram 80% WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 16, "name": "Afrontar 250 ME", "activeIngredient": "Bupirimate 250 g/l ME", "formulation": "ME", "category": "Fungicide", "priceAznNet": 67.983, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bupirimate 250 g/l ME.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 17, "name": "Curar 250 EC", "activeIngredient": "Cypermethrin 250 g/l EC", "formulation": "EC", "category": "Insecticide", "priceAznNet": 15.3041, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cypermethrin 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 18, "name": "Tratar 700 WG", "activeIngredient": "Dithianon 700 g/kg WDG", "formulation": "WDG", "category": "Fungicide", "priceAznNet": 88.3703, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dithianon 700 g/kg WDG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 19, "name": "Mandriguera 100 CS", "activeIngredient": "Lambda-cyhalothrin 100 g/l CS", "formulation": "CS", "category": "Insecticide", "priceAznNet": 22.1097, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Lambda-cyhalothrin 100 g/l CS.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 20, "name": "Silex 500 WG", "activeIngredient": "Kresoxim-methyl 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 84.9966, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Kresoxim-methyl 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 21, "name": "Ajustar 200 WP", "activeIngredient": "Pyridaben 200 g/kg WP", "formulation": "WP", "category": "Insecticide", "priceAznNet": 18.6978, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyridaben 200 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 22, "name": "Estrellar 100 EC", "activeIngredient": "Penconazole 100 g/L EC", "formulation": "EC", "category": "Fungicide", "priceAznNet": 30.5967, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Penconazole 100 g/L EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 23, "name": "Curador 200 SC", "activeIngredient": "Chlorantraniliprole 200 g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 110.4796, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Chlorantraniliprole 200 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 24, "name": "Lamar 500 WG", "activeIngredient": "Pirimicarb 500 g/kg WG", "formulation": "WG", "category": "Insecticide", "priceAznNet": 67.9765, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pirimicarb 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 25, "name": "Lamada 700 WP", "activeIngredient": "Thiophanate methyl 700 g/kg WP", "formulation": "WP", "category": "Fungicide", "priceAznNet": 25.4986, "stock": 3000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Thiophanate methyl 700 g/kg WP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 26, "name": "Tono 400 SC", "activeIngredient": "Dodine 400 g/l SC", "formulation": "SC", "category": "Fungicide", "priceAznNet": 28.9078, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Dodine 400 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 27, "name": "Coronilla 800 WG", "activeIngredient": "Fosetyl aluminium 800 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 22.1034, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Fosetyl aluminium 800 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 28, "name": "Argola 250 EC", "activeIngredient": "Deltamethrin 25 g/l EC", "formulation": "EC", "category": "Insecticide", "priceAznNet": 16.9964, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Deltamethrin 25 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 29, "name": "Alianza 760 WG", "activeIngredient": "Ziram 76% WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 18.705, "stock": 4000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Ziram 76% WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 30, "name": "Hornillo 500 WG", "activeIngredient": "Trifloxystrobin 500 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 110.4796, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Trifloxystrobin 500 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 31, "name": "Anillito 200 SP", "activeIngredient": "Acetamiprid 200 g/kg SP", "formulation": "SP", "category": "Insecticide", "priceAznNet": 16.9967, "stock": 250, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Acetamiprid 200 g/kg SP.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 32, "name": "Corro 240 SC", "activeIngredient": "Spirodiclofen 240 g/L SC", "formulation": "SP", "category": "Insecticide", "priceAznNet": 34.0003, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 240 g/L SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 33, "name": "Zumbar 100 SC", "activeIngredient": "Spirotetramat 100 g/l SC", "formulation": "SP", "category": "Insecticide", "priceAznNet": 59.5034, "stock": 1500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirotetramat 100 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 34, "name": "Camarilla 380 WG", "activeIngredient": "Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 76.498, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Boscalid 252 g/kg + Pyraclostrobin 128 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 35, "name": "Cercado 625 WG", "activeIngredient": "Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG", "formulation": "WG", "category": "Fungicide", "priceAznNet": 119.0194, "stock": 500, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Cyprodinil 375 g/kg + Fludioxonil 250 g/kg WG.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 36, "name": "Lumbre 250 EC", "activeIngredient": "Difenoconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "priceAznNet": 34.0032, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Difenoconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 37, "name": "Sonos 300 SC", "activeIngredient": "Pyrimethanil 300 g/l SC", "formulation": "SC", "category": "Fungicide", "priceAznNet": 25.502, "stock": 700, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Pyrimethanil 300 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 38, "name": "Arco 250 EC", "activeIngredient": "Tebuconazole 250 g/l EC", "formulation": "EC", "category": "Fungicide", "priceAznNet": 25.5004, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Tebuconazole 250 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 39, "name": "Acarus 240 SC", "activeIngredient": "Bifenazate 240 g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 35.6961, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bifenazate 240 g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 40, "name": "Detectar 200 EC", "activeIngredient": "Bifenthrin 20% EC", "formulation": "EC", "category": "Insecticide", "priceAznNet": 34.0032, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Bifenthrin 20% EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 41, "name": "Cosido 480 SC", "activeIngredient": "Diflubenzuron 480g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 42.5001, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Diflubenzuron 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 42, "name": "Tapiar EC", "activeIngredient": "Hexythiazox 50 g/l EC", "formulation": "EC", "category": "Insecticide", "priceAznNet": 30.6001, "stock": 2000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Hexythiazox 50 g/l EC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 43, "name": "Amurallar 110 SC", "activeIngredient": "Etoxazole 110g/l SC", "formulation": "SC", "category": "Insecticide", "priceAznNet": 33.9919, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Etoxazole 110g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 44, "name": "Corriente 480 SC", "activeIngredient": "Spinosad 480g/l SC", "formulation": "SP", "category": "Insecticide", "priceAznNet": 408.0765, "stock": 350, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spinosad 480g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
+  {"id": 45, "name": "Parador 240 SC", "activeIngredient": "Spirodiclofen 222 gr/l + Abamectin 18g/l SC", "formulation": "SP", "category": "Insecticide", "priceAznNet": 42.4934, "stock": 1000, "unit": "unit", "desc": "Premium Cerrado Sol formulation. Active ingredient: Spirodiclofen 222 gr/l + Abamectin 18g/l SC.", "usage": "Follow label instructions. Apply at recommended rate. Wear full protective equipment during application. Store in original container in a cool, dry place."},
 ];
 
 function productMarkup(p) {
@@ -3835,12 +3844,16 @@ function productMarkup(p) {
 }
 
 function sanitizeProduct(p, idx) {
+  var _pan = parseFloat(p.priceAznNet);
   return {
     id:              parseInt(p.id)      || idx + 1,
     name:            p.name              || 'Unnamed Product',
     category:        p.category          || 'Other',
     cost:            parseFloat(p.cost)  || 0,
     markup:          productMarkup(p),
+    // Precomputed public price (AZN, net of VAT). Present on the sanitized
+    // public catalog so the storefront can show prices without cost/markup.
+    priceAznNet:     isFinite(_pan) ? _pan : undefined,
     stock:           parseInt(p.stock)   || 0,
     unit:            p.unit              || '',
     desc:            p.desc              || '',
@@ -3942,14 +3955,70 @@ function loadRawProducts() {
     if (d) {
       var parsed = JSON.parse(d);
       if (Array.isArray(parsed) && parsed.length) {
-        return applyLiveInventory(migrateStockToBaseUnits(mergePublishedLabelFields(migrateProductVatV2(migrateProductVat(parsed)))));
+        return applyPrivatePricing(applyLiveInventory(migrateStockToBaseUnits(mergePublishedLabelFields(migrateProductVatV2(migrateProductVat(parsed))))));
       }
     }
   } catch (e) { /* fall through */ }
   if (Array.isArray(PUBLISHED_PRODUCTS) && PUBLISHED_PRODUCTS.length) {
-    return applyLiveInventory(migrateStockToBaseUnits(PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); })));
+    return applyPrivatePricing(applyLiveInventory(migrateStockToBaseUnits(PUBLISHED_PRODUCTS.map(function(p) { return Object.assign({}, p); }))));
   }
-  return applyLiveInventory(migrateStockToBaseUnits(migrateProductVat(DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); }))));
+  return applyPrivatePricing(applyLiveInventory(migrateStockToBaseUnits(migrateProductVat(DEFAULT_PRODUCTS.map(function(p) { return Object.assign({}, p); })))));
+}
+
+// Secret cost/markup are fetched from the authenticated-only Supabase
+// product_pricing table (never shipped in public files) and merged in here so
+// the admin/sales pricing tools work. Public visitors get an empty map (RLS
+// blocks anon) and keep using the precomputed priceAznNet.
+var _productPricing = null; // product_id -> { cost, markup }
+
+function applyPrivatePricing(products) {
+  if (!_productPricing || !Array.isArray(products)) return products;
+  products.forEach(function(p) {
+    var row = _productPricing[p.id];
+    if (row) {
+      if (row.cost != null)   p.cost = row.cost;
+      if (row.markup != null) p.markup = row.markup;
+    }
+  });
+  return products;
+}
+
+// Pull cost/markup for all products from Supabase. Only works for a logged-in
+// user (RLS); silently no-ops for anonymous public visitors.
+async function syncProductPricingFromServer() {
+  if (!hasSupabaseSession()) return false;
+  try {
+    await ensureFreshSession();
+    var res = await fetch(SUPABASE_URL + '/rest/v1/product_pricing?select=product_id,cost,markup', { headers: supabaseHeaders() });
+    if (!res.ok) return false;
+    var rows = await res.json();
+    if (!Array.isArray(rows)) return false;
+    var map = {};
+    rows.forEach(function(r) { map[r.product_id] = { cost: parseFloat(r.cost), markup: parseFloat(r.markup) }; });
+    _productPricing = map;
+    return true;
+  } catch (e) { console.warn('product_pricing fetch failed:', e); return false; }
+}
+
+// Persist cost/markup to Supabase (authenticated). Called when admin edits
+// pricing or publishes, so the central table stays the source of truth.
+async function supabaseUpsertPricing(items) {
+  if (!hasSupabaseSession() || !items || !items.length) return false;
+  try {
+    await ensureFreshSession();
+    var payload = items.map(function(it) {
+      return { product_id: it.id, cost: parseFloat(it.cost) || 0, markup: (it.markup == null ? 30 : parseFloat(it.markup)) };
+    });
+    var headers = supabaseHeaders();
+    headers['Prefer'] = 'resolution=merge-duplicates';
+    var res = await fetch(SUPABASE_URL + '/rest/v1/product_pricing?on_conflict=product_id', {
+      method: 'POST', headers: headers, body: JSON.stringify(payload)
+    });
+    if (res.ok && _productPricing) {
+      payload.forEach(function(r) { _productPricing[r.product_id] = { cost: r.cost, markup: r.markup }; });
+    }
+    return res.ok;
+  } catch (e) { console.warn('product_pricing upsert failed:', e); return false; }
 }
 
 function getProducts() {
@@ -3997,10 +4066,22 @@ function mergePublishedLabelFields(products) {
   });
 }
 
-// Full catalog snapshot for Publish — keeps label fields and product photos.
+// Full catalog snapshot for Publish — keeps label fields and product photos,
+// but NEVER cost/markup. Instead it bakes in priceAznNet (using the public
+// default FX so displayed prices stay identical) so the storefront can price
+// products without any cost/margin ever reaching a public file.
 function getProductsForPublish() {
+  var fx = (PRICING_DEFAULTS && PRICING_DEFAULTS.fx) || 1.70;
   return getProducts().map(function(p, i) {
-    return sanitizeProduct(p, i);
+    var s = sanitizeProduct(p, i);
+    var cost = parseFloat(s.cost) || 0;
+    if (cost > 0) {
+      var markup = productMarkup(s);
+      s.priceAznNet = Math.round(cost * (1 + markup / 100) * fx * 10000) / 10000;
+    }
+    delete s.cost;
+    delete s.markup;
+    return s;
   });
 }
 
@@ -4029,14 +4110,24 @@ function saveProducts(arr) {
     var prevRaw = localStorage.getItem(PRODUCTS_KEY);
     var prev = prevRaw ? JSON.parse(prevRaw) : [];
     var prevStockById = {};
-    prev.forEach(function(p) { prevStockById[p.id] = p.stock; });
+    var prevPriceById = {};
+    prev.forEach(function(p) { prevStockById[p.id] = p.stock; prevPriceById[p.id] = { cost: p.cost, markup: p.markup }; });
+    var pricingChanged = [];
     arr.forEach(function(p) {
       var prevStock = prevStockById[p.id];
       if (prevStock === undefined || parseFloat(prevStock) !== parseFloat(p.stock)) {
         supabaseUpsertStock(p.id, p.name, p.stock);
         if (_liveInventory) _liveInventory[p.id] = parseFloat(p.stock) || 0;
       }
+      // Push cost/markup edits to the authenticated-only Supabase pricing table.
+      var pp = prevPriceById[p.id];
+      var costChanged   = p.cost   != null && (!pp || parseFloat(pp.cost)   !== parseFloat(p.cost));
+      var markupChanged = p.markup != null && (!pp || parseFloat(pp.markup) !== parseFloat(p.markup));
+      if ((costChanged || markupChanged) && (parseFloat(p.cost) || 0) > 0) {
+        pricingChanged.push({ id: p.id, cost: p.cost, markup: p.markup });
+      }
     });
+    if (pricingChanged.length) supabaseUpsertPricing(pricingChanged);
   } catch (e) { /* non-fatal — local save below still proceeds */ }
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(arr));
 }
@@ -4118,7 +4209,17 @@ function vatAmountOnNet(net) {
   return n > 0 ? n * VAT_RATE / 100 : 0;
 }
 
-function salePriceNetAZN(p) { return salePrice(p) * (pricingGetSettings().fx || 1.70); }
+// Net AZN unit price. Authenticated admin/sales have real cost+markup (merged
+// from Supabase), so they compute live with the current FX. Public visitors
+// only have the precomputed priceAznNet baked into products.json — no cost or
+// margin is ever exposed to them.
+function salePriceNetAZN(p) {
+  var cost = parseFloat(p && p.cost) || 0;
+  if (cost > 0) return salePrice(p) * (pricingGetSettings().fx || 1.70);
+  var pan = parseFloat(p && p.priceAznNet);
+  if (isFinite(pan) && pan > 0) return pan;
+  return 0;
+}
 
 function salePriceAZN(p) { return salePriceNetAZN(p); }
 

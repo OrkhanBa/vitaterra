@@ -7,8 +7,6 @@
       "id": 1,
       "name": "ZILAR 250 SC",
       "category": "Growth Regulator",
-      "cost": 6.74,
-      "markup": 567.7,
       "vatApplicable": true,
       "stock": 1000,
       "unit": "1 l",
@@ -22,14 +20,13 @@
       "usage_az": "Meyvə ağacları və üzüm üçün 1,0 l/ha normasında, vegetasiya mövsümündə 1-2 dəfə (yazda və payızda məhsul yığımından sonra) tətbiq edilir. İş məhlulu emal günündə hazırlanır: çənin yarısı su ilə doldurulur, qarışdırıcı işləyərkən preparat əlavə edilir, sonra qalan su tökülür.",
       "target_az": "Meyvə ağacları və üzüm bağları üçün nəzərdə tutulmuşdur. Həddindən artıq vegetativ böyüməni məhdudlaşdırmaq məqsədilə istifadə olunur, kompakt və məhsuldar bitki formasının əldə edilməsinə kömək edir.",
       "target": "Fruit trees, Grapevines — controls excessive vegetative growth",
-      "safetyInterval": "Applied in spring and autumn after harvest; 1-2 times per season"
+      "safetyInterval": "Applied in spring and autumn after harvest; 1-2 times per season",
+      "priceAznNet": 76.5051
     },
     {
       "id": 2,
       "name": "Ramon SL",
       "category": "Growth Regulator",
-      "cost": 3.92,
-      "markup": 180.6,
       "vatApplicable": true,
       "stock": 1000,
       "unit": "unit",
@@ -43,14 +40,13 @@
       "usage_az": "Meyvə ağacları üçün hektara 1,5 litr norması ilə tətbiq edilir; ildə maksimum 2 müalicə aparıla bilər, müalicələr arasında minimum 3 günlük fasilə olmalıdır. İş məhlulu istifadə günü hazırlanmalı, çən yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən preparat əlavə edilməli, sonra qalan su əlavə olunmalıdır.",
       "target_az": "Meyvə ağacları üçün nəzərdə tutulmuşdur; 6-11 mm ölçüsündə olan meyvələrin kimyəvi seyrəldilməsi məqsədi ilə istifadə olunur.",
       "target": "Fruit trees; chemical thinning of fruits sized 6-11 mm",
-      "safetyInterval": "2 treatments per year with minimum 3-day interval between applications"
+      "safetyInterval": "2 treatments per year with minimum 3-day interval between applications",
+      "priceAznNet": 18.6992
     },
     {
       "id": 3,
       "name": "Lancet SL",
       "category": "Growth Regulator",
-      "cost": 6.14,
-      "markup": 111.7,
       "vatApplicable": true,
       "stock": 3000,
       "unit": "unit",
@@ -64,14 +60,13 @@
       "usage_az": "Preparat meyvə ağaclarında 2,0-3,0 l/ha normasında tətbiq edilir. Ildə 2-3 dəfə, müalicələr arasında minimum 3 gün fasilə ilə çiləmə aparmaq olar. İş məhlulu istifadə günü hazırlanmalı, bak yarısına qədər su ilə doldurulmalı, preparat əlavə edilməli və qarışdırıcı işləyərkən qalan su əlavə edilməlidir.",
       "target_az": "Meyvə ağacları üçün nəzərdə tutulmuşdur; 6-11 mm ölçüsündə meyvələrin kimyəvi seyrəldilməsini təmin edir.",
       "target": "Fruit trees; chemical thinning of fruits (6-11 mm)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 22.0972
     },
     {
       "id": 4,
       "name": "Odysseus 480 SC",
       "category": "Insecticide",
-      "cost": 34.06,
-      "markup": 46.8,
       "stock": 1000,
       "unit": "unit",
       "desc": "ODYSSEUS 480 SC is a systemic insecticide with contact and stomach action belonging to the chloronicotinyl class. It contains Thiacloprid at 480 g/l as a suspension concentrate. The product is effective against sucking and chewing pests with a protective period of 3 weeks.",
@@ -84,14 +79,13 @@
       "usage_az": "Üzüm bağlarında 0,3-0,4 l/ha, meyvə ağaclarında isə 0,3-0,45 l/ha normasında vegetasiya dövründə püskürtmə yolu ilə tətbiq edilir, maksimum 2 dəfə işlənir. İş məhlulu istifadə günü hazırlanmalı, tank yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən preparat əlavə edilməli, sonra qalan su tamamlanmalıdır.",
       "target_az": "Üzüm (yarpaqbükənlər) və meyvə ağacları (alma meyvəyeyəni, yarpaqbükənlər) üçün nəzərdə tutulmuşdur. Həm soran, həm də gəmirən zərərvericilərə qarşı effektivdir.",
       "target": "Grapes (Leafrollers), Fruit trees (Codling moth, Leafrollers)",
-      "safetyInterval": "40 days (grapes), 14 days (fruit trees)"
+      "safetyInterval": "40 days (grapes), 14 days (fruit trees)",
+      "priceAznNet": 85.0001
     },
     {
       "id": 5,
       "name": "Razor 280 SC",
       "category": "Insecticide",
-      "cost": 9.34,
-      "markup": 71.3,
       "stock": 1000,
       "unit": "unit",
       "desc": "RAZOR 280 SC is a combined insecticide containing two active ingredients, Imidacloprid and Lambda Cyhalothrin, in suspension concentrate form. It has a broad spectrum of action, affecting the central nervous system of insects and disrupting neuronal function. It acts as a non-systemic insecticide providing stomach action and rapid knockdown effect.",
@@ -104,14 +98,13 @@
       "usage_az": "Preparat vegetasiya dövrü ərzində püskürtmə yolu ilə tətbiq edilir. Üzüm üçün 0,2–0,3 l/ha, meyvə ağacları üçün isə 0,3–0,45 l/ha normasında istifadə olunur. İş məhlulu emal günü hazırlanmalı, bak yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyən vəziyyətdə lazımi miqdarda preparat əlavə edilməli, sonra qalan su tamamlanmalıdır.",
       "target_az": "Üzüm (mənənə) və meyvə ağacları (alma meyvəyeyəni, mənənə) üçün nəzərdə tutulmuşdur; həm gəmirici, həm də soran həşəratlara qarşı effektivdir.",
       "target": "Grapes (aphids), Fruit trees (codling moth, aphids) — targeting both chewing and sucking insects",
-      "safetyInterval": "14 days (2 applications)"
+      "safetyInterval": "14 days (2 applications)",
+      "priceAznNet": 27.199
     },
     {
       "id": 6,
       "name": "Inclinar 100 WG",
       "category": "Insecticide",
-      "cost": 23,
-      "markup": 30.4,
       "stock": 500,
       "unit": "unit",
       "desc": "INCLINAR 100 WG is a non-systemic insecticide in water-dispersible granule form containing Emamectin Benzoate at 100 g/kg. It penetrates leaf tissues via translaminar action, effectively paralyzing Lepidoptera pests within hours of application. The product provides a protective period of 2 to 6 weeks and is not phytotoxic when used at recommended doses.",
@@ -124,14 +117,13 @@
       "usage_az": "Preparat tövsiyə edilən dozalarda su ilə qarışdırılaraq istifadə edilməlidir. Yarpaqların tam örtülməsinə diqqət yetirilməlidir, çünki məhsul translaminar üsulla təsir göstərir. Mühafizəedici təsirin müddəti 2-6 həftə təşkil edir.",
       "target_az": "Preparat Lepidoptera dəstəsinə aid zərərvericiləri (kəpənəklər və onların sürfələri) məhv etmək üçün nəzərdə tutulmuşdur; həmin zərərvericilərin yayıldığı kənd təsərrüfatı bitkilərində tətbiq edilir.",
       "target": "Lepidoptera (caterpillars and moths); general crops where Lepidoptera pests are present",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 50.9864
     },
     {
       "id": 7,
       "name": "Baiar 550 SC",
       "category": "Fungicide",
-      "cost": 21,
-      "markup": 42.9,
       "stock": 1000,
       "unit": "unit",
       "desc": "BAIAR 550 SC is a dual-component suspension concentrate combining a fungicide (difenoconazole) and a systemic insecticide (thiamethoxam). Difenoconazole is effective against powdery mildew, apple scab, stone fruit diseases, smut, root rots, and seed mold. Thiamethoxam acts systemically and contact-intestinally with translaminar activity to suppress chewing and sucking insects.",
@@ -144,14 +136,13 @@
       "usage_az": "Meyvə ağacları üçün 0,3–0,4 l/ha, üzüm üçün isə 0,4–0,5 l/ha dozasında tətbiq edilməlidir; vegetasiya dövrü ərzində maksimum 2 dəfə işlənilir. İş məhlulu işləmə günü hazırlanmalı, bak yarıya qədər su ilə doldurularaq qarışdırıcı işə salınmalı, lazımi miqdarda preparat əlavə edilməli və qalan su tamamlanmalıdır. Çiləmə zamanı qarışdırıcı daim işlək vəziyyətdə saxlanılmalıdır.",
       "target_az": "Meyvə ağacları (çəkirdəkli və çəyirdəkli): unlu şeh, yarpaq parşası, meyvə psillası (Psyllia P); Üzüm: oidium (unlu şeh). Preparat həmçinin baş yanıqlığı, kök çürüməsi və toxum kifləşməsinə qarşı da effektivdir.",
       "target": "Fruit trees (pome and stone fruits): Powdery mildew, Leaf scab, Psylla (Psyllia P); Grapes: Oidium, Powdery mildew",
-      "safetyInterval": "14 days"
+      "safetyInterval": "14 days",
+      "priceAznNet": 51.0153
     },
     {
       "id": 8,
       "name": "Tocar 247 SC",
       "category": "Insecticide",
-      "cost": 9.54,
-      "markup": 109.6,
       "stock": 1000,
       "unit": "unit",
       "desc": "TOCAR 247 SC is a combined insecticide containing two active substances with systemic and contact-intestinal action and translaminar activity. It is designed to suppress chewing and sucking insects on grapevines and fruit trees. The product is formulated as a suspension concentrate and has a shelf life of 4 years.",
@@ -164,14 +155,13 @@
       "usage_az": "Üzüm bağlarında vegetasiya dövründə 0,2-0,3 l/ha, meyvə ağaclarında isə 0,3-0,45 l/ha normasında çiləmə yolu ilə tətbiq edilir. İş məhlulu işlənmə günü hazırlanmalı, bak yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən preparat əlavə edilməli, sonra qalan su tamamlanmalıdır. Mövsümdə maksimum 2 dəfə işlənir, məhsul yığımına qədər gözləmə müddəti 14 gündür.",
       "target_az": "Üzüm (Psylla pyri L. — üzüm bitlisi əleyhinə) və meyvə ağacları (Cydia pomonella — alma meyvəyeyəni, Psylla pyri L. — armud bitlisi, Aphidoidea — qan mənənəsi əleyhinə) üçün nəzərdə tutulmuşdur.",
       "target": "Grapevine (against Psylla pyri L.), Fruit trees (against Cydia pomonella, Psylla pyri L., Aphidoidea)",
-      "safetyInterval": "14 days"
+      "safetyInterval": "14 days",
+      "priceAznNet": 33.9929
     },
     {
       "id": 9,
       "name": "Predador 220 EC",
       "category": "Fungicide",
-      "cost": 12.56,
-      "markup": 138.9,
       "stock": 2000,
       "unit": "1 l",
       "desc": "PREDADOR 225 SC is a systemic fungicide with both protective and curative action containing Tebuconazole 125 g/L and Triadimefon 100 g/L. It acts as an inhibitor of ergosterol biosynthesis and disrupts the selective permeability of pathogen cell membranes. It belongs to toxicity class III and has a shelf life of 4 years.",
@@ -184,14 +174,13 @@
       "usage_az": "Üzüm bağlarında Oidium və Mildyuya qarşı 0,5 l/ha normasında, məhsul yığımına 14 gün qalmış (2-3 müalicə) istifadə edilir. Meyvə ağaclarında (toxumlu və çəyirdəkli) Oiduma qarşı 0,4 l/ha normasında, məhsul yığımına 14 gün qalmış (2-3 müalicə) tətbiq olunur. İş məhlulu işlənmə günü hazırlanmalı, bak yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən preparat əlavə edilməli, sonra qalan su tamamlanmalıdır.",
       "target_az": "Üzüm (Oidium, Mildyu xəstəliklərinə qarşı) və meyvə ağacları — həm toxumlu (alma, armud), həm də çəyirdəkli (şaftalı, gilas) növlər — Oidium xəstəliyinə qarşı nəzərdə tutulmuşdur.",
       "target": "Grapes (Oidium, Mildew), Fruit trees including pome and stone fruits (Oidium)",
-      "safetyInterval": "14 days"
+      "safetyInterval": "14 days",
+      "priceAznNet": 51.0099
     },
     {
       "id": 10,
       "name": "Divisar 750 WG",
       "category": "Fungicide",
-      "cost": 38.08,
-      "markup": 31.3,
       "stock": 250,
       "unit": "unit",
       "desc": "DIVISAR 750 WG is a systemic fungicide in water-soluble granule form containing Cyprodinil at 750 g/kg concentration. It is effective against scab, moniliosis, and alternariosis on pome fruits, as well as moniliosis on stone fruits. The product should be stored in its original container in a dry and cool place at temperatures between +10°C and +35°C.",
@@ -204,14 +193,13 @@
       "usage_az": "Preparat su ilə həll edilərək bitkilərə çiləmə üsulu ilə tətbiq edilir. Saxlama temperaturu +10°C ilə +35°C arasında olmalı, preparat öz qablaşdırmasında, pestisidlər üçün nəzərdə tutulmuş quru və sərin yerdə saxlanılmalıdır. Saxlama müddəti 5 ildir.",
       "target_az": "Tumlu meyvə bitkilərində (alma, armud) dəmgil (parşa), monilioz və alternarioz xəstəliklərinə; çəyirdəkli meyvə bitkilərində (gilas, alça, şaftalı) isə monilioz xəstəliyinə qarşı nəzərdə tutulmuşdur.",
       "target": "Pome fruits (scab, moniliosis, alternariosis) and stone fruits (moniliosis)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 84.9984
     },
     {
       "id": 11,
       "name": "Coger 100 EC",
       "category": "Insecticide",
-      "cost": 6.25,
-      "markup": 76,
       "stock": 500,
       "unit": "unit",
       "desc": "COGER 100 EC is an emulsifiable concentrate insecticide containing Pyriproxyfen at 100 g/l. It acts as a juvenile hormone analogue with both contact and intestinal modes of action. The product provides a protective period of 3 weeks and is applied together with mineral oils.",
@@ -224,14 +212,13 @@
       "usage_az": "Preparat vegetasiya dövrü ərzində 1,0 l/ha normasında püskürtmə yolu ilə tətbiq edilir. İş məhlulu emal günü xüsusi təchiz olunmuş sahələrdə hazırlanmalı, bak yarıya qədər su ilə doldurulub qarışdırıcı işə salındıqdan sonra preparat əlavə edilməlidir. Qarışdırıcı preparat tam həll olunana qədər və püskürtmə zamanı işləməlidir.",
       "target_az": "Üzüm (yarpaqbükənlər) və meyvə ağacları (alma meyvəyeyəni, yarpaqbükənlər, qalxanlı bitlər) üçün nəzərdə tutulmuşdur.",
       "target": "Grapes (Leafrollers), Fruit trees (Codling moth, Leafrollers, Scale insects)",
-      "safetyInterval": "14 days (1 application)"
+      "safetyInterval": "14 days (1 application)",
+      "priceAznNet": 18.7
     },
     {
       "id": 12,
       "name": "Pyrat 800 WG",
       "category": "Fungicide",
-      "cost": 7.5,
-      "markup": 46.7,
       "stock": 10000,
       "unit": "unit",
       "desc": "PYRAT 800 WG is a non-systemic fungicide with both protective and curative action, belonging to the Phthalimide chemical class. It acts as a non-specific thiol reactant, inhibiting respiration in fungal pathogens. It is effective against numerous fungal diseases on grapes, pome fruits, and stone fruits.",
@@ -244,14 +231,13 @@
       "usage_az": "Optimal qoruma üçün hər 14 gündən bir tətbiq edilməsi tövsiyə olunur. İstifadədən 12 saat sonra preparat patogenlerdə erqosterol biosintezini maneə törətməyə başlayır. Fitotoksikliyin qarşısını almaq üçün tövsiyə olunan dozalarda istifadə edilməlidir.",
       "target_az": "Üzüm, tumlu meyvələr (alma, armud) və çəyirdəkli meyvələr (şaftalı, gavalı) üçün nəzərdə tutulmuşdur; qotur, məxmərəki xəstəlik, boz çürümə və çəyirdəkli meyvələrdə deşik xəstəliyinə qarşı istifadə olunur.",
       "target": "Scab, downy mildew, brown rot on grapes, pome fruits and stone fruits; shot hole disease on stone fruits",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 18.7043
     },
     {
       "id": 13,
       "name": "Atrapar 50 WG",
       "category": "Insecticide",
-      "cost": 18.65,
-      "markup": 60.9,
       "stock": 350,
       "unit": "unit",
       "desc": "Premium Cerrado Sol formulation. Active ingredient: Abamectin 50 g/kg WDG.",
@@ -264,14 +250,13 @@
       "usage_az": "",
       "target_az": "",
       "target": "",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 51.0133
     },
     {
       "id": 14,
       "name": "Copiar 800 WP",
       "category": "Fungicide",
-      "cost": 6,
-      "markup": 33.3,
       "stock": 10000,
       "unit": "unit",
       "desc": "COPIAR 800 WP is an organic contact fungicide with a broad spectrum of action containing 800 g/kg mancozeb. It is intended for agricultural use on potatoes (food and seed), tomatoes, grapes, and apple trees. The product protects crops against a wide range of fungal diseases.",
@@ -284,14 +269,13 @@
       "usage_az": "Preparat qablaşdırma ilə birlikdə verilən tövsiyələrə uyğun olaraq göstərilən bitkilərə kontakt fungisid kimi tətbiq edilir. Tətbiq normaları və vaxtı əlavə təlimatlarda göstərilmişdir. Yalnız kənd təsərrüfatı istehsalı üçün nəzərdə tutulmuşdur.",
       "target_az": "Bitkilər: ərzaq və toxumluq kartof, pomidor, üzüm, alma ağacı. Xəstəliklər: fitoftoroz, makrosporoz, rizoktoniya, mildyu (nazik şeh), qoturaşı (parşa)",
       "target": "Crops: potato (food and seed), tomatoes, grapes, apple trees. Diseases: late blight (Phytophthora), Macrosporium (alternaria), Rhizoctonia, downy mildew (Peronospora/Plasmopara), scab",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 13.5966
     },
     {
       "id": 15,
       "name": "Guarura 800 WG",
       "category": "Fungicide",
-      "cost": 7.38,
-      "markup": 35.5,
       "stock": 6000,
       "unit": "unit",
       "desc": "GUARURA 800 WG is a contact fungicide belonging to the dithiocarbamate chemical class, formulated as a water dispersible granule. It contains 800 g/kg of Thiram as the active ingredient. The product provides protective action for up to 14 days and does not exhibit phytotoxicity at recommended doses.",
@@ -304,14 +288,13 @@
       "usage_az": "Məhsul su ilə həll edilərək kontakt funqisid kimi tövsiyə olunan dozalarda tətbiq edilməlidir. Qoruyucu təsir müddəti 14 günə qədər davam edir, bundan sonra yenidən müalicə tələb oluna bilər. Fitotoksikliyin qarşısını almaq üçün etiketdəki təlimatlara əməl edilməlidir.",
       "target_az": "Etiketdə konkret bitki növləri göstərilməmişdir; məhsul ümumi funqal xəstəliklərə qarşı kənd təsərrüfatı bitkilərinin mühafizəsi üçün nəzərdə tutulmuşdur.",
       "target": "General fungal diseases on crops; specific crops not mentioned on label",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 16.9998
     },
     {
       "id": 16,
       "name": "Afrontar 250 ME",
       "category": "Fungicide",
-      "cost": 30,
-      "markup": 33.3,
       "stock": 1000,
       "unit": "unit",
       "desc": "AFRONTAR 250 ME is a systemic fungicide containing Bupirimate 250 g/l in micro emulsion formulation. It has translaminar mobility and systemic translocation in the xylem, providing effective protection against powdery mildew diseases. The protection period lasts 10 to 14 days depending on weather conditions and timing of application.",
@@ -324,14 +307,13 @@
       "usage_az": "Alma bağlarında 0,9 l/ha, üzümlüklərdə isə 0,8-1,5 l/ha normasında vegetasiya dövrü ərzində 4 dəfə çiləmə yolu ilə tətbiq edilir. İş məhlulu istifadə günü hazırlanmalı, bak yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən preparat əlavə edilməli və qalan su tamamlanmalıdır. Saxlama temperaturu +5°C ilə +35°C arasında olmalıdır.",
       "target_az": "Alma (Podosphaera leucotricha - unlu şeh xəstəliyi) və üzüm (Uncinula necator - unlu şeh xəstəliyi) bitkilərinin xəstəliklərinin mübarizəsi üçün nəzərdə tutulmuşdur.",
       "target": "Apples (Podosphaera leucotricha - powdery mildew), Grapes (Uncinula necator - powdery mildew)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 67.983
     },
     {
       "id": 17,
       "name": "Curar 250 EC",
       "category": "Insecticide",
-      "cost": 6.82,
-      "markup": 32,
       "stock": 500,
       "unit": "unit",
       "desc": "CURAR 250 EC is a contact and systemic insecticide formulated as an emulsifiable concentrate containing Cypermethrin 250 g/l. It provides broad-spectrum pest control including thrips, with a protection period of 3-21 days depending on the crop. Under recommended doses, the product does not exhibit phytotoxicity.",
@@ -344,14 +326,13 @@
       "usage_az": "Alma və üzüm üçün vegetasiya dövründə 3 dəfə 0,25-0,38 l/ha dozasında, pomidor, bibər və xiyar (örtülü sahələr) üçün isə 2 dəfə 0,64-0,8 l/ha dozasında çiləmə yolu ilə tətbiq edilir. İş məhlulu emal günü hazırlanmalı, tank yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən lazımi miqdarda CURAR 250 EC əlavə edilməli və qalan su tamamlanmalıdır. Hazırlama və çiləmə zamanı yemək yemək, içmək və siqaret çəkmək qadağandır.",
       "target_az": "Alma (Cydia pomonella, Tortricidae), üzüm (Tortricidae), örtülü sahələrdə pomidor, bibər və xiyar (Phloeothripidae — trips, Aphididae — mənənə) bitkilərinin zərərvericilərinə qarşı nəzərdə tutulmuşdur.",
       "target": "Apple (Cydia pomonella, Tortricidae), Grape (Tortricidae), Tomatoes, peppers, cucumbers in protected areas (Phloeothripidae, Aphididae)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 15.3041
     },
     {
       "id": 18,
       "name": "Tratar 700 WG",
       "category": "Fungicide",
-      "cost": 43.5,
-      "markup": 19.5,
       "stock": 3000,
       "unit": "unit",
       "desc": "TRATAR 700 WG is a foliar fungicide formulated as a water dispersable granule containing 700 g/kg Dithianon. It provides both protective and, to some extent, curative action against fungal diseases. It works by reacting with thiol groups and interfering with cellular respiration through a multi-site mode of action.",
@@ -364,14 +345,13 @@
       "usage_az": "Məhsul vegetasiya dövründə 2-3 dəfə tətbiq edilməlidir. Müalicədən sonra bitkilərin üzərində yağışa davamlı qoruyucu təbəqə əmələ gəlir və bu təbəqə göbələk sporlarının cücərməsini effektiv şəkildə maneə törədir. Tövsiyə olunan dozalarda məhsul fitotoksiklik göstərmir, lakin Golden Delicious kimi bəzi alma sortlarında cüzi ləkələnmə baş verə bilər.",
       "target_az": "Məhsul əsasən alma və digər meyvə bitkiləri üçün nəzərdə tutulmuşdur; göbələk sporlarına və göbələk xəstəliklərinə qarşı istifadə olunur. Golden Delicious alma sortunda cüzi fitotoksiklik riski qeyd olunur.",
       "target": "Apple and other crops; targets fungal spores and fungal diseases. Slight phytotoxicity risk noted on Golden Delicious apple variety.",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 88.3703
     },
     {
       "id": 19,
       "name": "Mandriguera 100 CS",
       "category": "Insecticide",
-      "cost": 11.91,
-      "markup": 9.2,
       "stock": 500,
       "unit": "unit",
       "desc": "MANDRIGUERA 100 CS is a contact and stomach insecticide formulated as a capsule suspension containing Lambda-cyhalothrin at 100 g/l. It provides a protection period of 7-14 days and does not exhibit phytotoxicity under recommended doses. The product is manufactured by Cerrado Sol Agricultura S.L. (Spain) and produced at Hangzhou Udragon Chemical Co., Ltd (China).",
@@ -384,14 +364,13 @@
       "usage_az": "Məhsul vegetasiya dövrü ərzində, mövsümdə 2 dəfə olmaqla, püskürtmə üsulu ilə tətbiq edilir. Alma üçün 0,2 l/ha, kartof üçün isə 0,1 l/ha doza ilə istifadə olunur. İş məhlulu istifadə günü hazırlanmalı, tank yarısına qədər su ilə doldurulmalı, MANDRIGUERA 100 CS əlavə edilməli, sonra qalan su tökülməli və qarışdırıcı tam həll olana qədər işlədilməlidir.",
       "target_az": "Alma (meyvə güvəsi — Codling moth, Tortricidae) və kartof (Kolorado kartof böcəyi) bitkilərini zərərvericilərdən qorumaq üçün nəzərdə tutulmuşdur.",
       "target": "Apple (Codling moth, Tortricidae), Potato (Colorado potato beetle)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 22.1097
     },
     {
       "id": 20,
       "name": "Silex 500 WG",
       "category": "Fungicide",
-      "cost": 26,
-      "markup": 92.3,
       "stock": 350,
       "unit": "unit",
       "desc": "SILEX 500 WG is a systemic fungicide in water dispersible granule formulation containing Kresoxim methyl at 500 g/kg. It is used to protect grape and apple crops from fungal diseases. Under recommended doses, the product does not possess phytotoxicity, and the protection period lasts up to 30 days.",
@@ -404,14 +383,13 @@
       "usage_az": "İş məhlulu emal günü hazırlanmalıdır: tank yarıya qədər su ilə doldurulur, lazımi miqdarda SILEX 500 WG əlavə edilir və qarışdırıcı işləyərkən qalan su əlavə edilir. Üzüm üçün 0,2-0,3 l/ha, alma üçün 0,25-0,3 l/ha dozada vegetasiya dövründə 2-3 dəfə çiləmə yolu ilə tətbiq edilir. Hər istifadədən əvvəl digər preparatlarla uyğunluğu yoxlanılmalıdır.",
       "target_az": "Üzüm bitkisində unlu şeh (xəstəliyi) və oidium, alma bitkisində isə alma qaşovuna (parşa) qarşı istifadə olunur.",
       "target": "Grape (powdery mildew, oidium), Apple (apple scab)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 84.9966
     },
     {
       "id": 21,
       "name": "Ajustar 200 WP",
       "category": "Insecticide",
-      "cost": 8.64,
-      "markup": 27.3,
       "stock": 500,
       "unit": "unit",
       "desc": "Ajustar 200 WP is a contact insecto-acaricide containing Pyridaben at 200 g/kg in wettable powder formulation. It provides protection for up to 30 days and does not exhibit phytotoxicity at recommended doses. The product is classified as Toxicity Class III.",
@@ -424,14 +402,13 @@
       "usage_az": "Məhsul tövsiyə olunan dozalarda su ilə qarışdırılaraq çiləmə yolu ilə istifadə edilir. Qoruyucu təsir müddəti 30 günə qədərdir. İstifadə zamanı etiket üzərindəki təlimatlara ciddi əməl edilməlidir.",
       "target_az": "Məhsul müxtəlif kənd təsərrüfatı bitkilərini zərərli həşəratlara və gənələrə (akarlar) qarşı qorumaq üçün nəzərdə tutulmuşdur. Kontakt təsir mexanizmi ilə həşərat və gənə zərərvericilərinə qarşı effektiv mübarizə aparır.",
       "target": "Insects and mites (acaricide); general crop protection against insect and mite pests",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 18.6978
     },
     {
       "id": 22,
       "name": "Estrellar 100 EC",
       "category": "Fungicide",
-      "cost": 13.08,
-      "markup": 37.6,
       "stock": 700,
       "unit": "unit",
       "desc": "ESTRELLAR 100 EC is a systemic fungicide with both protective and curative action, containing Penconazole 100 g/l as active ingredient in emulsifiable concentrate formulation. It is used for control of powdery mildew, pome fruit scab, and other pathogenic Ascomycetes, Basidiomycetes, and Deuteromycetes. The protection period ranges from 8 to 18 days depending on weather conditions and application timing.",
@@ -444,14 +421,13 @@
       "usage_az": "İş məhlulu emal günündə xüsusi təchiz edilmiş ərazilərdə hazırlanır: çən yarıya qədər su ilə doldurulur, qarışdırıcı işə salınır və lazımi miqdarda ESTRELLAR 100 EC əlavə edilir, qalan su tamamlanır. Tətbiq normaları bitki növündən asılıdır: açıq sahədə xiyar üçün 0,125-0,15 l/ha (2 dəfə), istixana xiyarı üçün 0,5-0,75 l/ha (3 dəfə), üzüm, şaftalı və alma üçün 0,3-0,6 l/ha (4 dəfə). İstifadədən əvvəl hər dəfə uyğunluq yoxlanılmalıdır.",
       "target_az": "Açıq sahə və istixana xiyarları (unlu şeh), qarağat (unlu şeh, bektaşı üzümü xəstəliyi), üzüm (oidium), şaftalı (unlu şeh, meyvə çürüməsi) və alma (unlu şeh) bitkilərini hədəf alır; həmçinin tənəklər, çərdəkli meyvələr, ornamental bitkilər və tərəvəzlərdə patogen göbələklərə qarşı effektivdir.",
       "target": "Cucumbers (open ground and greenhouse) - powdery mildew; Currants - powdery mildew, gooseberry; Grapes - oidium; Peaches - powdery mildew, fruit rot; Apples - powdery mildew",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 30.5967
     },
     {
       "id": 23,
       "name": "Curador 200 SC",
       "category": "Insecticide",
-      "cost": 28,
-      "markup": 132.1,
       "stock": 500,
       "unit": "unit",
       "desc": "CURADOR 200 SC is a new generation insecticide formulated as a Suspension Concentrate containing Chlorantraniliprole 200 g/L. It is used for the control of larvae of various Lepidopteran and Coleopteran species. Under recommended doses, the product does not possess phytotoxicity and provides a protection period of 14-28 days.",
@@ -464,14 +440,13 @@
       "usage_az": "Gavalı və şaftalıda 0,175 l/ha dozada vegetasiya dövründə 2 dəfə çiləmə yolu ilə tətbiq edilir. Alma və üzümdə isə 0,15-0,3 l/ha dozada vegetasiya dövründə 1-2 dəfə çiləmə aparılır. İş məhlulu istifadə günü hazırlanmalı, çən yarıya qədər su ilə doldurulmalı, lazımi miqdarda CURADOR 200 SC əlavə edilməli və qalan su tökülərək qarışdırıcı işə salınmalıdır.",
       "target_az": "Gavalı və şaftalı üçün: Cydia funebrana, Grapholitha molesta. Alma və üzüm üçün: Ancylis variegana, Ancylis achatana, Adoxophyes orana, Spilonota ocellana, Cydia pomonella, Lithocolletis spp., Grapholitha molesta, Lobesia botrana zərərvericilərinə qarşı istifadə olunur.",
       "target": "Plum, Peach: Cydia funebrana, Grapholitha molesta. Apple, Grape: Ancylis variegana, Ancylis achatana, Adoxophyes orana, Spilonota ocellana, Cydia pomonella, Lithocolletis spp., Grapholitha molesta, Lobesia botrana.",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 110.4796
     },
     {
       "id": 24,
       "name": "Lamar 500 WG",
       "category": "Insecticide",
-      "cost": 29.38,
-      "markup": 36.1,
       "stock": 500,
       "unit": "unit",
       "desc": "LAMAR 500 WG is a water dispersible granule insecticide belonging to the Carbamate chemical class, with Pirimicarb as its active ingredient at 500 g/kg concentration. It effectively controls most aphid species across a wide range of crops and is active against aphids that have developed resistance to organophosphate insecticides. The product has a fast mode of action, taking effect within minutes to 2-3 hours, with a protection period of 3 to 4 weeks.",
@@ -484,14 +459,13 @@
       "usage_az": "Məhsul tövsiyə edilən dozalarda istifadə edildikdə bitkiyə zərər vermir və fitotoksiklik müşahidə edilmir. Tətbiq zamanı, hava şəraitinə və zərərverici növünə görə qoruyucu təsir 3-4 həftə davam edir. Tətbiqdən bir neçə dəqiqə sonra, ən geci 2-3 saat ərzində sürətli təsir başlayır.",
       "target_az": "Məhsul meyvə, taxıl, yem və tərəvəz bitkilərini zədələyən əksər mənənə növlərinə, xüsusilə fosforüzvi insektisidlərə qarşı davamlılıq qazanmış mənənələrə qarşı nəzərdə tutulmuşdur.",
       "target": "Most aphid species (including organophosphate-resistant aphids) on fruit, cereal, forage, and vegetable crops.",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 67.9765
     },
     {
       "id": 25,
       "name": "Lamada 700 WP",
       "category": "Fungicide",
-      "cost": 8.87,
-      "markup": 69.1,
       "stock": 3000,
       "unit": "unit",
       "desc": "LAMADA 700 WP is a systemic fungicide formulated as a wettable powder containing 700 g/kg Thiophanate methyl. It provides both protective and curative action against a wide range of fungal pathogens. The product is absorbed by leaves and roots and acts quickly within minutes to a few hours.",
@@ -504,14 +478,13 @@
       "usage_az": "Məhsul tövsiyə olunan dozalarda tətbiq edilməlidir, bu zaman bitkiüçün zəhərlilik riski yoxdur. Mühafizə müddəti xəstəliyin növündən, hava şəraitindən və tətbiq vaxtından asılı olaraq 2-6 həftə təşkil edir. Təsir bir neçə dəqiqədən 2-3 saata qədər müddətdə başlayır.",
       "target_az": "Geniş spektrli göbələk patogenlərinə qarşı müxtəlif bitkilərdə istifadə üçün nəzərdə tutulmuşdur; yarpaqlar və köklər vasitəsilə udularaq göbələk xəstəliklərini məhv edir.",
       "target": "Wide range of fungal pathogens affecting crops; absorbed through leaves and roots",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 25.4986
     },
     {
       "id": 26,
       "name": "Tono 400 SC",
       "category": "Fungicide",
-      "cost": 12.06,
-      "markup": 41,
       "stock": 4000,
       "unit": "unit",
       "desc": "TONO 400 SC is a suspension concentrate fungicide belonging to the Guanidine chemical class, used as both a protectant and eradicant against fungal diseases. It contains Dodine at 400 g/l and provides a protection period of 1 to 2 weeks depending on disease type and weather conditions. Under recommended doses, the product does not exhibit phytotoxicity.",
@@ -524,14 +497,13 @@
       "usage_az": "Vegetasiya dövründə 1,7–2,25 l/ha normasında, mövsüm ərzində 2–3 dəfə püskürtmə yolu ilə tətbiq edilir. Məhlul istifadə günü hazırlanmalı, çən yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən lazımi miqdarda TONO 400 SC əlavə edilməli, sonra qalan su tamamlanmalıdır. Hər istifadədən əvvəl digər preparatlarla uyğunluq yoxlanılmalıdır.",
       "target_az": "Alma, armud, ərik, albalı, şaftalı və heyva bitkilərini Monilioz və Qoturluq (Scab) xəstəliklərinə qarşı qorumaq üçün nəzərdə tutulmuşdur.",
       "target": "Apples, pears, apricots, cherries, peaches, quinces — against Moniliosis and Scab",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 28.9078
     },
     {
       "id": 27,
       "name": "Coronilla 800 WG",
       "category": "Fungicide",
-      "cost": 9.85,
-      "markup": 32,
       "stock": 4000,
       "unit": "unit",
       "desc": "CORONILLA 800 WG is a systemic fungicide formulated as a water dispersible granule containing 800 g/kg Fosetyl aluminium. It is rapidly absorbed through plant leaves or roots and acts by inhibiting spore germination or blocking mycelium development and sporulation. The product belongs to the Phosphonate chemical class and has a protection period of up to 18 days.",
@@ -544,14 +516,13 @@
       "usage_az": "Məhsul tövsiyə edilən dozalarda istifadə edildikdə fitotoksiklik təhlükəsi yaratmır. Tətbiq müddəti hava şəraitindən və müalicənin vaxtından asılı olaraq 18 günə qədər qoruyucu təsir göstərir. Preparat həm yarpaqlar, həm də kökler vasitəsilə sorulduğundan, müalicəni düzgün doza və vaxtda həyata keçirmək lazımdır.",
       "target_az": "CORONILLA 800 WG müxtəlif kənd təsərrüfatı bitkilərini göbələk xəstəliklərindən qorumaq üçün nəzərdə tutulmuşdur; sporların cücərməsini, miseliyanın inkişafını və sporullaşmanı məhv etməklə patogen göbələklərə qarşı mübarizə aparır.",
       "target": "Fungal diseases in various crops; targets spore germination, mycelium development, and sporulation of fungal pathogens.",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 22.1034
     },
     {
       "id": 28,
       "name": "Argola 250 EC",
       "category": "Insecticide",
-      "cost": 6.71,
-      "markup": 49,
       "stock": 500,
       "unit": "unit",
       "desc": "Argola 25 EC is an emulsifiable concentrate insecticide belonging to the pyrethroid chemical class, containing Deltamethrin at 25 g/l. It acts on insects via ingestion and direct contact by delaying the closing of the activation gate for the sodium ion channel on nerve membranes. The product has a protection period of 15 days and toxicity class III.",
@@ -564,14 +535,13 @@
       "usage_az": "İş məhlulu emal günündə hazırlanır: çənin yarısı su ilə doldurulur, qarışdırıcı işləyərkən lazımi miqdarda Argola 25 EC əlavə edilir, sonra qalan su tökülür. Məhsul vegetasiya dövründə bitki növündən asılı olaraq 1-2 dəfə, hektara 0,15-0,7 l normasında çiləmə yolu ilə tətbiq edilir. Digər insektisid və funqisidlərlə uyğunluq hər dəfə istifadədən əvvəl yoxlanılmalıdır.",
       "target_az": "Xiyar (pambıq mənənəsi, trips, delia platura), Taxıl (zərərli tısbağa, mənənələr, taxıl zəlisi, trips, taxıl böcəyi, taxıl milçəyi, bürgələr, taxıl gecəquşu), Qarğıdalı (pambıq gecəquşu, qarğıdalı zolaqlısı), Pomidor (kolorado böcəyi, kələm kəpənəyi, gecəquşu), Kələm (gecəquşular, güvələr, bürgələr, kəpənəklər, mənənələr), Qovun/Qarpız (gəmirici gecəquşu)",
       "target": "Cucumbers (cotton aphid, thrips, delia platura), Cereals (harmful tortoise, louses, grain leech, thrips, grain beetle, grain flies, fleals, grain noctuid), Maize (cotton noctuid, maize stripe), Tomato (colorado beetle, cabbage butterfly, noctuid), Cabbage (noctuids, moths, fleas, butterflies, louses), Melon/Watermelon (rodents noctuid)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 16.9964
     },
     {
       "id": 29,
       "name": "Alianza 760 WG",
       "category": "Fungicide",
-      "cost": 8.38,
-      "markup": 31.3,
       "stock": 4000,
       "unit": "unit",
       "desc": "ALIANZA 760 WG is a contact fungicide formulated as water dispersible granules, containing Ziram 760 g/kg as the active ingredient. It belongs to the Dimethyldithiocarbamate chemical class. The product provides protective action for up to 14 days and does not exhibit phytotoxicity at recommended doses.",
@@ -584,14 +554,13 @@
       "usage_az": "Məhsul tövsiyə edilən dozalarda kontakt fungisid kimi tətbiq edilməlidir. Qoruyucu təsir müddəti 14 günə qədərdir, bu müddətdən sonra yenidən müalicə tələb oluna bilər. İstifadə zamanı etiket göstərişlərinə ciddi əməl edilməlidir.",
       "target_az": "Etiketdə konkret bitki növləri qeyd edilməmişdir, lakin məhsul müxtəlif kənd təsərrüfatı bitkilərindəki göbələk xəstəliklərinə qarşı kontakt fungisid kimi istifadə üçün nəzərdə tutulmuşdur.",
       "target": "Fungal diseases on crops; specific target crops not mentioned on label",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 18.705
     },
     {
       "id": 30,
       "name": "Hornillo 500 WG",
       "category": "Fungicide",
-      "cost": 28,
-      "markup": 132.1,
       "stock": 500,
       "unit": "unit",
       "desc": "HORNILLO 500 WG is a mesostemic, broad-spectrum fungicide with preventive and specific curative action, displaying rain fastness. It is redistributed by superficial vapour movement and has translaminar activity. It is suitable for foliar use on a wide range of agricultural and horticultural crops.",
@@ -604,14 +573,13 @@
       "usage_az": "Məhsul tövsiyə olunan dozalarda yarpaqlara püskürtmə yolu ilə tətbiq edilməlidir. Qoruyucu təsir müddəti xəstəliyin növündən, hava şəraitindən və tətbiq vaxtından asılı olaraq 2-6 həftə təşkil edir. Preparat tətbiqdən bir neçə dəqiqə ilə 2-3 saat ərzində sürətlə işə düşür.",
       "target_az": "Kənd təsərrüfatı və bağçılıq bitkilərinin geniş çeşidi üçün nəzərdə tutulmuşdur; geniş spektrli göbələk xəstəliklərini məhv edir.",
       "target": "Wide range of agricultural and horticultural crops; broad-spectrum fungal diseases",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 110.4796
     },
     {
       "id": 31,
       "name": "Anillito 200 SP",
       "category": "Insecticide",
-      "cost": 7.54,
-      "markup": 32.6,
       "stock": 250,
       "unit": "unit",
       "desc": "ANILLITO 200 SP is a water-soluble systemic, contact and stomach insecticide containing Acetamiprid at 200 g/kg. It is formulated as a Water Soluble Powder (SP) and provides protection for up to 3 weeks depending on weather conditions and timing of application. Under recommended doses, the product does not exhibit phytotoxicity.",
@@ -624,14 +592,13 @@
       "usage_az": "Məhsul vegetasiya dövründə püskürtmə yolu ilə tətbiq edilir: pambıq üçün 0,1 kq/ha (2 dəfə), kartof üçün 0,06 kq/ha (1-2 dəfə), istixanada pomidor və xiyar üçün 0,3 kq/ha (1 dəfə). İş məhlulu istifadə günü hazırlanmalı, tank yarısına qədər su ilə doldurulmalı, lazımi miqdarda preparat əlavə edilməli və qarışdırıcı işə salınaraq qalan su əlavə edilməlidir.",
       "target_az": "Pambıq bitkisindəki yarpaq birəsi və tripsə, kartof bitkisindəki kolorado böcəyinə, istixanada yetişdirilən pomidor və xiyardakı ağ sürfəyə (ağca qanad) qarşı effektivdir.",
       "target": "Cotton (leaf flea, louse thrips), Potato (colorado beetle), Tomato and Cucumber in hothouse (white fly)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 16.9967
     },
     {
       "id": 32,
       "name": "Corro 240 SC",
       "category": "Insecticide",
-      "cost": 14.62,
-      "markup": 36.8,
       "stock": 1000,
       "unit": "unit",
       "desc": "CORRO 240 SC is a suspension concentrate insecto-acaricide with Spirodiclofen 240 g/L as its active ingredient. It has predominantly contact action against various tick species on fruit and citrus crops. Under recommended doses, the product does not possess phytotoxicity.",
@@ -644,14 +611,13 @@
       "usage_az": "Preparat vegetasiya dövründə 0,75 l/ha normasında 2 dəfə çiləmə yolu ilə tətbiq edilir. İş məhlulu istifadə günü hazırlanmalı, çən yarıya qədər su ilə doldurulmalı, CORRO 240 SC əlavə edilməli və qarışdırıcı işə salınmaqla qalan su tamamlanmalıdır. Mühafizə dövrü 14-21 gün təşkil edir.",
       "target_az": "Məhsul ərik, üzüm və şaftalıda iki nöqtəli qırmızı gənəyə; sitrus ağaclarında qırmızı gənə və gümüşü gənəyə; almada isə gənə növlərinə qarşı nəzərdə tutulmuşdur.",
       "target": "Apricot, Grape, Peach (Two dotted red tick); Citrus Tree (Red tick, Silver tick); Apple (Ticks)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 34.0003
     },
     {
       "id": 33,
       "name": "Zumbar 100 SC",
       "category": "Insecticide",
-      "cost": 22,
-      "markup": 59.1,
       "stock": 1500,
       "unit": "unit",
       "desc": "ZUMBAR 100 SC is a systemic insecticide formulated as a Suspension Concentrate containing Spirotetramat at 100 g/l. It provides a protection period of 14-21 days and does not possess phytotoxicity under recommended doses. The product is classified as Toxicity Class III.",
@@ -664,14 +630,13 @@
       "usage_az": "Məhsul vegetasiya dövründə 0,75 l/ha normasında, 2 dəfə püskürtmə üsulu ilə tətbiq edilir. İş məhlulu istifadə günü hazırlanmalı, tank yarısına qədər su ilə doldurulmalı, lazımi miqdarda ZUMBAR 100 SC əlavə edilməli, sonra qalan su tökülməlidir. Qarışdırıcı tam həll olana qədər işləməlidir.",
       "target_az": "Armud ağaclarında Bəkər zərərvericilərinə və Sitrus ağaclarında Qalxanlı bitlərinə qarşı nəzərdə tutulmuşdur.",
       "target": "Pear (Baker insects), Citrus Tree (Scales)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 59.5034
     },
     {
       "id": 34,
       "name": "Camarilla 380 WG",
       "category": "Fungicide",
-      "cost": 34.09,
-      "markup": 32,
       "stock": 500,
       "unit": "unit",
       "desc": "CAMARILLA 380 WG is a water dispersible granule fungicide containing Boscalid and Pyraclostrobin as active ingredients. It has both preventive and curative action, effective against mildew, rusting, and apple scab diseases. The product belongs to toxicity class III and has a validity period of 5 years.",
@@ -684,14 +649,13 @@
       "usage_az": "İş məhlulu işlənmə günü xüsusi təchiz edilmiş ərazilərdə hazırlanmalıdır; tank yarıya qədər su ilə doldurulmalı, sonra məhsul əlavə edilməlidir. Pomidor üçün 0,3–0,5 kq/ha dozada vegetasiya dövründə maksimum 3 dəfə çiləmə aparılır. Alma və armud üçün 0,8 kq/ha dozada tumurcuq ayrılması fazasından meyvənin formalaşması fazasına qədər 10–14 günlük intervallarla çiləmə həyata keçirilir.",
       "target_az": "Açıq sahədə pomidor (erkən yanıqlıq xəstəliyinə qarşı); alma və armud (qaşıma, unlu şeh xəstəlikləri və saxlama zamanı meyvə çürüməsinə qarşı) nəzərdə tutulmuşdur.",
       "target": "Tomatoes (open ground) – Early Blight; Apples and Pears – Scab, Powdery Mildew, Rot of fruit in storage",
-      "safetyInterval": "Not later than 10 days before harvest (for rot of fruit in storage on Apple/Pears)"
+      "safetyInterval": "Not later than 10 days before harvest (for rot of fruit in storage on Apple/Pears)",
+      "priceAznNet": 76.498
     },
     {
       "id": 35,
       "name": "Cercado 625 WG",
       "category": "Fungicide",
-      "cost": 59.89,
-      "markup": 16.9,
       "stock": 500,
       "unit": "unit",
       "desc": "Cercado 625 WG is a water dispersible granule fungicide containing two active ingredients: Cyprodinil (systemic and foliar) and Fludioxonil (non-systemic with long residual activity). Cyprodinil inhibits penetration and mycelial growth both inside and on the leaf surface, while Fludioxonil is absorbed into plant tissues and has curative properties. The product belongs to the Anilinopyrimidine and Phenylpyrrole chemical classes.",
@@ -704,14 +668,13 @@
       "usage_az": "İş məhlulunu hazırlamaq üçün çiləyicinin çənini 2/3 hissəsinə qədər su ilə doldurun, lazımi miqdarda preparatı yavaşca əlavə edin, qalan suyu üstəlayın və yaxşıca qarışdırın. Preparat vegetasiya dövrü ərzində 0,8–1,0 kq/ha normasında çiləmə yolu ilə tətbiq edilir. Qoruyucu təsirin müddəti hava şəraitindən və müalicə vaxtından asılı olaraq 2-dən 6 həftəyə qədər davam edir.",
       "target_az": "Alma, armud, ərik, şaftalı, albalı, gilas, sitrus meyvələri, üzüm, çiyələk, moruq və qarağat üçün nəzərdə tutulmuşdur; Botrytis cinerea, Clasterosporium carpophilum, Prunus ssp., Monilia ssp., Charrinia diplodiella və Aspergillus niger van Thieg xəstəliklərinə qarşı effektivdir.",
       "target": "Apples, Pears, Apricots, Peaches, Cherries, Citrus fruits, Grapes, Strawberries, Raspberries, Currants — against Botrytis cinerea, Clasterosporium carpophilum, Prunus ssp., Monilia ssp., Charrinia diplodiella, Aspergillus niger van Thieg",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 119.0194
     },
     {
       "id": 36,
       "name": "Lumbre 250 EC",
       "category": "Fungicide",
-      "cost": 10.93,
-      "markup": 83,
       "stock": 700,
       "unit": "unit",
       "desc": "LUMBRE 250 EC is a systemic fungicide with both preventive and curative action, formulated as an emulsifiable concentrate. It is absorbed by leaves with acropetal and strong translaminar translocation. It acts as a sterol demethylation inhibitor, suppressing ergosterol biosynthesis in fungal cell membranes.",
@@ -724,14 +687,13 @@
       "usage_az": "İş məhlulu istifadə günü xüsusi təchiz olunmuş sahələrdə hazırlanır. Bak yarıya qədər su ilə doldurulur, qarışdırıcı işləyərkən lazımi miqdarda LUMBRE 250 EC əlavə edilir, sonra qalan su tökülür. Püskürtmə vegetasiya mövsümündə aparılır: alma və armud üçün 0,2 l/ha, şaftalı üçün 0,2–0,25 l/ha, pomidor üçün 0,5 l/ha, kartof üçün 0,25–0,3 l/ha.",
       "target_az": "Alma və armud (unlu şeh, qara ləkə); Şaftalı (yarpaq büzüşməsi, unlu şeh, Sphaerotheca pannosa); Pomidor (erkən yanıqlıq - Alternaria solani, gec yanıqlıq - Phytophthora infestans); Kartof (gec yanıqlıq - Phytophthora infestans, erkən yanıqlıq - Alternaria solani)",
       "target": "Apple and Pear (Powdery mildew, Scab); Peaches (Peach leaf-curl, Powdery mildew, Sphaerotheca pannosa); Tomatoes (Early blight, Late blight); Potatoes (Late blight, Early blight)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 34.0032
     },
     {
       "id": 37,
       "name": "Sonos 300 SC",
       "category": "Fungicide",
-      "cost": 8.1,
-      "markup": 85.2,
       "stock": 700,
       "unit": "unit",
       "desc": "SONOS 300 SC is a suspension concentrate fungicide containing Pyrimethanil 300 G/L, belonging to the Anilinopyrimidine chemical class. It acts as a protectant against Botrytis on wine grapes and has both protective and curative action against Venturia on apples. The protection period ranges from 2 to 6 weeks depending on disease type, weather conditions, and application timing.",
@@ -744,14 +706,13 @@
       "usage_az": "İş məhlulu istifadə günündə hazırlanmalı, tank yarısına qədər su ilə doldurulmalı, qarışdırıcı işləyərkən lazımi miqdarda SONOS 300 SC əlavə edilməli, sonra qalan su tamamlanmalıdır. Preparatın tətbiq norması: üzüm üçün 1,5-1,65 L/ha, alma üçün 1,125 L/ha, şaftalı və gavalı üçün 0,75 L/ha olmaqla vegetasiya dövründə püskürtmə yolu ilə tətbiq edilir. Hər istifadədən əvvəl digər preparatlarla uyğunluğu yoxlanılmalıdır.",
       "target_az": "Üzüm (Botrytis cinerea), Alma (Venturia inaequalis, Monilia fructigena), Şaftalı (Clasterosporium carpophilium, Monilia spp.), Gavalı (Clasterosporium carpophilium, Polystigma rubrum, Monilia spp.) bitkilərinin göbələk xəstəliklərinə qarşı nəzərdə tutulmuşdur.",
       "target": "Wine grapes (Botrytis cinerea), Apples (Venturia inaequalis, Monilia fructigena), Peach (Clasterosporium carpophilium, Monilia spp.), Plum (Clasterosporium carpophilium, Polystigma rubrum, Monilia spp.)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 25.502
     },
     {
       "id": 38,
       "name": "Arco 250 EC",
       "category": "Fungicide",
-      "cost": 9.02,
-      "markup": 66.3,
       "stock": 700,
       "unit": "unit",
       "desc": "ARCO 250 EC is a systemic fungicide with protective, curative, and eradicative action containing Tebuconazole 250 g/kg as an emulsifiable concentrate. It is rapidly absorbed into the vegetative parts of the plant, with translocation principally acropetally. It controls numerous fungal pathogens on pome fruits, grapes, berries, decorative flowers, and cereals.",
@@ -764,14 +725,13 @@
       "usage_az": "İş məhlulu emal günü xüsusi təchiz edilmiş ərazilərdə hazırlanmalıdır; tank yarısına qədər su ilə doldurulur, qarışdırıcı işləyərkən lazımi miqdarda ARCO 250 EC əlavə edilir, sonra qalan su tamamlanır. Tətbiq norması bitki növündən asılıdır: bağçılıq üçün 0,5 l/ha, üzüm üçün 0,4 l/ha, çiyələk və dekorativ bitkilər üçün 0,8 l/ha, buğda və arpa üçün 0,75 l/ha. Vegetasiya mövsümündə bitki növündən asılı olaraq 1-3 dəfə çiləmə aparılır.",
       "target_az": "Bağçılıq (Alma, Şaftalı) — Podosphaera leucotricha, Monilia fructigena; Üzüm — Uncinula Necator; Çiyələk, Moruq, Qarağat, Dekorativ bitkilər — Uncinula ssp.; Buğda və Arpa — Erysiphe graminis, Puccinia recondita, Septoria tritici, Fusarium sp., Helminthosporium sp.",
       "target": "Horticulture (Apple, Peach) - Podosphaera leucotricha, Monilia fructigena; Grape - Uncinula Necator; Strawberry, Raspberry, Currants, Decorative plants - Uncinula ssp.; Wheat and Barley - Erysiphe graminis, Puccinia recondita, Septoria tritici, Fusarium sp., Helminthosporium sp.",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 25.5004
     },
     {
       "id": 39,
       "name": "Acarus 240 SC",
       "category": "Specialty",
-      "cost": 16.92,
-      "markup": 24.1,
       "stock": 1000,
       "unit": "unit",
       "desc": "ACARUS 240 SC is a suspension concentrate acaricide based on Bifenazate 240 g/l, belonging to the Carbazate chemical class. It is an effective pesticide for phytophagous mite control with quick action ranging from a few minutes to 2-3 hours. Under recommended doses, the product does not possess phytotoxicity.",
@@ -784,14 +744,13 @@
       "usage_az": "İş məhlulu emal günü hazırlanmalı, çən yarıya qədər su ilə doldurulmalı, lazımi miqdarda ACARUS 240 SC əlavə edilməli və qarışdırıcı işə salınarkən qalan su tamamlanmalıdır. Pomidor və bibər üçün tətbiq norması bitki boyuna görə 0,24-0,48 L/ha, badımcan, xiyar və kabak üçün isə 0,4 L/ha təşkil edir. Preparat yoluxmanın başlanğıcında və ya ilk əlamətlər görünəndə tətbiq edilməli, maksimum 2 dəfə istifadə olunmalıdır.",
       "target_az": "Pomidor, bibər, badımcan, xiyar və kabak bitkilərində saçaqlı gənələrə (Spider mite) qarşı nəzərdə tutulmuşdur.",
       "target": "Spider mite on tomatoes, bell pepper, eggplant, cucumber, and zucchini",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 35.6961
     },
     {
       "id": 40,
       "name": "Detectar 200 EC",
       "category": "Insecticide",
-      "cost": 16.71,
-      "markup": 19.7,
       "stock": 500,
       "unit": "unit",
       "desc": "DETECTAR 200 EC is an emulsifiable concentrate insecticide belonging to the pyrethroid chemical class, containing 200 g/l Bifenthrin as its active ingredient. It acts through contact and stomach action, providing quick and long-lasting protection against a range of insect pests. The product does not exhibit phytotoxicity when used at recommended doses.",
@@ -804,14 +763,13 @@
       "usage_az": "İş məhlulu emal günündə hazırlanmalıdır: çənin yarısı su ilə doldurulur, qarışdırıcı işləyərkən lazımi miqdarda DETECTAR 200 EC əlavə edilir, sonra qalan su tamamlanır. Tətbiq norması bitki və zərərverici növündən asılı olaraq 50-70 mL/100 L su təşkil edir. Vegetasiya dövründə 2-3 dəfə səpilərək istifadə olunur.",
       "target_az": "Pomidor bitkisində Myzus persiciae (şəftəli yaprak biti), badımcanda Tetranychus cinnabarinus (qırmızı hörümçək gənəsi) və şaftalıda Myzus persiciae zərərvericilərini məhv etmək üçün nəzərdə tutulmuşdur.",
       "target": "Tomatoes (Myzus persiciae), Eggplant (Tetranychus cinnabarinus), Peaches (Myzus persiciae)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 34.0032
     },
     {
       "id": 41,
       "name": "Cosido 480 SC",
       "category": "Insecticide",
-      "cost": 17.03,
-      "markup": 46.8,
       "stock": 700,
       "unit": "unit",
       "desc": "COSIDO 480 SC is a suspension concentrate insecticide containing 480 g/l Diflubenzuron, belonging to the Benzamide chemical class. It is designed for the control of various pests on apple, pear, hazelnut, and olive trees. The product has a toxicity class of III and does not exhibit phytotoxicity under recommended doses.",
@@ -824,14 +782,13 @@
       "usage_az": "İş məhlulu emal günü hazırlanır: çən yarısına qədər su ilə doldurulur, qarışdırıcı işlədikcə lazımi miqdarda COSIDO 480 SC əlavə edilir, sonra qalan su tamamlanır. Əksər bitkilər üçün doza 40 ml/100 l su, fındıq üçün isə 20 ml/100 l sudur; vegetasiya dövrü ərzində 2 dəfə tətbiq edilir. Qoruyucu təsir müddəti 3-4 həftədir.",
       "target_az": "Alma (daxili qurd), Armud (bəkər), Fındıq (Amerika ağ kəpənəyi), Zeytun (zeytun güvəsi) — bu bitkilərdəki zərərvericilərə qarşı nəzərdə tutulmuşdur.",
       "target": "Apple (internal worm), Pear (baker), Hazelnut (American white butterfly), Olive (olive moth)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 42.5001
     },
     {
       "id": 42,
       "name": "Tapiar EC",
       "category": "Insecticide",
-      "cost": 13.11,
-      "markup": 37.3,
       "stock": 1000,
       "unit": "unit",
       "desc": "TAPIAR EC is a non-systemic acaricide formulated as an emulsifiable concentrate with contact and stomach action. It exhibits good translaminar activity and has ovicidal, larvicidal, and nymphicidal properties. The product is effective against spider mites on various crops and does not show phytotoxicity at recommended doses.",
@@ -844,14 +801,13 @@
       "usage_az": "TAPIAR EC bitkidən asılı olaraq hər 100 litr suya 50-100 ml nisbətində istifadə edilir. Vegetasiya dövründə 1-2 dəfə çiləmə yolu ilə tətbiq olunur. İş məhlulu istifadə günü hazırlanmalı, çən yarım su ilə doldurulduqdan sonra preparat əlavə edilməli, qalan su tamamlanmalı və qarışdırıcı işlədilməlidir.",
       "target_az": "Xiyar bitkisində Tetranychus urticae, alma və üzümdə Tetranychus urticae və Panonychus ulmi, istixanada yetişdirilən pomidorda isə Tetranychus urticae (adi hörümçək gənəsi) zərərvericilərinə qarşı istifadə edilir.",
       "target": "Cucumber (Tetranychus urticae), Apple and Grape (Tetranychus urticae, Panonychus ulmi), Tomato in greenhouse (Tetranychus urticae)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 30.6001
     },
     {
       "id": 43,
       "name": "Amurallar 110 SC",
       "category": "Insecticide",
-      "cost": 13.63,
-      "markup": 46.7,
       "stock": 1000,
       "unit": "unit",
       "desc": "AMURALLAR 110 SC is a suspension concentrate acaricide containing 110 g/l Etoxazole, belonging to the Oxazoline chemical class. It acts as a mite growth inhibitor and chitin synthesis inhibitor, affecting eggs, larvae, and nymphs, while also causing infertility in adult females. It is non-systemic and does not exhibit phytotoxicity at recommended doses.",
@@ -864,14 +820,13 @@
       "usage_az": "Preparat vegetasiya mövsümündə bir dəfə, 0,5 l/ha normasında çiləmə yolu ilə tətbiq edilir. İş məhlulu istifadə günü hazırlanmalı, tank yarıya qədər su ilə doldurulmalı, qarışdırıcı işləyərkən lazımi miqdarda preparat əlavə edilməli, sonra qalan su tökülməlidir. Mühafizə müddəti zərərvericinin növündən, hava şəraitindən və müalicə vaxtından asılı olaraq 2-3 həftə təşkil edir.",
       "target_az": "Gavalı və alma ağacları üçün nəzərdə tutulmuşdur; Bryobiidae və Tetranychidae (hörümçək gənələri) fəsiləsinə aid zərərvericiləri məhv edir.",
       "target": "Plum and apple trees; target pests: Bryobiidae, Tetranychidae (spider mites)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 33.9919
     },
     {
       "id": 44,
       "name": "Corriente 480 SC",
       "category": "Insecticide",
-      "cost": 195,
-      "markup": 23.1,
       "stock": 350,
       "unit": "unit",
       "desc": "CORRIENTE 480 SC is a naturally derived suspension concentrate insecticide containing 480 g/l Spinosad, belonging to the Spinosyn chemical class. It is designed for the control of lepidopterous larvae and acts by contact and ingestion, leading to paralysis of the target insects. Under recommended doses, the product does not exhibit phytotoxicity.",
@@ -884,14 +839,13 @@
       "usage_az": "İş məhlulu emal günündə hazırlanır: çən yarıya qədər su ilə doldurulur, lazımi miqdarda CORRIENTE 480 SC əlavə edilir, sonra qalan su tökülür və qarışdırıcı tam həll olana qədər işlədir. Tətbiq normaları: alma/armud və şaftalı/gavalı üçün 20 ml/100 L su, kartof üçün 10 ml/da, pomidor (açıq sahə) üçün 30 ml/100 L su. Vegetasiya mövsümü ərzində 3 dəfə səpilir.",
       "target_az": "Alma və armud (Tortricidae, güvələr), şaftalı və gavalı (Grapholita molesta), kartof (Kolorado böcəyi, 1-4 yaşlı yaşıl sürfələr), açıq sahədə pomidor (pambıq sovkası, pomidor güvəsi / Tuta absoluta) əkinləri üçün nəzərdə tutulmuşdur.",
       "target": "Apple and pear (Tortricidae, Moths), Peach and plum (Grapholita molesta), Potato (Colorado beetle, 1-4 green larvae), Tomato open area (Cotton noctuid, tomato moth / Tuta absoluta)",
-      "safetyInterval": ""
+      "safetyInterval": "",
+      "priceAznNet": 408.0765
     },
     {
       "id": 45,
       "name": "Parador 240 SC",
       "category": "Insecticide",
-      "cost": 16.51,
-      "markup": 51.4,
       "stock": 1000,
       "unit": "unit",
       "desc": "PARADOR 240 SC is a suspension concentrate acaricide containing two active substances with complementary and superior modes of action. It is effective against all life stages of harmful spider mites including eggs, larvae, nymphs, and adults. The product offers both rapid knockdown effect and long-lasting duration of action.",
@@ -904,7 +858,8 @@
       "usage_az": "100 litr suya 20 ml preparat əlavə edilərək işçi məhlul hazırlanır və bitkinin bütün hissələri hava sərin və sakit olduqda püskürdülür. İşçi məhlul istifadə günü hazırlanmalı, tank yarısına qədər su ilə doldurulmalı, PARADOR 240 SC əlavə edilməli, sonra qalan su tamamlanmalı və qarışdırıcı işlədiyi müddətdə həll olunana qədər qarışdırılmalıdır. Püskürtmədən əvvəl tank, şlanqlar və məməciklər yoxlanılmalıdır.",
       "target_az": "Üzüm (iki ləkəli qırmızı gənə - Tetranychus urticae), Alma (Avropa qırmızı gənəsi - Panonychus ulmi; Alça gənəsi - Tetranychus viennensis), Albalı (iki ləkəli qırmızı gənə - Tetranychus urticae), Şaftalı (iki ləkəli qırmızı gənə - Tetranychus urticae) bitkilərindəki zərərli gənə növlərini məhv edir.",
       "target": "Grapes (Two-Spotted red spider - Tetranychus urticae), Apple (European red spider - Panonychus ulmi; Buckthorn mite - Tetranychus viennensis), Cherry (Two-Spotted red spider - Tetranychus urticae), Peach (Two-Spotted red spider - Tetranychus urticae)",
-      "safetyInterval": "14 days (table grapes, apple, cherry, peach); 21 days (grape leaves); Cherry spraying should be done on fruitless trees or after harvest"
+      "safetyInterval": "14 days (table grapes, apple, cherry, peach); 21 days (grape leaves); Cherry spraying should be done on fruitless trees or after harvest",
+      "priceAznNet": 42.4934
     }
   ]
 }
