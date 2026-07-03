@@ -3316,6 +3316,47 @@ function supabaseUpsertStock(productId, productName, stock) {
   }).catch(function(e) { console.warn('Supabase stock sync failed (will retry on next save):', e); });
 }
 
+// Atomic, race-free stock change by delta (negative = sale, positive = void/
+// restock). Runs server-side via the adjust_stock RPC so concurrent operations
+// can never lose an increment, and it hard-fails (throws) instead of silently
+// updating 0 rows when there is no valid session. Returns the authoritative
+// new stock and updates the live cache so the UI reflects the server value.
+async function supabaseAdjustStock(productId, productName, delta) {
+  await ensureFreshSession();
+  const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/adjust_stock', {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ p_product_id: productId, p_delta: delta, p_product_name: productName || null })
+  });
+  if (!res.ok) throw new Error('adjust_stock failed (' + res.status + ')');
+  const newStock = parseFloat(await res.json());
+  if (_liveInventory) _liveInventory[productId] = isFinite(newStock) ? newStock : 0;
+  return newStock;
+}
+
+// Apply a list of { id, name, delta } stock changes atomically on the server,
+// reconcile the local catalog with the returned authoritative values, and warn
+// if any write was rejected (e.g. expired session) so stock never silently drifts.
+async function applyStockAdjustments(adjustments) {
+  if (!adjustments || !adjustments.length) return;
+  var failed = 0;
+  for (var i = 0; i < adjustments.length; i++) {
+    var a = adjustments[i];
+    try {
+      await supabaseAdjustStock(a.id, a.name, a.delta);
+    } catch (e) { failed++; console.warn('stock adjust failed for product', a.id, e); }
+  }
+  // _liveInventory now holds authoritative values; persist them locally.
+  try { persistProductsLocal(loadRawProducts()); } catch (e) { /* non-fatal */ }
+  if (failed) {
+    showToast('Diqqət: ' + failed + ' məhsulun stoku serverdə yenilənmədi. Yenidən daxil olub cəhd edin.', true);
+  }
+  if (typeof renderSaleProducts === 'function' && currentView === 'sales') renderSaleProducts();
+  if (typeof renderWarehouseOrders === 'function' && currentView === 'sales') renderWarehouseOrders();
+  if (typeof renderAdminDash === 'function' && currentView === 'admin') renderAdminDash();
+  if (typeof renderPublicProducts === 'function' && currentView === 'public') renderPublicProducts();
+}
+
 // productId -> stock, populated by syncInventoryFromServer(); applied
 // synchronously in loadRawProducts() so every render sees the live number.
 var _liveInventory = null;
@@ -3954,6 +3995,13 @@ function countProductsWithUsageAz(products) {
 // automatically diffed against the previous snapshot and pushed to the
 // Supabase `inventory` table — callers never need to remember to sync stock
 // themselves.
+// Write the catalog to localStorage only (no Supabase stock sync). Used by the
+// sale/void flows, which push stock changes through the atomic adjust_stock RPC
+// instead of the absolute-value upsert in saveProducts().
+function persistProductsLocal(arr) {
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(arr));
+}
+
 function saveProducts(arr) {
   try {
     var prevRaw = localStorage.getItem(PRODUCTS_KEY);
@@ -5760,17 +5808,22 @@ function adminEditSale(ts) {
   const newCustomer = prompt('Müştəri adı:', s.customer || '');
   if(newCustomer == null) return;
 
-  // Adjust stock by the qty delta (oldQty - newQty), so reducing qty restores stock
+  // Adjust stock by the qty delta (oldQty - newQty) atomically on the server, so
+  // reducing qty restores stock and increasing it deducts — race-free.
   const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
+  const editAdjust = [];
   if(pIdx >= 0) {
     const delta = (+s.qty) - newQty;
     const p = products[pIdx];
-    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, delta);
-    if(products[pIdx].stock < 0) {
+    const rawDelta = stockDeltaRaw(p, delta);
+    const projected = (parseFloat(p.stock) || 0) + rawDelta;
+    if(projected < 0) {
       if(!confirm('Diqqət: Stock mənfi olacaq. Davam edək?')) return;
     }
-    saveProducts(products);
+    products[pIdx].stock = projected; // optimistic UI
+    persistProductsLocal(products);
+    if(rawDelta !== 0) editAdjust.push({ id: s.productId, name: s.productName, delta: rawDelta });
   }
 
   const oldQty = s.qty, oldUnitPrice = s.unitPrice, oldTotal = s.total, oldCustomer = s.customer;
@@ -5788,6 +5841,7 @@ function adminEditSale(ts) {
     oldCustomer, newCustomer: newCustomer.trim(),
     oldTotal, newTotal: sales[idx].total
   });
+  applyStockAdjustments(editAdjust);
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
@@ -5805,13 +5859,16 @@ function adminDeleteSale(ts) {
   if(s.voided) { showToast('Bu satış artıq ləğv edilib.', true); return; }
   if(!confirm(`Bu satışı ləğv etmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
 
-  // Restore stock
+  // Restore stock atomically on the server (race-free, no silent no-op).
   const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
+  const restore = [];
   if(pIdx >= 0) {
     const p = products[pIdx];
-    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
-    saveProducts(products);
+    const rawDelta = stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+    products[pIdx].stock = (parseFloat(p.stock) || 0) + rawDelta; // optimistic UI
+    persistProductsLocal(products);
+    restore.push({ id: s.productId, name: s.productName, delta: rawDelta });
   }
 
   sales[idx].voided   = true;
@@ -5823,6 +5880,7 @@ function adminDeleteSale(ts) {
     saleTs: s.ts, productId: s.productId, productName: s.productName,
     qty: s.qty, total: s.total, customer: s.customer
   });
+  applyStockAdjustments(restore).then(function() { renderSalesLog(); });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
@@ -5835,16 +5893,25 @@ function clearSalesLog() {
   if(!active.length) { showToast('Ləğv ediləcək aktiv satış yoxdur.'); return; }
   if(!confirm(`Bütün AKTIV satışları (${active.length}) ləğv etmək və stock-ları geri qaytarmaq? Bu əməliyyat Fəaliyyət Jurnalında saxlanılacaq və geri qaytarıla bilməz.`)) return;
 
-  // Restore stock for every active sale
+  // Restore stock for every active sale — atomically on the server. Deltas are
+  // summed per product so one RPC call per product covers multiple sales.
   const products = loadRawProducts();
+  const deltaById = {};
+  const nameById = {};
   active.forEach(s => {
     const pIdx = products.findIndex(p => p.id === s.productId);
     if(pIdx >= 0) {
       const p = products[pIdx];
-      products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+      const rawDelta = stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+      products[pIdx].stock = (parseFloat(p.stock) || 0) + rawDelta; // optimistic UI
+      deltaById[s.productId] = (deltaById[s.productId] || 0) + rawDelta;
+      nameById[s.productId] = s.productName;
     }
   });
-  saveProducts(products);
+  persistProductsLocal(products);
+  const restore = Object.keys(deltaById).map(function(id) {
+    return { id: parseInt(id, 10), name: nameById[id], delta: deltaById[id] };
+  });
 
   const now = Date.now();
   sales.forEach(function(s) {
@@ -5855,6 +5922,7 @@ function clearSalesLog() {
   });
   saveSales(sales);
   logActivity('sales_log_cleared', { count: active.length });
+  applyStockAdjustments(restore).then(function() { renderSalesLog(); });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
@@ -6206,6 +6274,7 @@ function confirmSale() {
   const discountMul = 1 - (discountPct / 100);
 
   let confirmed = 0;
+  const stockAdjustments = []; // { id, name, delta } applied atomically server-side
   ids.forEach(id => {
     const item = cartItems[id];
     const pIdx = products.findIndex(p => p.id === id);
@@ -6219,7 +6288,9 @@ function confirmSale() {
     const unitPriceOriginal = item.customPrice;
     const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
     const total     = +(unitPrice * qty).toFixed(2);
-    products[pIdx].stock -= stockDeltaRaw(p, qty);
+    const rawDelta  = stockDeltaRaw(p, qty);
+    products[pIdx].stock -= rawDelta; // optimistic local update for instant UI
+    stockAdjustments.push({ id: p.id, name: p.name, delta: -rawDelta });
     const row = {
       ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer,
       salesperson: sellerName, salespersonUsername: sellerUsername,
@@ -6241,8 +6312,11 @@ function confirmSale() {
 
   if(!confirmed) { showToast('Satılacaq etibarlı məhsul yoxdur', true); return; }
 
-  saveProducts(products);
+  persistProductsLocal(products);
   saveSales(sales);
+  // Apply stock decrements atomically on the server (race-free). Reconcile the
+  // UI with the authoritative values and warn if a write was rejected.
+  applyStockAdjustments(stockAdjustments);
 
   // Seed the warehouse status history with the initial "Anbarda" entry so the
   // Anbar tab has a first timestamp to show, right from confirmation.
