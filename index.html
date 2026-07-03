@@ -3321,14 +3321,27 @@ function supabaseUpsertStock(productId, productName, stock) {
 // can never lose an increment, and it hard-fails (throws) instead of silently
 // updating 0 rows when there is no valid session. Returns the authoritative
 // new stock and updates the live cache so the UI reflects the server value.
-async function supabaseAdjustStock(productId, productName, delta) {
+async function supabaseAdjustStock(productId, productName, delta, preventNegative) {
   await ensureFreshSession();
   const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/adjust_stock', {
     method: 'POST',
     headers: supabaseHeaders(),
-    body: JSON.stringify({ p_product_id: productId, p_delta: delta, p_product_name: productName || null })
+    body: JSON.stringify({
+      p_product_id: productId, p_delta: delta, p_product_name: productName || null,
+      p_allow_negative: !preventNegative
+    })
   });
-  if (!res.ok) throw new Error('adjust_stock failed (' + res.status + ')');
+  if (!res.ok) {
+    var insufficient = false;
+    try {
+      var body = await res.json();
+      var m = (body && (body.message || body.hint || body.details)) || '';
+      if (String(m).indexOf('insufficient_stock') >= 0) insufficient = true;
+    } catch (e) { /* ignore */ }
+    var err = new Error('adjust_stock failed (' + res.status + ')');
+    err.insufficientStock = insufficient;
+    throw err;
+  }
   const newStock = parseFloat(await res.json());
   if (_liveInventory) _liveInventory[productId] = isFinite(newStock) ? newStock : 0;
   return newStock;
@@ -3338,23 +3351,32 @@ async function supabaseAdjustStock(productId, productName, delta) {
 // reconcile the local catalog with the returned authoritative values, and warn
 // if any write was rejected (e.g. expired session) so stock never silently drifts.
 async function applyStockAdjustments(adjustments) {
-  if (!adjustments || !adjustments.length) return;
-  var failed = 0;
+  var result = { failed: 0, insufficient: [], failedItems: [] };
+  if (!adjustments || !adjustments.length) return result;
   for (var i = 0; i < adjustments.length; i++) {
     var a = adjustments[i];
     try {
-      await supabaseAdjustStock(a.id, a.name, a.delta);
-    } catch (e) { failed++; console.warn('stock adjust failed for product', a.id, e); }
+      await supabaseAdjustStock(a.id, a.name, a.delta, a.preventNegative);
+    } catch (e) {
+      result.failed++;
+      result.failedItems.push(a);
+      if (e && e.insufficientStock) result.insufficient.push(a.id);
+      console.warn('stock adjust failed for product', a.id, e);
+    }
   }
   // _liveInventory now holds authoritative values; persist them locally.
   try { persistProductsLocal(loadRawProducts()); } catch (e) { /* non-fatal */ }
-  if (failed) {
-    showToast('Diqqət: ' + failed + ' məhsulun stoku serverdə yenilənmədi. Yenidən daxil olub cəhd edin.', true);
+  // Only warn here about non-oversell failures (expired session / network).
+  // Callers handle insufficient-stock rejections with their own messaging.
+  var otherFailures = result.failed - result.insufficient.length;
+  if (otherFailures > 0) {
+    showToast('Diqqət: ' + otherFailures + ' məhsulun stoku serverdə yenilənmədi. Yenidən daxil olub cəhd edin.', true);
   }
   if (typeof renderSaleProducts === 'function' && currentView === 'sales') renderSaleProducts();
   if (typeof renderWarehouseOrders === 'function' && currentView === 'sales') renderWarehouseOrders();
   if (typeof renderAdminDash === 'function' && currentView === 'admin') renderAdminDash();
   if (typeof renderPublicProducts === 'function' && currentView === 'public') renderPublicProducts();
+  return result;
 }
 
 // productId -> stock, populated by syncInventoryFromServer(); applied
@@ -6254,9 +6276,18 @@ function renderCart() {
   refreshCartTotals();
 }
 
-function confirmSale() {
+async function confirmSale() {
   const ids = Object.keys(cartItems).map(Number);
   if(!ids.length) return;
+
+  const btn = document.getElementById('btn-confirm-sale');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  try {
+
+  // Clamp against the latest server stock so two devices can't both sell the
+  // last unit. The atomic guard below is the real backstop; this just narrows
+  // the window and gives a cleaner UX.
+  try { await ensureFreshSession(); await syncInventoryFromServer(); } catch (e) { /* offline: proceed, guard still protects */ }
 
   const products = loadRawProducts();
   const sales = getSales();
@@ -6273,8 +6304,9 @@ function confirmSale() {
   if(discountPct > MAX_CART_DISCOUNT) discountPct = MAX_CART_DISCOUNT;
   const discountMul = 1 - (discountPct / 100);
 
-  let confirmed = 0;
-  const stockAdjustments = []; // { id, name, delta } applied atomically server-side
+  // Build the intended sale rows first (clamped to available stock), but do NOT
+  // record any sale until the server confirms the stock decrement succeeded.
+  const intended = [];
   ids.forEach(id => {
     const item = cartItems[id];
     const pIdx = products.findIndex(p => p.id === id);
@@ -6282,41 +6314,59 @@ function confirmSale() {
     const p = products[pIdx];
     const qty = Math.min(item.qty, maxSalePackages(p));
     if(qty < 1) return;
-    // Apply discount per-row so `unitPrice` always equals what the customer
-    // actually paid per unit. Existing reports compute totals from these
-    // fields without needing to know about the discount.
     const unitPriceOriginal = item.customPrice;
     const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
     const total     = +(unitPrice * qty).toFixed(2);
     const rawDelta  = stockDeltaRaw(p, qty);
-    products[pIdx].stock -= rawDelta; // optimistic local update for instant UI
-    stockAdjustments.push({ id: p.id, name: p.name, delta: -rawDelta });
+    intended.push({ p: p, qty: qty, unitPrice: unitPrice, unitPriceOriginal: unitPriceOriginal, total: total, rawDelta: rawDelta });
+  });
+
+  if(!intended.length) { showToast('Satılacaq etibarlı məhsul yoxdur', true); return; }
+
+  // Decrement stock atomically on the server FIRST, with the oversell guard.
+  // Only items whose decrement succeeds become confirmed sales — no phantom
+  // sales, no negative inventory.
+  const adjustments = intended.map(function(x) {
+    return { id: x.p.id, name: x.p.name, delta: -x.rawDelta, preventNegative: true, _ref: x };
+  });
+  const adjResult = await applyStockAdjustments(adjustments);
+  const failedRefs = [];
+  (adjResult.failedItems || []).forEach(function(a) { if (a._ref) failedRefs.push(a._ref); });
+
+  let confirmed = 0;
+  intended.forEach(x => {
+    if (failedRefs.indexOf(x) >= 0) return; // decrement rejected — skip
+    const p = x.p;
     const row = {
-      ts: ts + confirmed, productId: p.id, productName: p.name, qty, unitPrice, total, customer,
+      ts: ts + confirmed, productId: p.id, productName: p.name, qty: x.qty,
+      unitPrice: x.unitPrice, total: x.total, customer,
       salesperson: sellerName, salespersonUsername: sellerUsername,
       saleId: saleId, warehouseStatus: WAREHOUSE_STATUS_DEFAULT
     };
     if (productHasVat(p)) row.vatApplicable = true;
     if(discountPct > 0) {
       row.discountPct       = discountPct;
-      row.unitPriceOriginal = unitPriceOriginal;
+      row.unitPriceOriginal = x.unitPriceOriginal;
     }
     sales.push(row);
     confirmed++;
     supabaseInsertSale(row);
     logActivity('sale_confirmed', {
       saleTs: row.ts, productId: p.id, productName: p.name,
-      qty, unitPrice, total, customer, saleId: saleId
+      qty: x.qty, unitPrice: x.unitPrice, total: x.total, customer, saleId: saleId
     });
   });
 
-  if(!confirmed) { showToast('Satılacaq etibarlı məhsul yoxdur', true); return; }
+  // Report any items that couldn't be sold because stock ran out.
+  if (adjResult.insufficient && adjResult.insufficient.length) {
+    const names = intended.filter(function(x){ return adjResult.insufficient.indexOf(x.p.id) >= 0; })
+                          .map(function(x){ return x.p.name; });
+    showToast('Stok çatmır: ' + names.join(', ') + ' satılmadı.', true);
+  }
 
-  persistProductsLocal(products);
+  if(!confirmed) { renderSaleProducts(); renderCart(); return; }
+
   saveSales(sales);
-  // Apply stock decrements atomically on the server (race-free). Reconcile the
-  // UI with the authoritative values and warn if a write was rejected.
-  applyStockAdjustments(stockAdjustments);
 
   // Seed the warehouse status history with the initial "Anbarda" entry so the
   // Anbar tab has a first timestamp to show, right from confirmation.
@@ -6338,6 +6388,13 @@ function confirmSale() {
   renderMySales();
   renderWarehouseOrders();
   renderAdminDash();
+
+  } finally {
+    // renderCart() (called on every path above) recomputes the button's state
+    // from the cart; this is a safety net in case an early error skipped it.
+    const b = document.getElementById('btn-confirm-sale');
+    if (b && b.disabled && Object.keys(cartItems).length) { b.disabled = false; b.style.opacity = '1'; }
+  }
 }
 
 // Legacy stubs (no longer used but kept for safety)
