@@ -6079,20 +6079,22 @@ function exportSaleSlipPdf(saleId) {
   }
 
   const first = items[0];
-  let grandTotal = 0, grandVat = 0;
+  let grandTotal = 0, grandVat = 0, grandNet = 0;
   const rowsHtml = items.map(function(it) {
     const total = (+it.total) || 0;
     grandTotal += total;
     // it.total is VAT-inclusive (see salePackPriceAZN), so the VAT shown here
     // is backed out of it rather than added on top — same math as Finance.
     const vatAmt = it.vatApplicable ? total * VAT_RATE / (100 + VAT_RATE) : 0;
+    const netAmt = total - vatAmt;
     grandVat += vatAmt;
+    grandNet += netAmt;
     return '<tr>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;">' + escapeHtml(it.productName) + '</td>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + it.qty + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(+it.unitPrice) + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(total) + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(netAmt) + '</td>'
       + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;color:#666;">' + (it.vatApplicable ? formatAzn(vatAmt) : '—') + '</td>'
+      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;font-weight:600;">' + formatAzn(total) + '</td>'
       + '</tr>';
   }).join('');
 
@@ -6112,15 +6114,18 @@ function exportSaleSlipPdf(saleId) {
         <tr style="background:#f2f2f2;">
           <th style="padding:6px 8px;text-align:left;border-bottom:2px solid #999;">Məhsul</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Miqdar</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Vahid qiymət</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Cəmi</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;" title="18% ƏDV">o cümlədən ƏDV</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Qiymət (ƏDV-siz)</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;" title="18% ƏDV">+ ƏDV</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Ümumi</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>
-    ${grandVat > 0 ? '<div style="text-align:right;font-size:12px;color:#666;margin-top:10px;">o cümlədən ƏDV 18%: ' + formatAzn(grandVat) + '</div>' : ''}
-    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:4px;">Yekun: ${formatAzn(grandTotal)}</div>
+    <div style="text-align:right;font-size:12px;color:#666;margin-top:10px;line-height:1.7;">
+      <div>Qiymət (ƏDV-siz): ${formatAzn(grandNet)}</div>
+      ${grandVat > 0 ? '<div>+ ƏDV (18%): ' + formatAzn(grandVat) + '</div>' : ''}
+    </div>
+    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:4px;">Ümumi: ${formatAzn(grandTotal)}</div>
     <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:13px;">
       <div>Anbar məsulu: _______________________&nbsp;&nbsp;Tarix: __________</div>
     </div>
