@@ -66,11 +66,6 @@
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/sales-users.json"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
   for = "/clerk-config.json"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"

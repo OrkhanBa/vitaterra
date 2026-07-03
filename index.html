@@ -3577,66 +3577,13 @@ async function syncSalesFromServer() {
 }
 
 const SALES_KEY       = 'vt_sales';
-const SALES_USERS_KEY = 'vt_sales_users';
 const CURRENT_USER_KEY = 'vt_current_user';
 const FINANCE_SESSION_KEY = 'vt_finance_session';
 const FINANCE_PASS_KEY = 'vt_finance_pass';
 const FINANCE_USER = 'finance';
 
-// Default sales users — admin can add more from the Sales Log tab.
-const DEFAULT_SALES_USERS = [
-  { username: 'sales',  password: 'sales123', name: 'Sales Team' },
-];
-
-// Published server snapshot (same pattern as products.json).
-var PUBLISHED_SALES_USERS = null;
-
-function sanitizeSalesUser(u) {
-  return {
-    username: String(u.username || '').trim(),
-    password: String(u.password || '').trim(),
-    name: String(u.name || u.username || '').trim()
-  };
-}
-
-function getSalesUsersForLogin() {
-  if (Array.isArray(PUBLISHED_SALES_USERS) && PUBLISHED_SALES_USERS.length) {
-    return PUBLISHED_SALES_USERS.map(sanitizeSalesUser).filter(u => u.username && u.password);
-  }
-  return DEFAULT_SALES_USERS.map(sanitizeSalesUser);
-}
-
-function usesLocalSalesUserDraft() {
-  return (typeof currentView !== 'undefined' && currentView === 'admin');
-}
-
-function getSalesUsers() {
-  try {
-    if (usesLocalSalesUserDraft()) {
-      const d = localStorage.getItem(SALES_USERS_KEY);
-      if (d) return JSON.parse(d).map(sanitizeSalesUser).filter(u => u.username);
-    }
-    return getSalesUsersForLogin();
-  } catch(e) { return DEFAULT_SALES_USERS.slice(); }
-}
-
-function getSalesUsersForPublish() {
-  const users = usesLocalSalesUserDraft() ? getSalesUsers() : getSalesUsersForLogin();
-  return users.map(sanitizeSalesUser).filter(u => u.username && u.password);
-}
-
-async function fetchPublishedSalesUsers() {
-  try {
-    const res = await fetch('/sales-users.json?_=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data && Array.isArray(data.users) && data.users.length) {
-      PUBLISHED_SALES_USERS = data.users.map(sanitizeSalesUser).filter(u => u.username && u.password);
-    }
-  } catch (e) { /* fall back to DEFAULT_SALES_USERS */ }
-}
-
-function saveSalesUsers(arr) { localStorage.setItem(SALES_USERS_KEY, JSON.stringify(arr)); }
+// Sales/finance logins live in Supabase Auth (see supabaseSignIn). There is no
+// longer a published sales-users.json or a localStorage user draft.
 function getCurrentSalesUser() {
   try { return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null'); }
   catch(e) { return null; }
@@ -5446,6 +5393,7 @@ function renderSalesLog() {
   if(!tbody) return;
 
   renderSalesUsers();
+  refreshAppUsers();
   populateSalesFilter();
   renderSalesTotalsByUser(sales.filter(function(s) { return !s.voided; }));
 
@@ -5607,27 +5555,7 @@ function renderSalesTotalsByUser(sales) {
     </div>`).join('');
 }
 
-// ─── Sales users management ────────────────────────────────
-function renderSalesUsersPublishStatus() {
-  const el = document.getElementById('sales-users-publish-status');
-  if (!el) return;
-  const draft = getSalesUsersForPublish();
-  const live  = getSalesUsersForLogin();
-  const draftKey = JSON.stringify(draft.map(u => [u.username, u.password, u.name]));
-  const liveKey  = JSON.stringify(live.map(u => [u.username, u.password, u.name]));
-  if (draftKey !== liveKey) {
-    el.style.display = 'block';
-    el.style.color = 'var(--green-dark)';
-    el.innerHTML = '⚠️ Yeni loginlər yalnız bu brauzerdədir. Mobil üçün <strong>🚀 Loginləri Publish et</strong> basın.';
-  } else if (live.length) {
-    el.style.display = 'block';
-    el.style.color = 'var(--text-light)';
-    el.textContent = '✅ ' + live.length + ' satıcı login-i canlı saytda aktivdir (mobil daxil olur).';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
+// ─── Sales / finance users management ──────────────────────
 // Sales/finance accounts now live in Supabase Auth. All management goes through
 // the admin-only manage-users Netlify function (verified by the Clerk admin
 // token). Passwords are hashed server-side and are never shown or stored here.
@@ -7350,10 +7278,10 @@ async function publishToLiveSite(options) {
   delta._meta = { publishedAt: new Date().toISOString() };
 
   const productsSnapshot = options.products != null ? options.products : getProductsForPublish();
-  const salesUsersSnapshot = options.salesUsers != null ? options.salesUsers : getSalesUsersForPublish();
   body.content = delta;
   body.products = productsSnapshot;
-  body.salesUsers = salesUsersSnapshot;
+  // Sales/finance logins are no longer published as a JSON file — they live in
+  // Supabase Auth and are managed via the manage-users function.
 
   const usageCount = countProductsWithUsageAz(productsSnapshot);
   if (!options.skipUsageWarn && usageCount === 0) {
@@ -7378,35 +7306,10 @@ async function publishToLiveSite(options) {
   }
 
   PUBLISHED_PRODUCTS = productsSnapshot;
-  PUBLISHED_SALES_USERS = salesUsersSnapshot;
   saveProducts(productsSnapshot);
-  saveSalesUsers(salesUsersSnapshot);
   if (typeof renderPublicProducts === 'function') renderPublicProducts();
   if (typeof renderAdminDash === 'function') renderAdminDash();
   return { ok: true, usageCount, data };
-}
-
-async function publishSalesUsers() {
-  const draft = getSalesUsersForPublish();
-  if (!draft.length) {
-    showToast('Heç bir satıcı login-i yoxdur. Əvvəl əməkdaş əlavə edin.', true);
-    return;
-  }
-  const live = getSalesUsersForLogin();
-  const same = JSON.stringify(draft) === JSON.stringify(live);
-  if (same && PUBLISHED_SALES_USERS) {
-    showToast('Loginlər artıq publish olunub — mobil də işləməlidir.');
-    return;
-  }
-  if (!confirm('Satıcı loginləri canlı sayta yüklənsin?\n\n' + draft.length + ' əməkdaş · mobil /sales daxil olacaq')) return;
-  try {
-    showToast('⏳ Loginlər publish edilir...');
-    const result = await publishToLiveSite({ salesUsers: draft, skipUsageWarn: true });
-    if (result.cancelled) return;
-    showToast('✅ Satıcı loginləri publish olundu! ~30 saniyə sonra mobildən daxil olun.');
-  } catch (e) {
-    showToast('Publish uğursuz: ' + e.message, true);
-  }
 }
 
 async function publishProductsCatalog() {
@@ -9236,7 +9139,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (hasSupabaseSession()) { ensureFreshSession(); }
   // Pull the latest published site content + product catalog in parallel
   // before first render so non-admin visitors see the right data immediately.
-  await Promise.all([fetchPublishedContent(), fetchPublishedProducts(), fetchPublishedSalesUsers()]);
+  await Promise.all([fetchPublishedContent(), fetchPublishedProducts()]);
   await fetchClerkConfig();
   await initClerkIfConfigured();
   setLang(currentLang);

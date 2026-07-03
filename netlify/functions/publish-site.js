@@ -17,7 +17,6 @@ const BRANCH = 'main';
 
 const SITE_CONTENT_PATH  = 'site-content.json';
 const PRODUCTS_PATH      = 'products.json';
-const SALES_USERS_PATH   = 'sales-users.json';
 
 // Per-file payload limit. Product catalog (with base64 images + AZ translations)
 // can grow well past the old 500KB cap, so we allow up to 5MB.
@@ -188,22 +187,8 @@ exports.handler = async (event) => {
       results.productImages     = imageResult.imagePaths.length;
     }
 
-    // 3. Sales portal logins — written when an array was provided.
-    if (Array.isArray(body.salesUsers)) {
-      const salesUsersObj = {
-        _meta: { publishedAt: stamp },
-        users: body.salesUsers,
-      };
-      const salesUsersPayload = JSON.stringify(salesUsersObj, null, 2);
-      const salesRes = await putFile(
-        ghHeaders,
-        SALES_USERS_PATH,
-        salesUsersPayload,
-        `Publish sales users via editor (${stamp})`
-      );
-      results.salesUsersCommit    = salesRes.commit && salesRes.commit.sha;
-      results.salesUsersCommitUrl = salesRes.commit && salesRes.commit.html_url;
-    }
+    // Sales/finance logins are managed in Supabase Auth (manage-users.js),
+    // no longer published as a JSON file.
 
     return reply(200, {
       ok: true,
