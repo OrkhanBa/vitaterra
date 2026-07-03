@@ -1243,59 +1243,111 @@
   }
   .vse-add-block-btn:hover { background:rgba(62,140,88,0.06); border-color:var(--green-accent); }
 
-  /* ─── VISUAL SITE EDITOR ─── */
-  .vse-shell {
-    display:grid; grid-template-columns:300px 1fr;
-    height:calc(100vh - 130px); gap:0;
-    background:var(--white); border-radius:14px;
-    border:1px solid var(--border); overflow:hidden; box-shadow:var(--shadow);
+  /* ─── VISUAL SITE EDITOR (rebuilt WYSIWYG) ─── */
+  .vse2-shell {
+    display:flex; flex-direction:column;
+    height:calc(100vh - 150px); min-height:560px;
+    background:var(--white); border:1px solid var(--border);
+    border-radius:14px; overflow:hidden; box-shadow:var(--shadow);
   }
-  .vse-sidebar {
-    background:#f8f9fa; border-right:1px solid var(--border);
-    display:flex; flex-direction:column; overflow:hidden;
+  .vse2-topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:12px 16px; background:var(--green-dark); flex-wrap:wrap;
   }
-  .vse-sidebar-header {
-    padding:16px; border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--green-dark);
+  .vse2-topbar-left { display:flex; flex-direction:column; gap:1px; }
+  .vse2-title { color:#fff; font-weight:700; font-size:15px; }
+  .vse2-hint { color:var(--gold-light); font-size:11px; }
+  .vse2-lang-seg { display:flex; background:rgba(255,255,255,0.12); border-radius:9px; padding:3px; gap:2px; }
+  .vse2-lang-btn {
+    border:none; background:transparent; color:rgba(255,255,255,0.78);
+    padding:7px 16px; border-radius:7px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s;
   }
-  .vse-sidebar-title { color:var(--white); font-weight:600; font-size:14px; }
-  .vse-tool-btn {
-    background:rgba(255,255,255,0.15); border:none; color:var(--white);
-    padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;
-    font-family:'DM Sans',sans-serif; transition:all 0.2s;
+  .vse2-lang-btn.active { background:var(--gold); color:var(--green-dark); }
+  .vse2-topbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .vse2-device { display:flex; background:rgba(255,255,255,0.12); border-radius:8px; padding:3px; }
+  .vse-device-btn {
+    border:none; background:transparent; color:rgba(255,255,255,0.8);
+    padding:6px 10px; border-radius:6px; font-size:14px; cursor:pointer; transition:all 0.15s;
   }
-  .vse-tool-btn:hover { background:rgba(255,255,255,0.25); }
-  .vse-section-list { padding:8px; border-bottom:1px solid var(--border); }
+  .vse-device-btn.active { background:#fff; color:var(--green-dark); }
+  .vse2-btn {
+    border:none; background:rgba(255,255,255,0.15); color:#fff;
+    padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s;
+  }
+  .vse2-btn:hover { background:rgba(255,255,255,0.28); }
+  .vse2-btn.ghost { background:rgba(255,255,255,0.08); }
+  .vse2-btn.primary { background:var(--gold); color:var(--green-dark); font-weight:700; }
+  .vse2-btn.primary:hover { background:var(--gold-light); }
+  .vse2-btn:disabled { opacity:0.6; cursor:default; }
+
+  .vse2-body { flex:1; display:grid; grid-template-columns:300px 1fr; min-height:0; }
+  .vse2-rail {
+    background:#f6f7f8; border-right:1px solid var(--border);
+    display:flex; flex-direction:column; overflow-y:auto;
+  }
+  .vse2-rail-head {
+    padding:14px 16px 6px; font-size:11px; font-weight:800; letter-spacing:1px;
+    text-transform:uppercase; color:var(--text-light);
+  }
+  .vse-section-list { padding:4px 10px 10px; }
   .vse-section-item {
-    padding:10px 14px; border-radius:8px; cursor:pointer;
-    font-size:13px; font-weight:500; color:var(--text-mid);
-    transition:all 0.15s; margin-bottom:2px;
+    background:#fff; border:1px solid var(--border); border-radius:9px;
+    padding:9px 11px; margin-bottom:6px; color:var(--text-dark);
+    display:flex; align-items:center; gap:8px; justify-content:space-between;
+    transition:all 0.15s;
   }
-  .vse-section-item:hover { background:var(--white); color:var(--green-dark); }
-  .vse-section-item.active { background:var(--green-dark); color:var(--white); }
-  .vse-props { flex:1; overflow-y:auto; padding:16px; }
-  .vse-prop-group { margin-bottom:20px; }
+  .vse-section-item:hover { border-color:var(--green-accent); box-shadow:0 1px 6px rgba(0,0,0,0.06); }
+  .vse-section-item.active { border-color:var(--green-accent); background:rgba(62,140,88,0.08); }
+  .vse-section-item-left { display:flex; align-items:center; gap:8px; flex:1; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark); min-width:0; }
+  .vse-section-item-left span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vse-drag-handle { cursor:grab; color:var(--text-light); font-size:13px; flex-shrink:0; user-select:none; }
+  .vse-section-item.dragging { opacity:0.4; }
+  .vse-section-item.drag-over { border-top:2px solid var(--gold); }
+  .vse-section-btns { display:flex; gap:3px; align-items:center; }
+  .vse-move-btn {
+    background:#eef0f2; border:none; color:var(--text-mid);
+    width:22px; height:22px; border-radius:5px; cursor:pointer; font-size:10px;
+    display:flex; align-items:center; justify-content:center; transition:all 0.15s;
+  }
+  .vse-move-btn:hover { background:var(--green-accent); color:#fff; }
+  .vse-move-btn:disabled { opacity:0.3; cursor:default; }
+  .vse-section-toggle {
+    width:30px; height:17px; border-radius:9px; position:relative;
+    border:none; cursor:pointer; flex-shrink:0; transition:background 0.2s; background:#cfd4d8;
+  }
+  .vse-section-toggle.on { background:var(--green-accent); }
+  .vse-section-toggle::after {
+    content:''; position:absolute; top:2px; left:2px; width:13px; height:13px;
+    border-radius:50%; background:#fff; transition:transform 0.2s;
+  }
+  .vse-section-toggle.on::after { transform:translateX(13px); }
+
+  .vse2-ctx { border-top:1px solid var(--border); padding:14px 14px 24px; }
+  .vse2-ctx-hint {
+    font-size:12px; color:var(--text-mid); background:rgba(201,168,76,0.12);
+    border:1px solid rgba(201,168,76,0.35); border-radius:8px; padding:8px 10px; margin-bottom:14px; line-height:1.5;
+  }
+  .vse-props { padding:0; }
+  .vse-prop-group { margin-bottom:14px; }
   .vse-prop-label {
     font-size:11px; font-weight:700; text-transform:uppercase;
-    letter-spacing:0.8px; color:var(--text-light); margin-bottom:6px; display:block;
+    letter-spacing:0.6px; color:var(--text-light); margin-bottom:5px; display:block;
   }
   .vse-prop-input {
-    width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:7px;
-    font-size:13px; font-family:'DM Sans',sans-serif; outline:none;
-    background:var(--white); color:var(--text-dark); transition:border-color 0.2s;
-    resize:vertical;
+    width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px;
+    font-size:13px; font-family:'DM Sans',sans-serif; outline:none; box-sizing:border-box;
+    background:#fff; color:var(--text-dark); transition:border-color 0.2s; resize:vertical;
   }
-  .vse-prop-input:focus { border-color:var(--green-accent); }
+  .vse-prop-input:focus { border-color:var(--green-accent); box-shadow:0 0 0 3px rgba(62,140,88,0.12); }
   .vse-color-row { display:flex; gap:8px; align-items:center; }
   .vse-color-swatch {
     width:36px; height:36px; border-radius:7px; border:1px solid var(--border);
     cursor:pointer; flex-shrink:0; overflow:hidden; padding:0;
   }
   .vse-color-swatch input[type=color] { width:200%; height:200%; margin:-50%; cursor:pointer; border:none; }
-  .vse-img-upload-row {
-    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-  }
+  .vse-img-upload-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .vse-img-thumb {
     width:60px; height:44px; object-fit:cover; border-radius:6px;
     border:1px solid var(--border); flex-shrink:0;
@@ -1313,63 +1365,63 @@
   .vse-btn-upload:hover { background:var(--green-accent); }
   .vse-btn-remove { background:rgba(192,57,43,0.1); color:var(--danger); }
   .vse-btn-remove:hover { background:var(--danger); color:var(--white); }
-  .vse-divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
-  .vse-lang-tabs {
-    display:flex; gap:0; border:1px solid var(--border); border-radius:6px;
-    overflow:hidden; margin-bottom:16px;
-  }
-  .vse-lang-tab {
-    flex:1; padding:7px; text-align:center; cursor:pointer; font-size:12px;
-    font-weight:600; background:transparent; border:none; color:var(--text-mid);
-    transition:all 0.2s; font-family:'DM Sans',sans-serif;
-  }
-  .vse-lang-tab.active { background:var(--green-dark); color:var(--white); }
+  .vse-divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+  .vse-lang-tabs { display:none; } /* language is controlled from the top bar now */
+  .vse-lang-tab { display:none; }
 
   /* Canvas */
-  .vse-canvas-wrap { display:flex; flex-direction:column; overflow:hidden; background:#e8e8e8; }
-  .vse-canvas-toolbar {
-    padding:10px 16px; background:var(--white); border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    flex-wrap:wrap;
-  }
-  .vse-device-btn {
-    padding:6px 14px; border-radius:6px; border:1px solid var(--border);
-    background:transparent; font-size:12px; cursor:pointer;
-    font-family:'DM Sans',sans-serif; transition:all 0.2s; color:var(--text-mid);
-  }
-  .vse-device-btn.active { background:var(--green-dark); color:var(--white); border-color:var(--green-dark); }
-  .vse-canvas-outer {
-    flex:1; overflow:auto; padding:20px;
-    display:flex; justify-content:center; align-items:flex-start;
-    position:relative; background:#e0e0e0;
+  .vse2-canvas {
+    background:#dfe3e6; overflow:auto; padding:22px;
+    display:flex; justify-content:center; align-items:flex-start; min-height:0;
   }
   .vse-preview-frame {
     background:var(--white); border-radius:10px;
-    box-shadow:0 8px 40px rgba(0,0,0,0.18);
+    box-shadow:0 10px 44px rgba(0,0,0,0.20);
     width:100%; transition:max-width 0.3s; overflow:hidden;
     min-height:500px; position:relative;
   }
   .vse-preview-frame.tablet  { max-width:768px; }
   .vse-preview-frame.mobile  { max-width:390px; }
-  /* Preview sections */
-  .vse-preview-section {
-    position:relative; cursor:pointer;
-    transition:outline 0.15s;
+
+  /* Section wrapper + hover label on canvas */
+  .vse-sec-wrap { position:relative; }
+  .vse-sec-wrap.active { outline:2px solid var(--green-accent); outline-offset:-2px; }
+  .vse-sec-label {
+    position:absolute; top:6px; right:6px; background:var(--green-accent); color:#fff;
+    font-size:10px; font-weight:700; padding:2px 8px; border-radius:5px; z-index:8;
+    opacity:0; transition:opacity 0.15s; pointer-events:none;
   }
-  .vse-preview-section:hover { outline:2px solid rgba(62,140,88,0.5); }
-  .vse-preview-section.active-section { outline:2px solid var(--green-accent); }
-  .vse-preview-section-label {
-    display:none; position:absolute; top:0; left:0;
-    background:var(--green-accent); color:white;
-    font-size:10px; font-weight:700; padding:3px 10px; z-index:10;
-    pointer-events:none;
+  .vse-sec-wrap:hover .vse-sec-label, .vse-sec-wrap.active .vse-sec-label { opacity:1; }
+
+  /* Inline editable text on canvas */
+  .vse-edit { cursor:text; border-radius:4px; transition:box-shadow 0.12s, background 0.12s; }
+  .vse-edit:hover { box-shadow:0 0 0 2px rgba(201,168,76,0.75); background:rgba(201,168,76,0.12); }
+  .vse-edit.editing { box-shadow:0 0 0 2px var(--gold); background:rgba(201,168,76,0.16); }
+
+  /* Popover editor */
+  .vse-pop {
+    position:fixed; z-index:6000; width:340px; max-width:calc(100vw - 32px);
+    background:#fff; border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 16px 50px rgba(0,0,0,0.28); padding:14px; display:none;
   }
-  .vse-preview-section:hover .vse-preview-section-label,
-  .vse-preview-section.active-section .vse-preview-section-label { display:block; }
-  @media(max-width:768px) {
-    .vse-shell { grid-template-columns:1fr; height:auto; }
-    .vse-canvas-wrap { height:60vh; }
-    .vse-sidebar { max-height:50vh; }
+  .vse-pop.open { display:block; }
+  .vse-pop-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+  .vse-pop-title { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; color:var(--green-dark); }
+  .vse-pop-lang { font-size:10px; font-weight:700; color:var(--text-light); background:var(--cream); padding:2px 8px; border-radius:20px; }
+  .vse-pop-close { background:none; border:none; font-size:18px; line-height:1; cursor:pointer; color:var(--text-light); margin-left:auto; }
+  .vse-pop textarea, .vse-pop input {
+    width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; resize:vertical;
+    color:var(--text-dark); background:#fff;
+  }
+  .vse-pop textarea:focus, .vse-pop input:focus { border-color:var(--green-accent); box-shadow:0 0 0 3px rgba(62,140,88,0.12); }
+  .vse-pop-hint { font-size:11px; color:var(--text-light); margin-top:6px; }
+
+  @media(max-width:900px) {
+    .vse2-body { grid-template-columns:1fr; }
+    .vse2-rail { max-height:42vh; }
+    .vse2-shell { height:auto; }
+    .vse2-canvas { min-height:60vh; }
   }
   .sales-layout-grid { display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start; }
   #sales-view .dash-body, #finance-view .dash-body { max-width:none; padding:24px 32px; }
@@ -2285,51 +2337,65 @@
 
     <!-- Site Editor Tab -->
     <div id="admin-tab-site-editor" class="hidden">
-      <div class="vse-shell">
+      <div class="vse2-shell">
 
-        <!-- Left panel: element tree + properties -->
-        <div class="vse-sidebar">
-          <div class="vse-sidebar-header">
-            <div class="vse-sidebar-title">Page Sections</div>
-            <div style="display:flex;gap:6px;">
-              <button class="vse-tool-btn" id="vse-publish-btn" onclick="vsePublish()" title="Publish changes to live site" style="background:var(--gold);color:var(--green-dark);font-weight:700;">🚀 Publish</button>
-              <button class="vse-tool-btn" onclick="vseSave()" title="Save (local only)">💾</button>
-              <button class="vse-tool-btn" onclick="vseReset()" title="Reset" style="background:rgba(192,57,43,0.12);color:var(--danger);">↺</button>
+        <!-- Top toolbar -->
+        <div class="vse2-topbar">
+          <div class="vse2-topbar-left">
+            <span class="vse2-title">Sayt Redaktoru</span>
+            <span class="vse2-hint">Önizləmədə mətnə klikləyib birbaşa dəyiş</span>
+          </div>
+          <div class="vse2-lang-seg" role="tablist" aria-label="Editing language">
+            <button class="vse2-lang-btn active" id="vse2-lang-az" onclick="vseSwitchLang('az')">🇦🇿 Azərbaycanca</button>
+            <button class="vse2-lang-btn" id="vse2-lang-en" onclick="vseSwitchLang('en')">🇬🇧 English</button>
+          </div>
+          <div class="vse2-topbar-right">
+            <div class="vse2-device">
+              <button class="vse-device-btn active" id="vd-desktop" onclick="vseDevice('desktop',this)" title="Desktop">🖥️</button>
+              <button class="vse-device-btn" id="vd-tablet" onclick="vseDevice('tablet',this)" title="Planşet">📱</button>
+              <button class="vse-device-btn" id="vd-mobile" onclick="vseDevice('mobile',this)" title="Mobil">📲</button>
             </div>
+            <button class="vse2-btn ghost" onclick="vseOpenFullPreview()" title="Canlı saytı aç">↗</button>
+            <button class="vse2-btn ghost" onclick="vseReset()" title="Standart mətnə qaytar">↺</button>
+            <button class="vse2-btn" onclick="vseSave()">💾 Saxla</button>
+            <button class="vse2-btn primary" id="vse-publish-btn" onclick="vsePublish()">🚀 Yayımla</button>
           </div>
-
-          <!-- Section list (rendered by vseBuildSectionList) -->
-          <div class="vse-section-list" id="vse-section-list"></div>
-
-          <!-- Properties panel -->
-          <div class="vse-props" id="vse-props">
-            <!-- Filled dynamically per section -->
-          </div>
-
-          <div id="vse-save-indicator" style="padding:12px 16px;font-size:12px;color:var(--green-accent);font-weight:600;opacity:0;transition:opacity 0.4s;text-align:center;">✓ Saved & Applied!</div>
         </div>
 
-        <!-- Right: live preview (rendered DOM, not iframe) -->
-        <div class="vse-canvas-wrap">
-          <div class="vse-canvas-toolbar">
-            <div style="display:flex;gap:6px;align-items:center;">
-              <button class="vse-device-btn active" id="vd-desktop" onclick="vseDevice('desktop',this)">🖥️ Desktop</button>
-              <button class="vse-device-btn" id="vd-tablet" onclick="vseDevice('tablet',this)">📱 Tablet</button>
-              <button class="vse-device-btn" id="vd-mobile" onclick="vseDevice('mobile',this)">📲 Mobile</button>
+        <!-- Body: left rail (sections + contextual controls) + WYSIWYG canvas -->
+        <div class="vse2-body">
+          <aside class="vse2-rail">
+            <div class="vse2-rail-head">Bölmələr</div>
+            <!-- Section list (rendered by vseBuildSectionList) -->
+            <div class="vse-section-list" id="vse-section-list"></div>
+
+            <div class="vse2-ctx">
+              <div class="vse2-ctx-hint">✎ Mətni dəyişmək üçün sağdakı önizləmədə üzərinə kliklə. Aşağıda seçilmiş bölmənin şəkil və digər tənzimləmələri var.</div>
+              <!-- Contextual properties (images, feature cards, block settings) -->
+              <div class="vse-props" id="vse-props"></div>
             </div>
-            <div style="font-size:12px;color:var(--text-light);">Edit text in the left panel — preview updates live</div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <span style="font-size:11px;color:var(--text-light);">Editing: <strong id="vse-editing-lang">AZ</strong></span>
-              <button class="vse-tool-btn" onclick="vseOpenFullPreview()">↗ Open Site</button>
-            </div>
-          </div>
-          <div class="vse-canvas-outer" id="vse-canvas-outer">
+
+            <div id="vse-save-indicator" style="padding:12px 16px;font-size:12px;color:var(--green-accent);font-weight:600;opacity:0;transition:opacity 0.4s;text-align:center;">✓ Saxlanıldı!</div>
+          </aside>
+
+          <main class="vse2-canvas" id="vse-canvas-outer">
             <div class="vse-preview-frame" id="vse-preview-frame">
               <!-- Live preview rendered here by vseRenderPreview() -->
             </div>
-          </div>
+          </main>
         </div>
 
+      </div>
+
+      <!-- Inline text editor popover (anchored to the clicked element) -->
+      <div class="vse-pop" id="vse-pop">
+        <div class="vse-pop-head">
+          <span class="vse-pop-title" id="vse-pop-title">Mətn</span>
+          <span class="vse-pop-lang" id="vse-pop-lang">AZ</span>
+          <button class="vse-pop-close" onclick="vseClosePop()" title="Bağla">×</button>
+        </div>
+        <div id="vse-pop-field"></div>
+        <div class="vse-pop-hint">Yazdıqca önizləmə dərhal yenilənir · Enter ilə bağla</div>
       </div>
     </div>
 
@@ -8010,15 +8076,15 @@ function vseBuildSectionList() {
 
   // Add block buttons at bottom
   var addArea = document.createElement('div');
-  addArea.style.cssText = 'padding:10px 8px;border-top:1px solid rgba(255,255,255,0.1);margin-top:8px;display:flex;flex-direction:column;gap:6px;';
-  addArea.innerHTML = '<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:4px;">Add Block</div>';
+  addArea.style.cssText = 'padding:12px 4px 4px;border-top:1px solid var(--border);margin-top:6px;display:flex;flex-direction:column;gap:6px;';
+  addArea.innerHTML = '<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-light);margin-bottom:4px;">Blok əlavə et</div>';
 
-  var addBtnStyle = 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);font-size:12px;font-family:DM Sans,sans-serif;padding:8px;border-radius:6px;cursor:pointer;text-align:left;';
+  var addBtnStyle = 'background:#fff;border:1px dashed var(--border);color:var(--green-dark);font-weight:600;font-size:12px;font-family:DM Sans,sans-serif;padding:9px;border-radius:8px;cursor:pointer;text-align:left;transition:all 0.15s;';
 
   [
-    ['📝 Text Block',      function() { vseAddTextBlock(vseSection); }],
-    ['🖼️ Image Block',    function() { vseAddImageBlock(vseSection); }],
-    ['✨ Custom Section',  function() { vseAddCustomSection(vseSection); }],
+    ['📝 Mətn bloku',      function() { vseAddTextBlock(vseSection); }],
+    ['🖼️ Şəkil bloku',    function() { vseAddImageBlock(vseSection); }],
+    ['✨ Xüsusi bölmə',    function() { vseAddCustomSection(vseSection); }],
   ].forEach(function(pair) {
     var btn = document.createElement('button');
     btn.style.cssText = addBtnStyle;
@@ -9062,6 +9128,342 @@ function vseHandleImage(key, input) {
 function vseRemoveImage(key) {
   vseApplyKey(key, '');
   vseRenderProps();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SITE EDITOR — WYSIWYG rebuild (2026)
+// Text is edited inline on the canvas via an anchored popover; the left
+// rail keeps section navigation + contextual (image / feature-card /
+// custom-block) controls. These definitions are intentionally the LAST
+// copies in the script so they override any earlier duplicated versions
+// left over from previous iframe-based iterations.
+// ═══════════════════════════════════════════════════════════════════
+var _vsePreviewWired = false;
+var _vsePopKey = null;
+var _vseSyncTimer = null;
+
+function vseEscHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function vseSyncLangButtons() {
+  var az = document.getElementById('vse2-lang-az');
+  var en = document.getElementById('vse2-lang-en');
+  if (az) az.classList.toggle('active', vseLang === 'az');
+  if (en) en.classList.toggle('active', vseLang !== 'az');
+  var lbl = document.getElementById('vse-editing-lang');
+  if (lbl) lbl.textContent = (vseLang || 'az').toUpperCase();
+}
+
+function vseInit() {
+  var frame = document.getElementById('vse-preview-frame');
+  if (!frame) return;
+  vseLang = (typeof currentLang !== 'undefined' ? currentLang : null) || 'az';
+  vseSyncLangButtons();
+  var blocks = getPageBlocks();
+  var heroBlock = blocks.find(function(b) { return b.type === 'hero'; });
+  if (heroBlock && !vseSection) vseSection = heroBlock.id;
+  vseBuildSectionList();
+  vseRenderProps();
+  vseRenderPreview();
+  vseWirePreviewOnce();
+  vseApplyPageBlocks();
+  vseApplyFeatureCards();
+}
+
+function vseSwitchLang(lang) {
+  vseClosePop();
+  vseLang = lang;
+  vseSyncLangButtons();
+  vseBuildSectionList();
+  vseRenderProps();
+  vseRenderPreview();
+  vseApplyFeatureCards();
+}
+
+function vseRenderPreview() {
+  var frame = document.getElementById('vse-preview-frame');
+  if (!frame) return;
+  var cont = getSiteContent();
+  var lang = vseLang || 'az';
+  var isAz = lang === 'az';
+  var e = vseEscHtml;
+
+  function t(key) { return (cont[key] != null ? cont[key] : (SITE_DEFAULTS[key] || '')); }
+  function ed(key, label, multi) {
+    return ' class="vse-edit" data-vsekey="' + key + '" data-vsetype="' +
+      (multi ? 'textarea' : 'input') + '"' + (multi ? ' data-vsemulti="1"' : '') +
+      ' data-vselabel="' + e(label) + '"';
+  }
+  function ml(key) { return e(t(key)).split('\n').join('<br/>'); }
+
+  function heroTitleHtml() {
+    var title = isAz ? t('hero_title_en_az') : t('hero_title_en');
+    var hl = isAz ? t('hero_title_highlight_az') : t('hero_title_highlight');
+    if (hl && title.indexOf(hl) >= 0) {
+      return e(title).split(e(hl)).join('<span style="color:var(--gold-light)">' + e(hl) + '</span>');
+    }
+    return e(title);
+  }
+
+  var bgStyle = t('hero_hero_image')
+    ? 'background:linear-gradient(rgba(10,30,18,0.6),rgba(10,30,18,0.6)),url(' + t('hero_hero_image') + ') center/cover'
+    : 'background:linear-gradient(160deg,var(--green-dark) 0%,var(--green-mid) 60%,#1a4530 100%)';
+
+  var byType = {};
+
+  byType.nav =
+    '<div style="' + bgStyle + ';padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;">🌿</div>' +
+        '<div>' +
+          '<div' + ed(isAz ? 'nav_company_name_az' : 'nav_company_name', 'Şirkət adı') + ' style="font-family:Playfair Display,serif;color:white;font-size:18px;font-weight:700;">' + e(t(isAz ? 'nav_company_name_az' : 'nav_company_name')) + '</div>' +
+          '<div' + ed(isAz ? 'nav_tagline_az' : 'nav_tagline', 'Alt başlıq') + ' style="font-size:10px;color:var(--gold-light);letter-spacing:2px;text-transform:uppercase;">' + e(t(isAz ? 'nav_tagline_az' : 'nav_tagline')) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:16px;">' +
+        '<span style="color:rgba(255,255,255,0.8);font-size:13px;">' + (isAz ? 'Ana Səhifə' : 'Home') + '</span>' +
+        '<span style="color:rgba(255,255,255,0.8);font-size:13px;">' + (isAz ? 'Haqqımızda' : 'About') + '</span>' +
+        '<span style="color:rgba(255,255,255,0.8);font-size:13px;">' + (isAz ? 'Məhsullar' : 'Products') + '</span>' +
+        '<span style="color:rgba(255,255,255,0.8);font-size:13px;">' + (isAz ? 'Əlaqə' : 'Contact') + '</span>' +
+      '</div>' +
+    '</div>';
+
+  byType.hero =
+    '<div style="' + bgStyle + ';padding:80px 40px;min-height:400px;display:flex;align-items:center;">' +
+      '<div style="max-width:560px;">' +
+        '<div' + ed(isAz ? 'hero_badge_az' : 'hero_badge', 'Badge mətni') + ' style="display:inline-flex;align-items:center;gap:8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);color:var(--gold-light);padding:5px 14px;border-radius:100px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:500;margin-bottom:20px;">' + e(t(isAz ? 'hero_badge_az' : 'hero_badge')) + '</div>' +
+        '<h1' + ed(isAz ? 'hero_title_en_az' : 'hero_title_en', 'Əsas başlıq') + ' style="font-family:Playfair Display,serif;font-size:48px;line-height:1.15;color:white;font-weight:700;margin-bottom:20px;">' + heroTitleHtml() + '</h1>' +
+        '<p' + ed(isAz ? 'hero_desc_az_text' : 'hero_desc_en', 'Təsvir', true) + ' style="font-size:16px;color:rgba(255,255,255,0.75);line-height:1.7;margin-bottom:32px;">' + e(t(isAz ? 'hero_desc_az_text' : 'hero_desc_en')) + '</p>' +
+        '<div style="display:flex;gap:14px;flex-wrap:wrap;">' +
+          '<button' + ed(isAz ? 'hero_btn1_az' : 'hero_btn1', 'Əsas düymə') + ' style="background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--green-dark);padding:13px 28px;border-radius:8px;font-size:14px;font-weight:600;border:none;">' + e(t(isAz ? 'hero_btn1_az' : 'hero_btn1')) + '</button>' +
+          '<button' + ed(isAz ? 'hero_btn2_az' : 'hero_btn2', 'İkinci düymə') + ' style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.3);padding:13px 28px;border-radius:8px;font-size:14px;">' + e(t(isAz ? 'hero_btn2_az' : 'hero_btn2')) + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  byType.about =
+    '<div style="padding:80px 40px;background:var(--cream);">' +
+      '<div' + ed(isAz ? 'about_label_az' : 'about_label', 'Bölmə etiketi') + ' style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green-accent);font-weight:600;margin-bottom:10px;">' + e(t(isAz ? 'about_label_az' : 'about_label')) + '</div>' +
+      '<h2' + ed(isAz ? 'about_title_az' : 'about_title', 'Başlıq') + ' style="font-family:Playfair Display,serif;font-size:36px;font-weight:700;color:var(--green-dark);margin-bottom:16px;">' + e(t(isAz ? 'about_title_az' : 'about_title')) + '</h2>' +
+      '<p' + ed(isAz ? 'about_p1_az_text' : 'about_p1_en', 'Paraqraf', true) + ' style="font-size:15px;color:var(--text-mid);line-height:1.7;max-width:700px;margin-bottom:14px;">' + e(t(isAz ? 'about_p1_az_text' : 'about_p1_en')) + '</p>' +
+      (!isAz ? '<p' + ed('about_p2_en', 'Paraqraf 2', true) + ' style="font-size:15px;color:var(--text-mid);line-height:1.7;max-width:700px;">' + e(t('about_p2_en')) + '</p>' : '') +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px;max-width:700px;">' +
+        getFeatureCards().map(function(card) {
+          var tKey = isAz ? card.key_title_az : card.key_title_en;
+          var xKey = isAz ? card.key_text_az : card.key_text_en;
+          var tv = isAz ? card.title_az : card.title_en;
+          var xv = isAz ? card.text_az : card.text_en;
+          return '<div style="background:linear-gradient(135deg,var(--green-dark),var(--green-mid));border-radius:10px;padding:16px;">' +
+            '<div' + ed(tKey, 'Kart başlığı') + ' style="color:white;font-weight:600;font-size:14px;margin-bottom:4px;">' + e(tv) + '</div>' +
+            '<div' + ed(xKey, 'Kart mətni', true) + ' style="color:rgba(255,255,255,0.65);font-size:12px;line-height:1.5;">' + e(xv) + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+
+  byType.products =
+    '<div style="padding:70px 40px;background:#fff;text-align:center;">' +
+      '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green-accent);font-weight:600;margin-bottom:10px;">' + (isAz ? 'Məhsullar' : 'Products') + '</div>' +
+      '<h2 style="font-family:Playfair Display,serif;font-size:32px;font-weight:700;color:var(--green-dark);margin-bottom:12px;">' + (isAz ? 'Məhsul Kataloqumuz' : 'Our Product Catalog') + '</h2>' +
+      '<div style="font-size:13px;color:var(--text-light);max-width:540px;margin:0 auto;">' + (isAz ? '📦 Məhsullar «Məhsullar» tabından idarə olunur — burada mətn redaktə olunmur.' : '📦 Products are managed in the Products tab — no text editing here.') + '</div>' +
+    '</div>';
+
+  byType.contact =
+    '<div style="padding:80px 40px;background:linear-gradient(135deg,var(--green-dark),var(--green-mid));">' +
+      '<div' + ed(isAz ? 'contact_label_az' : 'contact_label', 'Bölmə etiketi') + ' style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-light);font-weight:600;margin-bottom:10px;">' + e(t(isAz ? 'contact_label_az' : 'contact_label')) + '</div>' +
+      '<h2' + ed(isAz ? 'contact_title_az' : 'contact_title', 'Başlıq') + ' style="font-family:Playfair Display,serif;font-size:36px;font-weight:700;color:white;margin-bottom:28px;">' + e(t(isAz ? 'contact_title_az' : 'contact_title')) + '</h2>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px;">' +
+        '<div style="display:flex;flex-direction:column;gap:14px;">' +
+          [['📍', isAz ? 'Ünvan' : 'Address', 'contact_address'], ['📞', isAz ? 'Telefon' : 'Phone', 'contact_phone'], ['✉️', 'Email', 'contact_email'], ['🇪🇸', isAz ? 'Təchizatçı' : 'Supplier', 'contact_supplier']].map(function(arr) {
+            return '<div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:16px;display:flex;gap:12px;">' +
+              '<span style="font-size:20px;">' + arr[0] + '</span>' +
+              '<div style="flex:1;min-width:0;"><div style="color:white;font-weight:600;font-size:13px;margin-bottom:3px;">' + arr[1] + '</div>' +
+              '<div' + ed(arr[2], arr[1], true) + ' style="color:rgba(255,255,255,0.65);font-size:12px;">' + ml(arr[2]) + '</div></div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '<div style="background:white;border-radius:12px;padding:24px;">' +
+          '<div style="font-family:Playfair Display,serif;font-size:18px;color:var(--green-dark);margin-bottom:16px;">' + (isAz ? 'Mesaj Göndər' : 'Send a Message') + '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:10px;">' +
+            '<input style="padding:10px 14px;border:1px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;" placeholder="' + (isAz ? 'Ad Soyad' : 'Full Name') + '"/>' +
+            '<input style="padding:10px 14px;border:1px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;" placeholder="Email"/>' +
+            '<textarea style="padding:10px 14px;border:1px solid var(--border);border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;resize:none;height:80px;" placeholder="' + (isAz ? 'Mesajınız...' : 'Your message...') + '"></textarea>' +
+            '<button style="background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--green-dark);padding:11px;border-radius:7px;font-size:14px;font-weight:600;border:none;width:100%;">' + (isAz ? 'Göndər' : 'Send Message') + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  byType.footer =
+    '<div style="background:var(--green-dark);padding:48px 40px 24px;">' +
+      '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;margin-bottom:20px;">' +
+        '<div>' +
+          '<div' + ed('footer_logo', 'Logo mətni') + ' style="font-family:Playfair Display,serif;color:white;font-size:22px;margin-bottom:10px;">' + e(t('footer_logo')) + '</div>' +
+          '<p' + ed(isAz ? 'footer_tagline_az' : 'footer_tagline', 'Alt yazı', true) + ' style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;">' + e(t(isAz ? 'footer_tagline_az' : 'footer_tagline')) + '</p>' +
+        '</div>' +
+        '<div>' +
+          '<div style="color:var(--gold-light);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">' + (isAz ? 'Naviqasiya' : 'Navigation') + '</div>' +
+          [isAz ? 'Ana Səhifə' : 'Home', isAz ? 'Haqqımızda' : 'About', isAz ? 'Məhsullar' : 'Products', isAz ? 'Əlaqə' : 'Contact'].map(function(l) { return '<div style="color:rgba(255,255,255,0.6);font-size:13px;margin-bottom:8px;">' + l + '</div>'; }).join('') +
+        '</div>' +
+        '<div>' +
+          '<div style="color:var(--gold-light);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Contact</div>' +
+          e(t('contact_email')).split('\n').map(function(x) { return '<div style="color:rgba(255,255,255,0.6);font-size:13px;margin-bottom:8px;">' + x + '</div>'; }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div' + ed('footer_spain', 'İspaniya rozeti') + ' style="color:var(--gold-light);font-size:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">' + e(t('footer_spain')) + '</div>' +
+    '</div>';
+
+  var out = [];
+  getPageBlocks().forEach(function(block) {
+    if (!block.visible) return;
+    var def = BLOCK_TYPES[block.type] || {};
+    var inner, label;
+    if (def.builtin) { inner = byType[block.type] || ''; label = def.label || block.type; }
+    else { inner = vseRenderBlockPreview(block, isAz); label = def.label || 'Blok'; }
+    var activeCls = (vseSection === block.id) ? ' active' : '';
+    out.push('<div class="vse-sec-wrap' + activeCls + '" data-secid="' + block.id + '">' +
+      '<div class="vse-sec-label">' + e(label) + '</div>' + inner + '</div>');
+  });
+  frame.innerHTML = out.join('') || '<div style="padding:60px;text-align:center;color:#999;">Görünən bölmə yoxdur</div>';
+}
+
+// Attach delegated listeners to the preview frame exactly once.
+function vseWirePreviewOnce() {
+  if (_vsePreviewWired) return;
+  var frame = document.getElementById('vse-preview-frame');
+  if (!frame) return;
+  _vsePreviewWired = true;
+
+  frame.addEventListener('click', function(e) {
+    var editEl = e.target.closest('.vse-edit');
+    if (editEl) { e.preventDefault(); e.stopPropagation(); vseOpenPop(editEl); return; }
+    var sec = e.target.closest('[data-secid]');
+    if (sec) vseSelectPreviewSection(sec.dataset.secid);
+  });
+
+  document.addEventListener('mousedown', function(e) {
+    var pop = document.getElementById('vse-pop');
+    if (!pop || !pop.classList.contains('open')) return;
+    if (pop.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.vse-edit')) return;
+    vseClosePop();
+  });
+  window.addEventListener('resize', function() { vseClosePop(); });
+}
+
+function vseSelectPreviewSection(id) {
+  vseSection = id;
+  var frame = document.getElementById('vse-preview-frame');
+  if (frame) frame.querySelectorAll('.vse-sec-wrap').forEach(function(w) {
+    w.classList.toggle('active', w.dataset.secid === id);
+  });
+  vseBuildSectionList();
+  vseRenderProps();
+}
+
+function vsePositionPop(pop, el) {
+  var r = el.getBoundingClientRect();
+  pop.style.visibility = 'hidden';
+  pop.classList.add('open');
+  var pw = pop.offsetWidth || 340;
+  var ph = pop.offsetHeight || 170;
+  pop.classList.remove('open');
+  pop.style.visibility = '';
+  var left = r.left;
+  var top = r.bottom + 8;
+  if (left + pw > window.innerWidth - 12) left = window.innerWidth - 12 - pw;
+  if (left < 12) left = 12;
+  if (top + ph > window.innerHeight - 12) top = Math.max(12, r.top - ph - 8);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function vseOpenPop(el) {
+  var key = el.dataset.vsekey;
+  if (!key) return;
+  var pop = document.getElementById('vse-pop');
+  if (!pop) return;
+  _vsePopKey = key;
+
+  var frame = document.getElementById('vse-preview-frame');
+  if (frame) frame.querySelectorAll('.vse-edit.editing').forEach(function(x) { x.classList.remove('editing'); });
+  el.classList.add('editing');
+
+  var multi = el.dataset.vsetype === 'textarea';
+  var cont = getSiteContent();
+  var val = (cont[key] != null ? cont[key] : (SITE_DEFAULTS[key] || ''));
+
+  var titleEl = document.getElementById('vse-pop-title');
+  var langEl = document.getElementById('vse-pop-lang');
+  if (titleEl) titleEl.textContent = el.dataset.vselabel || 'Mətn';
+  if (langEl) langEl.textContent = (vseLang === 'az' ? 'AZ' : 'EN');
+
+  var fieldWrap = document.getElementById('vse-pop-field');
+  fieldWrap.innerHTML = multi
+    ? '<textarea id="vse-pop-input" rows="4"></textarea>'
+    : '<input id="vse-pop-input" type="text"/>';
+  var input = document.getElementById('vse-pop-input');
+  input.value = val;
+
+  vsePositionPop(pop, el);
+  pop.classList.add('open');
+  input.focus();
+  input.select();
+
+  input.addEventListener('input', function() { vseSetKey(key, input.value); });
+  input.addEventListener('keydown', function(ev) {
+    if (ev.key === 'Escape') { ev.preventDefault(); vseClosePop(); }
+    else if (ev.key === 'Enter' && (!multi || ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); vseClosePop(); }
+  });
+}
+
+function vseClosePop() {
+  var pop = document.getElementById('vse-pop');
+  if (pop) pop.classList.remove('open');
+  var frame = document.getElementById('vse-preview-frame');
+  if (frame) frame.querySelectorAll('.vse-edit.editing').forEach(function(x) { x.classList.remove('editing'); });
+  if (_vsePopKey) { _vsePopKey = null; vseRenderPreview(); }
+}
+
+function vseSetKey(key, val) {
+  var c = getSiteContent();
+  c[key] = val;
+  saveSiteContent(c);
+  vseLiveUpdatePreview(key, val);
+  vseShowSaved();
+  clearTimeout(_vseSyncTimer);
+  _vseSyncTimer = setTimeout(function() {
+    try { setLang(currentLang); } catch (e) {}
+    try { vseApplyFeatureCards(); } catch (e) {}
+  }, 400);
+}
+
+function vseLiveUpdatePreview(key, val) {
+  var frame = document.getElementById('vse-preview-frame');
+  if (!frame) return;
+  frame.querySelectorAll('[data-vsekey="' + key + '"]').forEach(function(el) {
+    if (el.dataset.vsemulti === '1') el.innerHTML = vseEscHtml(val).split('\n').join('<br/>');
+    else el.textContent = val;
+  });
+}
+
+// Selecting a section from the left rail: highlight + scroll the matching
+// canvas block (overrides the older prev-* based implementation).
+function vseSelectBlock(id) {
+  vseClosePop();
+  vseSection = id;
+  vseBuildSectionList();
+  vseRenderProps();
+  var frame = document.getElementById('vse-preview-frame');
+  if (!frame) return;
+  frame.querySelectorAll('.vse-sec-wrap').forEach(function(w) {
+    w.classList.toggle('active', w.dataset.secid === id);
+  });
+  var wrap = frame.querySelector('.vse-sec-wrap[data-secid="' + id + '"]');
+  if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Legacy compatibility — keep applySiteContent working
