@@ -2255,6 +2255,9 @@
               <option value="sale_edited">Satış redaktə edildi</option>
               <option value="sale_voided">Satış ləğv edildi</option>
               <option value="sales_log_cleared">Toplu ləğv</option>
+              <option value="expense_added">Xərc əlavə edildi</option>
+              <option value="expense_edited">Xərc redaktə edildi</option>
+              <option value="expense_voided">Xərc ləğv edildi</option>
             </select>
           </div>
         </div>
@@ -3245,6 +3248,48 @@ function supabaseRowToWarehouseLog(r) {
   return { id: 'wl-' + r.id, saleId: r.sale_id, status: r.status, changedBy: r.changed_by, changedAt: r.changed_at };
 }
 
+// ─── Finance expenses sync ──────────────────────────────────
+// Expenses are financial records like sales: the `expenses` table's RLS
+// grants insert/select/update only — there is deliberately NO delete policy,
+// so a hard DELETE is impossible through this key at the database layer,
+// not just by convention in the UI. "Removing" an expense is always a void
+// (UPDATE voided=true), never a row deletion.
+function supabaseInsertExpense(entry) {
+  const payload = {
+    id: entry.id, date: entry.date, category: entry.category || null,
+    description: entry.description, amount: entry.amount, currency: entry.currency || 'AZN',
+    vendor: entry.vendor || null,
+    created_by_username: entry.createdByUsername || null, created_by_name: entry.createdByName || null,
+    created_at_ms: entry.createdAtMs,
+    updated_by: entry.updatedBy || null, updated_at_ms: entry.updatedAtMs || null,
+    voided: !!entry.voided, voided_by: entry.voidedBy || null, voided_at_ms: entry.voidedAtMs || null,
+  };
+  return fetch(SUPABASE_URL + '/rest/v1/expenses', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal,resolution=merge-duplicates' }),
+    body: JSON.stringify(payload)
+  }).catch(function(e) { console.warn('Supabase expense sync failed (will retry on next sync):', e); });
+}
+
+function supabaseUpdateExpenseById(id, patch) {
+  return fetch(SUPABASE_URL + '/rest/v1/expenses?id=eq.' + encodeURIComponent(id), {
+    method: 'PATCH',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal' }),
+    body: JSON.stringify(patch)
+  }).catch(function(e) { console.warn('Supabase expense update sync failed:', e); });
+}
+
+function supabaseRowToExpense(r) {
+  return {
+    id: r.id, date: r.date, category: r.category || '', description: r.description,
+    amount: r.amount, currency: r.currency || 'AZN', vendor: r.vendor || '',
+    createdByUsername: r.created_by_username || undefined, createdByName: r.created_by_name || undefined,
+    createdAtMs: r.created_at_ms,
+    updatedBy: r.updated_by || undefined, updatedAtMs: r.updated_at_ms || undefined,
+    voided: !!r.voided, voidedBy: r.voided_by || undefined, voidedAtMs: r.voided_at_ms || undefined,
+  };
+}
+
 // Records one status transition for an order (sale_id) — used both for the
 // initial "Anbarda" entry at confirm time and for later manual changes.
 function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverride) {
@@ -3263,11 +3308,12 @@ function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverrid
 // fulfillment status visible across devices without a GitHub publish.
 async function syncSalesFromServer() {
   try {
-    const [salesRes, activityRes, inventoryRes, warehouseRes] = await Promise.all([
+    const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/warehouse_status_log?select=*&order=changed_at.asc', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/expenses?select=*&order=created_at_ms.asc', { headers: supabaseHeaders() }),
     ]);
     if (salesRes.ok) {
       const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
@@ -3302,6 +3348,16 @@ async function syncSalesFromServer() {
       localLog.forEach(function(e) { if (!byId[e.id]) byId[e.id] = e; });
       const merged = Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a,b){ return a.changedAt - b.changedAt; });
       saveWarehouseLog(merged);
+    }
+    if (expensesRes.ok) {
+      const remoteExpenses = (await expensesRes.json()).map(supabaseRowToExpense);
+      const localExpenses = financeGetExpenses();
+      const byId = {};
+      remoteExpenses.forEach(function(e) { byId[e.id] = e; });
+      // Keep any local-only rows that haven't synced yet (e.g. created offline).
+      localExpenses.forEach(function(e) { if (!byId[e.id]) byId[e.id] = e; });
+      const merged = Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a,b){ return (a.createdAtMs||0) - (b.createdAtMs||0); });
+      financeSaveExpenses(merged);
     }
     return true;
   } catch (e) {
@@ -3701,6 +3757,9 @@ const ACTIVITY_LABELS = {
   sale_voided:        { label: 'Satış ləğv edildi',  icon: '↩️' },
   sales_log_cleared:  { label: 'Toplu ləğv (Hamısını sil)', icon: '🗑️' },
   warehouse_status_changed: { label: 'Anbar statusu dəyişdi', icon: '📦' },
+  expense_added:      { label: 'Xərc əlavə edildi', icon: '💸' },
+  expense_edited:     { label: 'Xərc redaktə edildi', icon: '✏️' },
+  expense_voided:     { label: 'Xərc ləğv edildi', icon: '↩️' },
 };
 
 // currentActor: who is performing the action right now, resolved from whichever
@@ -3710,6 +3769,9 @@ function currentActivityActor() {
     if (typeof currentView !== 'undefined' && currentView === 'sales' && typeof getCurrentSalesUser === 'function') {
       const u = getCurrentSalesUser();
       if (u) return { username: u.username, name: u.name || u.username, role: 'sales' };
+    }
+    if (typeof currentView !== 'undefined' && currentView === 'finance') {
+      return { username: 'finance', name: 'Mühasibat', role: 'finance' };
     }
   } catch(e) { /* ignore */ }
   return { username: 'admin', name: 'Admin', role: 'admin' };
@@ -5180,6 +5242,16 @@ function activityDetailHtml(e) {
       return `${e.count} aktiv satış ləğv edildi`;
     case 'warehouse_status_changed':
       return `${escapeHtml(e.saleId || '\u2014')} &middot; yeni status: <strong>${escapeHtml(e.status || '\u2014')}</strong>`;
+    case 'expense_added':
+      return `${escapeHtml(e.category || '\u2014')} &middot; ${(+e.amount || 0).toFixed(2)} ${escapeHtml(e.currency || 'AZN')}${e.vendor ? ' &middot; ' + escapeHtml(e.vendor) : ''}`;
+    case 'expense_edited': {
+      const parts = [];
+      if (e.oldAmount !== undefined && e.newAmount !== undefined && +e.oldAmount !== +e.newAmount) parts.push(`Məbləğ: ${(+e.oldAmount).toFixed(2)} → ${(+e.newAmount).toFixed(2)} ${escapeHtml(e.currency || 'AZN')}`);
+      if (e.description) parts.push(escapeHtml(e.description));
+      return parts.join(' &middot; ') || '\u2014';
+    }
+    case 'expense_voided':
+      return `${escapeHtml(e.category || '\u2014')} &middot; ${(+e.amount || 0).toFixed(2)} ${escapeHtml(e.currency || 'AZN')}${e.description ? ' &middot; ' + escapeHtml(e.description) : ''}`;
     default:
       return '\u2014';
   }
@@ -5218,15 +5290,15 @@ function renderActivityLog() {
 
   tbody.innerHTML = [...filtered].reverse().map(e => {
     const meta = ACTIVITY_LABELS[e.action] || { label: e.action, icon: '•' };
-    const actionColor = e.action === 'sale_voided' || e.action === 'sales_log_cleared'
-      ? 'rgba(192,57,43,0.15)' : (e.action === 'sale_edited' ? 'rgba(230,126,34,0.15)' : 'rgba(62,140,88,0.15)');
-    const actionText = e.action === 'sale_voided' || e.action === 'sales_log_cleared'
-      ? 'var(--danger)' : (e.action === 'sale_edited' ? 'var(--warning)' : 'var(--green-dark)');
+    const isDanger = e.action === 'sale_voided' || e.action === 'sales_log_cleared' || e.action === 'expense_voided';
+    const isWarning = e.action === 'sale_edited' || e.action === 'expense_edited';
+    const actionColor = isDanger ? 'rgba(192,57,43,0.15)' : (isWarning ? 'rgba(230,126,34,0.15)' : 'rgba(62,140,88,0.15)');
+    const actionText = isDanger ? 'var(--danger)' : (isWarning ? 'var(--warning)' : 'var(--green-dark)');
     return `<tr>
       <td style="white-space:nowrap;">${new Date(e.ts).toLocaleString()}</td>
       <td><span style="display:inline-block;background:${actionColor};color:${actionText};padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;">${meta.icon} ${meta.label}</span></td>
       <td><span style="display:inline-block;background:var(--cream);color:var(--green-dark);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${escapeHtml(e.actorName || 'Sales Team')}</span></td>
-      <td>${escapeHtml(e.productName || '\u2014')}</td>
+      <td>${escapeHtml(e.productName || e.category || '\u2014')}</td>
       <td style="font-size:12px;color:var(--text-mid);">${activityDetailHtml(e)}</td>
     </tr>`;
   }).join('');
@@ -9689,6 +9761,46 @@ var financeSubTabActive = 'summary';
 var financeEditingExpenseId = null;
 var financeInventoryPriceMode = 'cost';
 
+// ─── Finance money core — qəpik-safe arithmetic ───────────────────────────
+// Every AZN amount that enters Finance math crosses this boundary exactly
+// once: a source figure (a stored sale total, a USD cost × FX, a typed
+// expense amount) is rounded ONE time into an integer number of qəpik
+// (1 AZN = 100 qəpik) via round-half-up. From then on all aggregation
+// (sums, differences) is done with exact integers — no repeated rounding,
+// no float drift. Floats only reappear at the very last step: formatting a
+// qəpik integer back into a "₼X.XX" display string, or dividing by 100 for
+// an Excel export cell. This is what keeps line-item sums reconciling
+// exactly with header/KPI totals (a report that doesn't add up is a bug,
+// not a rounding "feature").
+function qRoundToQepik(aznAmount) {
+  var n = parseFloat(aznAmount);
+  if (!isFinite(n)) return 0;
+  // Nudge past IEEE-754 representation error (e.g. 1.005*100 can render as
+  // 100.49999999999999) before applying round-half-up, so ".xx5" boundaries
+  // round the way an accountant expects rather than the way floats do.
+  return Math.round(n * 100 + (n >= 0 ? 1e-7 : -1e-7));
+}
+function qToAzn(qepik) {
+  return (qepik || 0) / 100;
+}
+function qSum(qepikArr) {
+  return qepikArr.reduce(function(sum, q) { return sum + (q || 0); }, 0);
+}
+// Splits a VAT-inclusive gross qəpik amount into its VAT component (rounded
+// once); net is derived as gross − vat so the two always reconcile exactly
+// back to gross — never independently rounded and left out of balance.
+function qVatFromGrossQepik(grossQepik, ratePct) {
+  if (!grossQepik) return 0;
+  return Math.round(grossQepik * ratePct / (100 + ratePct));
+}
+// VAT added ON TOP of an already-qəpik net amount (used for inventory
+// valuation, where the stored price is VAT-exclusive) — distinct from
+// qVatFromGrossQepik above, which backs VAT OUT of a VAT-inclusive gross.
+function qVatOnNetQepik(netQepik, ratePct) {
+  if (!netQepik) return 0;
+  return Math.round(netQepik * ratePct / 100);
+}
+
 function financeGetFx() {
   return (typeof pricingGetSettings === 'function' ? pricingGetSettings().fx : null) || 1.70;
 }
@@ -9753,10 +9865,12 @@ function financeInPeriod(ts, range) {
   return true;
 }
 
-function financeExpenseAmountAzn(exp) {
+function financeExpenseAmountQepik(exp) {
   const amt = parseFloat(exp.amount) || 0;
-  if((exp.currency || 'AZN') === 'USD') return amt * financeGetFx();
-  return amt;
+  // Single rounding point: convert straight to the AZN-equivalent qəpik
+  // figure, whether the source was already AZN or needed one FX multiply.
+  if((exp.currency || 'AZN') === 'USD') return qRoundToQepik(amt * financeGetFx());
+  return qRoundToQepik(amt);
 }
 
 // Stock in admin is always total kg/L; package count = stock ÷ pack size.
@@ -9773,40 +9887,47 @@ function financeInventoryUnitPrices(p, stockMeta) {
   const costBaseUsd = parseFloat(p.cost) || 0;
   const saleBaseUsd = salePrice(p);
   const mult = stockMeta ? stockMeta.mult : (packMultiplier(packagingForProduct(p)) || 1);
-  const saleNetPackAzn = saleBaseUsd * mult * fx;
-  const saleVatPackAzn = productHasVat(p) ? vatAmountOnNet(saleNetPackAzn) : 0;
+  // Unit prices are each their own money "line" — rounded to the qəpik once.
+  const saleNetPackQepik = qRoundToQepik(saleBaseUsd * mult * fx);
+  const saleVatPackQepik = productHasVat(p) ? qVatOnNetQepik(saleNetPackQepik, VAT_RATE) : 0;
+  const costBaseQepik = qRoundToQepik(costBaseUsd * fx);
+  const saleBaseQepik = qRoundToQepik(saleBaseUsd * fx);
   return {
-    costPackAzn: costBaseUsd * mult * fx,
-    salePackAzn: saleNetPackAzn + saleVatPackAzn,
-    saleNetPackAzn: saleNetPackAzn,
-    saleVatPackAzn: saleVatPackAzn,
-    costBaseAzn: costBaseUsd * fx,
-    saleBaseAzn: saleBaseUsd * fx
+    costPackQepik: qRoundToQepik(costBaseUsd * mult * fx),
+    salePackQepik: saleNetPackQepik + saleVatPackQepik,
+    saleNetPackQepik: saleNetPackQepik,
+    saleVatPackQepik: saleVatPackQepik,
+    costBaseQepik: costBaseQepik,
+    saleBaseQepik: saleBaseQepik
   };
 }
 
 function financeInventoryRow(p) {
   const stock = financeResolveStock(p);
   const prices = financeInventoryUnitPrices(p, stock);
-  const costValueAzn = prices.costBaseAzn * stock.baseUnits;
-  const saleNetValueAzn = prices.saleBaseAzn * stock.baseUnits;
-  const saleValueAzn = saleNetValueAzn + (productHasVat(p) ? vatAmountOnNet(saleNetValueAzn) : 0);
-  return { p, stock, prices, costValueAzn, saleValueAzn };
+  // Extending a rounded per-unit price by a (possibly fractional, kg/L)
+  // stock quantity is a second, separate money line — its own single
+  // rounding step, same as extending a unit price on an invoice line.
+  const costValueQepik = qRoundToQepik(qToAzn(prices.costBaseQepik) * stock.baseUnits);
+  const saleNetValueQepik = qRoundToQepik(qToAzn(prices.saleBaseQepik) * stock.baseUnits);
+  const saleVatValueQepik = productHasVat(p) ? qVatOnNetQepik(saleNetValueQepik, VAT_RATE) : 0;
+  const saleValueQepik = saleNetValueQepik + saleVatValueQepik;
+  return { p, stock, prices, costValueQepik, saleValueQepik };
 }
 
 function financeInventoryTotals(products, priceMode) {
-  let costTotal = 0;
-  let saleTotal = 0;
+  let costTotalQepik = 0;
+  let saleTotalQepik = 0;
   products.forEach(p => {
     const row = financeInventoryRow(p);
     if(row.stock.baseUnits <= 0) return;
-    costTotal += row.costValueAzn;
-    saleTotal += row.saleValueAzn;
+    costTotalQepik += row.costValueQepik;
+    saleTotalQepik += row.saleValueQepik;
   });
   return {
-    cost: costTotal,
-    sale: saleTotal,
-    value: priceMode === 'sale' ? saleTotal : costTotal
+    cost: costTotalQepik,
+    sale: saleTotalQepik,
+    value: priceMode === 'sale' ? saleTotalQepik : costTotalQepik
   };
 }
 
@@ -9817,36 +9938,42 @@ function financeSetInventoryPriceMode(mode, btn) {
   financeRender();
 }
 
-function financeProductCostPackAzn(p) {
+function financeProductCostPackQepik(p) {
   const costUsd = parseFloat(p.cost) || 0;
   const mult = packMultiplier(packagingForProduct(p));
-  return costUsd * mult * financeGetFx();
+  return qRoundToQepik(costUsd * mult * financeGetFx());
 }
 
 function financeEnrichSale(s, products) {
   const p = products.find(x => x.id === s.productId);
-  const costPerUnitAzn = p ? financeProductCostPackAzn(p) : 0;
+  const costPerUnitQepik = p ? financeProductCostPackQepik(p) : 0;
   const qty = parseFloat(s.qty) || 0;
-  const revenueAzn = parseFloat(s.total) || 0;
-  const cogsAzn = costPerUnitAzn * qty;
-  const profitAzn = revenueAzn - cogsAzn;
-  const marginPct = revenueAzn > 0 ? (profitAzn / revenueAzn * 100) : 0;
-  const discountLossAzn = (s.discountPct > 0 && s.unitPriceOriginal)
-    ? Math.max(0, (parseFloat(s.unitPriceOriginal) - parseFloat(s.unitPrice)) * qty)
-    : 0;
-  // revenueAzn is VAT-inclusive, so the VAT amount is backed out of it rather
-  // than added on top — mirrors financeCollectMetrics' aggregate vatAmount.
+  // Boundary: the stored sale total (already a monetary figure from
+  // checkout) enters the qəpik domain here, rounded exactly once.
+  const revenueQepik = qRoundToQepik(s.total);
+  // Line total: rounded unit cost extended by qty is its own rounding step.
+  const cogsQepik = qRoundToQepik(qToAzn(costPerUnitQepik) * qty);
+  const profitQepik = revenueQepik - cogsQepik;
+  const marginPct = revenueQepik > 0 ? (profitQepik / revenueQepik * 100) : 0;
+  let discountLossQepik = 0;
+  if(s.discountPct > 0 && s.unitPriceOriginal) {
+    const perUnitDiff = Math.max(0, parseFloat(s.unitPriceOriginal) - parseFloat(s.unitPrice));
+    discountLossQepik = qRoundToQepik(perUnitDiff * qty);
+  }
+  // revenueQepik is VAT-inclusive, so the VAT qəpik amount is backed out of
+  // it (never independently re-rounded) — mirrors financeCollectMetrics'
+  // aggregate vatAmountQepik, and guarantees net + vat === gross exactly.
   const hasVat = !!s.vatApplicable || (p && productHasVat(p));
-  const vatAmountAzn = hasVat ? revenueAzn * VAT_RATE / (100 + VAT_RATE) : 0;
+  const vatAmountQepik = hasVat ? qVatFromGrossQepik(revenueQepik, VAT_RATE) : 0;
   return {
     sale: s,
-    costPerUnitAzn,
-    cogsAzn,
-    revenueAzn,
-    profitAzn,
+    costPerUnitQepik,
+    cogsQepik,
+    revenueQepik,
+    profitQepik,
     marginPct,
-    discountLossAzn,
-    vatAmountAzn
+    discountLossQepik,
+    vatAmountQepik
   };
 }
 
@@ -9856,53 +9983,54 @@ function financeCollectMetrics(range) {
     .filter(s => financeInPeriod(s.ts, range))
     .map(s => financeEnrichSale(s, products));
 
+  // Voided expenses stay in the list shown to Finance (for audit — same as
+  // voided sales staying visible, pale, in the Sales Log) but are excluded
+  // from OPEX/P&L math, exactly like voided sales are excluded via
+  // getActiveSales() above.
   const expenses = financeGetExpenses()
-    .filter(e => financeInPeriod(e.date || e.ts, range));
+    .filter(e => financeInPeriod(e.date || e.createdAtMs, range));
+  const activeExpenses = expenses.filter(e => !e.voided);
 
-  let revenue = 0;
-  let cogs = 0;
-  let discountLoss = 0;
-  sales.forEach(r => {
-    revenue += r.revenueAzn;
-    cogs += r.cogsAzn;
-    discountLoss += r.discountLossAzn;
-  });
+  // Every term below is an exact integer qəpik sum/difference — no rounding
+  // happens again at aggregation time, so KPI/P&L totals always reconcile
+  // exactly with the line items (sales register, expense list) they roll up.
+  const revenueQepik = qSum(sales.map(r => r.revenueQepik));
+  const cogsQepik = qSum(sales.map(r => r.cogsQepik));
+  const discountLossQepik = qSum(sales.map(r => r.discountLossQepik));
 
-  const grossProfit = revenue - cogs;
-  const opex = expenses.reduce((sum, e) => sum + financeExpenseAmountAzn(e), 0);
-  const netProfit = grossProfit - opex;
-  const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
-  let vatAmount = 0;
-  sales.forEach(r => { vatAmount += r.vatAmountAzn; });
-  const vatIncluded = revenue;
-  const revenueExVat = revenue - vatAmount;
+  const grossProfitQepik = revenueQepik - cogsQepik;
+  const opexQepik = qSum(activeExpenses.map(e => financeExpenseAmountQepik(e)));
+  const netProfitQepik = grossProfitQepik - opexQepik;
+  const grossMargin = revenueQepik > 0 ? (grossProfitQepik / revenueQepik * 100) : 0;
 
-  let inventoryValue = 0;
-  let inventorySaleValue = 0;
+  const vatAmountQepik = qSum(sales.map(r => r.vatAmountQepik));
+  const vatIncludedQepik = revenueQepik;
+  const revenueExVatQepik = revenueQepik - vatAmountQepik;
+
   const invTotals = financeInventoryTotals(products, financeInventoryPriceMode);
-  inventoryValue = invTotals.cost;
-  inventorySaleValue = invTotals.sale;
+  const inventoryValueQepik = invTotals.cost;
+  const inventorySaleValueQepik = invTotals.sale;
 
   const creditSales = sales.filter(r => (r.sale.paymentMethod || 'cash') === 'credit');
-  const receivables = creditSales.reduce((sum, r) => sum + r.revenueAzn, 0);
+  const receivablesQepik = qSum(creditSales.map(r => r.revenueQepik));
 
   return {
     sales,
     expenses,
-    revenue,
-    cogs,
-    grossProfit,
+    revenueQepik,
+    cogsQepik,
+    grossProfitQepik,
     grossMargin,
-    opex,
-    netProfit,
-    discountLoss,
-    vatIncluded,
-    vatAmount,
-    revenueExVat,
-    inventoryValue,
-    inventorySaleValue,
-    inventoryDisplayValue: invTotals.value,
-    receivables,
+    opexQepik,
+    netProfitQepik,
+    discountLossQepik,
+    vatIncludedQepik,
+    vatAmountQepik,
+    revenueExVatQepik,
+    inventoryValueQepik,
+    inventorySaleValueQepik,
+    inventoryDisplayValueQepik: invTotals.value,
+    receivablesQepik,
     saleCount: sales.length
   };
 }
@@ -9938,21 +10066,30 @@ function financeSubTab(name, btn) {
   financeRender();
 }
 
-function financeFmtAzn(n) {
-  return '₼' + (+n).toFixed(2);
+// The one place a qəpik integer is allowed to become a display string.
+// Formats via integer floor/modulo — never a float .toFixed() — so no
+// rounding ever happens at the display edge, only at the qRoundToQepik
+// boundary where money first enters Finance's math.
+function financeFmtAzn(qepik) {
+  let q = Math.round(qepik || 0);
+  const neg = q < 0;
+  q = Math.abs(q);
+  const whole = Math.floor(q / 100);
+  const cents = q % 100;
+  return (neg ? '-' : '') + '₼' + whole + '.' + (cents < 10 ? '0' + cents : cents);
 }
 
 function financeRenderKPIs(m) {
   const el = document.getElementById('finance-kpis');
   if(!el) return;
   const invLabel = financeInventoryPriceMode === 'sale' ? 'Anbar dəyəri (satış)' : 'Anbar dəyəri (maya)';
-  const invVal = financeInventoryPriceMode === 'sale' ? m.inventorySaleValue : m.inventoryValue;
+  const invVal = financeInventoryPriceMode === 'sale' ? m.inventorySaleValueQepik : m.inventoryValueQepik;
   el.innerHTML = [
-    { icon:'💵', cls:'kpi-gold', num:financeFmtAzn(m.revenue), label:'Gəlir (satış)' },
-    { icon:'📉', cls:'kpi-red', num:financeFmtAzn(m.cogs), label:'Maya (COGS)' },
-    { icon:'📈', cls:'kpi-green', num:financeFmtAzn(m.grossProfit), label:'Bruto mənfəət' },
-    { icon:'💸', cls:'kpi-red', num:financeFmtAzn(m.opex), label:'Xərclər (OPEX)' },
-    { icon:'✅', cls:'kpi-green', num:financeFmtAzn(m.netProfit), label:'Xalis mənfəət' },
+    { icon:'💵', cls:'kpi-gold', num:financeFmtAzn(m.revenueQepik), label:'Gəlir (satış)' },
+    { icon:'📉', cls:'kpi-red', num:financeFmtAzn(m.cogsQepik), label:'Maya (COGS)' },
+    { icon:'📈', cls:'kpi-green', num:financeFmtAzn(m.grossProfitQepik), label:'Bruto mənfəət' },
+    { icon:'💸', cls:'kpi-red', num:financeFmtAzn(m.opexQepik), label:'Xərclər (OPEX)' },
+    { icon:'✅', cls:'kpi-green', num:financeFmtAzn(m.netProfitQepik), label:'Xalis mənfəət' },
     { icon:'🏭', cls:'kpi-gold', num:financeFmtAzn(invVal), label:invLabel }
   ].map(k => `
     <div class="kpi-card">
@@ -9964,26 +10101,26 @@ function financeRenderKPIs(m) {
 function financeRenderPL(m) {
   const el = document.getElementById('finance-pl-summary');
   if(!el) return;
-  const netCls = m.netProfit >= 0 ? 'pl-positive' : 'pl-negative';
-  const grossCls = m.grossProfit >= 0 ? 'pl-positive' : 'pl-negative';
+  const netCls = m.netProfitQepik >= 0 ? 'pl-positive' : 'pl-negative';
+  const grossCls = m.grossProfitQepik >= 0 ? 'pl-positive' : 'pl-negative';
   el.innerHTML = `
     <div class="finance-pl-title">Mənfəət və zərər (P&amp;L)</div>
     <div class="finance-pl-grid">
       <div class="pl-section">Gəlir</div>
-      <div class="pl-label">Satış gəliri (₼)</div><div class="pl-val">${financeFmtAzn(m.revenue)}</div>
-      <div class="pl-label">Endirim itkisi</div><div class="pl-val pl-negative">−${financeFmtAzn(m.discountLoss)}</div>
-      <div class="pl-label">ƏDV 18% (yalnız ƏDV-li satışlar)</div><div class="pl-val">${financeFmtAzn(m.vatAmount)}</div>
-      <div class="pl-label">Gəlir (ƏDV xaric, təxmini)</div><div class="pl-val">${financeFmtAzn(m.revenueExVat)}</div>
+      <div class="pl-label">Satış gəliri (₼)</div><div class="pl-val">${financeFmtAzn(m.revenueQepik)}</div>
+      <div class="pl-label">Endirim itkisi</div><div class="pl-val pl-negative">−${financeFmtAzn(m.discountLossQepik)}</div>
+      <div class="pl-label">ƏDV 18% (yalnız ƏDV-li satışlar)</div><div class="pl-val">${financeFmtAzn(m.vatAmountQepik)}</div>
+      <div class="pl-label">Gəlir (ƏDV xaric, təxmini)</div><div class="pl-val">${financeFmtAzn(m.revenueExVatQepik)}</div>
       <div class="pl-section">Maya</div>
-      <div class="pl-label">Satılan məhsul mayası (COGS)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.cogs)}</div>
-      <div class="pl-label">Bruto mənfəət</div><div class="pl-val ${grossCls}">${financeFmtAzn(m.grossProfit)} <span style="font-size:12px;font-weight:400;color:var(--text-light);">(${m.grossMargin.toFixed(1)}%)</span></div>
+      <div class="pl-label">Satılan məhsul mayası (COGS)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.cogsQepik)}</div>
+      <div class="pl-label">Bruto mənfəət</div><div class="pl-val ${grossCls}">${financeFmtAzn(m.grossProfitQepik)} <span style="font-size:12px;font-weight:400;color:var(--text-light);">(${m.grossMargin.toFixed(1)}%)</span></div>
       <div class="pl-section">Xərclər</div>
-      <div class="pl-label">Əməliyyat xərcləri (OPEX)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.opex)}</div>
-      <div class="pl-label pl-total">Xalis mənfəət</div><div class="pl-val pl-total ${netCls}">${financeFmtAzn(m.netProfit)}</div>
+      <div class="pl-label">Əməliyyat xərcləri (OPEX)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.opexQepik)}</div>
+      <div class="pl-label pl-total">Xalis mənfəət</div><div class="pl-val pl-total ${netCls}">${financeFmtAzn(m.netProfitQepik)}</div>
       <div class="pl-section">Balans qeydləri</div>
-      <div class="pl-label">Debitor borclar (kredit satış)</div><div class="pl-val">${financeFmtAzn(m.receivables)}</div>
-      <div class="pl-label">Anbar dəyəri (maya / alış)</div><div class="pl-val">${financeFmtAzn(m.inventoryValue)}</div>
-      <div class="pl-label">Anbar dəyəri (satış qiyməti)</div><div class="pl-val">${financeFmtAzn(m.inventorySaleValue)}</div>
+      <div class="pl-label">Debitor borclar (kredit satış)</div><div class="pl-val">${financeFmtAzn(m.receivablesQepik)}</div>
+      <div class="pl-label">Anbar dəyəri (maya / alış)</div><div class="pl-val">${financeFmtAzn(m.inventoryValueQepik)}</div>
+      <div class="pl-label">Anbar dəyəri (satış qiyməti)</div><div class="pl-val">${financeFmtAzn(m.inventorySaleValueQepik)}</div>
     </div>`;
 }
 
@@ -10008,8 +10145,8 @@ function financeRenderMonthBars() {
     const rows = allSales
       .filter(s => financeInPeriod(s.ts, mo))
       .map(s => financeEnrichSale(s, products));
-    const revenue = rows.reduce((sum, r) => sum + r.revenueAzn, 0);
-    const profit = rows.reduce((sum, r) => sum + r.profitAzn, 0);
+    const revenue = qSum(rows.map(r => r.revenueQepik));
+    const profit = qSum(rows.map(r => r.profitQepik));
     return { ...mo, revenue, profit };
   });
 
@@ -10061,10 +10198,10 @@ function financeRenderSalesRegister(rows) {
       <td>${escapeHtml(s.salesperson || '—')}</td>
       <td>${escapeHtml(s.customer || '—')}</td>
       <td class="num">${s.qty}</td>
-      <td class="num">${financeFmtAzn(r.revenueAzn)}</td>
-      <td class="num">${r.vatAmountAzn > 0 ? financeFmtAzn(r.vatAmountAzn) : '—'}</td>
-      <td class="num">${financeFmtAzn(r.cogsAzn)}</td>
-      <td class="num ${r.profitAzn >= 0 ? 'pl-positive' : 'pl-negative'}">${financeFmtAzn(r.profitAzn)}</td>
+      <td class="num">${financeFmtAzn(r.revenueQepik)}</td>
+      <td class="num">${r.vatAmountQepik > 0 ? financeFmtAzn(r.vatAmountQepik) : '—'}</td>
+      <td class="num">${financeFmtAzn(r.cogsQepik)}</td>
+      <td class="num ${r.profitQepik >= 0 ? 'pl-positive' : 'pl-negative'}">${financeFmtAzn(r.profitQepik)}</td>
       <td class="num ${marginCls}">${r.marginPct.toFixed(1)}%</td>
       <td>${financePaymentSelect(s.ts, s.paymentMethod)}</td>
     </tr>`;
@@ -10080,9 +10217,9 @@ function financeRenderSellers(rows) {
     const name = r.sale.salesperson || key;
     if(!map[key]) map[key] = { name, count: 0, revenue: 0, cogs: 0, discount: 0 };
     map[key].count += 1;
-    map[key].revenue += r.revenueAzn;
-    map[key].cogs += r.cogsAzn;
-    map[key].discount += r.discountLossAzn;
+    map[key].revenue += r.revenueQepik;
+    map[key].cogs += r.cogsQepik;
+    map[key].discount += r.discountLossQepik;
   });
   const keys = Object.keys(map);
   if(!keys.length) {
@@ -10113,9 +10250,9 @@ function financeRenderProducts(rows) {
     const name = r.sale.productName || '—';
     if(!map[name]) map[name] = { qty: 0, revenue: 0, vat: 0, cogs: 0 };
     map[name].qty += parseFloat(r.sale.qty) || 0;
-    map[name].revenue += r.revenueAzn;
-    map[name].vat += r.vatAmountAzn;
-    map[name].cogs += r.cogsAzn;
+    map[name].revenue += r.revenueQepik;
+    map[name].vat += r.vatAmountQepik;
+    map[name].cogs += r.cogsQepik;
   });
   const keys = Object.keys(map);
   if(!keys.length) {
@@ -10145,15 +10282,25 @@ function financeRenderExpenses(expenses) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:28px;">Xərc qeydi yoxdur. «+ Xərc əlavə et» ilə başlayın.</td></tr>';
     return;
   }
-  tbody.innerHTML = [...expenses].reverse().map(e => `
-    <tr>
+  // Voided expenses stay visible (pale, struck through) for audit — never
+  // removed from the list, only excluded from the OPEX totals above them.
+  tbody.innerHTML = [...expenses].reverse().map(e => {
+    const voidedBadge = e.voided
+      ? `<span title="${e.voidedBy ? 'Ləğv edən: ' + escapeHtml(e.voidedBy) : ''}" style="display:inline-block;margin-left:6px;background:rgba(192,57,43,0.15);color:var(--danger);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;">LƏĞV EDİLİB</span>`
+      : '';
+    const rowAction = e.voided
+      ? '<span style="font-size:12px;color:var(--text-light);">—</span>'
+      : `<button class="pricing-comp-table del-btn" onclick="financeDeleteExpense('${escapeHtml(e.id)}')" title="Ləğv et">×</button>`;
+    return `
+    <tr${e.voided ? ' style="opacity:0.55;"' : ''}>
       <td>${escapeHtml((e.date || '').slice(0, 10))}</td>
       <td>${escapeHtml(e.category || '—')}</td>
-      <td>${escapeHtml(e.description || '—')}</td>
-      <td class="num">${financeFmtAzn(financeExpenseAmountAzn(e))}</td>
+      <td${e.voided ? ' style="text-decoration:line-through;"' : ''}>${escapeHtml(e.description || '—')}${voidedBadge}</td>
+      <td class="num">${financeFmtAzn(financeExpenseAmountQepik(e))}</td>
       <td>${escapeHtml(e.vendor || '—')}</td>
-      <td><button class="pricing-comp-table del-btn" onclick="financeDeleteExpense('${escapeHtml(e.id)}')" title="Sil">×</button></td>
-    </tr>`).join('');
+      <td>${rowAction}</td>
+    </tr>`;
+  }).join('');
 }
 
 function financeRenderInventory(products) {
@@ -10171,7 +10318,7 @@ function financeRenderInventory(products) {
   const rows = products
     .map(p => financeInventoryRow(p))
     .filter(r => r.stock.baseUnits > 0)
-    .sort((a, b) => (mode === 'sale' ? b.saleValueAzn - a.saleValueAzn : b.costValueAzn - a.costValueAzn));
+    .sort((a, b) => (mode === 'sale' ? b.saleValueQepik - a.saleValueQepik : b.costValueQepik - a.costValueQepik));
 
   if(!rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-light);padding:28px;">Stokda məhsul yoxdur.</td></tr>';
@@ -10179,7 +10326,7 @@ function financeRenderInventory(products) {
   }
 
   tbody.innerHTML = rows.map(r => {
-    const valueAzn = mode === 'sale' ? r.saleValueAzn : r.costValueAzn;
+    const valueQepik = mode === 'sale' ? r.saleValueQepik : r.costValueQepik;
     const pkgCount = r.stock.packages;
     const pkgDisplay = Math.abs(pkgCount - Math.round(pkgCount)) < 0.01
       ? Math.round(pkgCount).toLocaleString('az')
@@ -10192,11 +10339,11 @@ function financeRenderInventory(products) {
       <td>${escapeHtml(r.stock.packLabel)}</td>
       <td class="num">${pkgDisplay}</td>
       <td class="num">${baseDisplay} ${escapeHtml(r.stock.baseUnitLabel)}</td>
-      <td class="num">${financeFmtAzn(r.prices.costPackAzn)}</td>
-      <td class="num">${financeFmtAzn(r.prices.costBaseAzn)}</td>
-      <td class="num">${financeFmtAzn(r.prices.salePackAzn)}</td>
-      <td class="num">${financeFmtAzn(r.prices.saleBaseAzn)}</td>
-      <td class="num"><strong>${financeFmtAzn(valueAzn)}</strong></td>
+      <td class="num">${financeFmtAzn(r.prices.costPackQepik)}</td>
+      <td class="num">${financeFmtAzn(r.prices.costBaseQepik)}</td>
+      <td class="num">${financeFmtAzn(r.prices.salePackQepik)}</td>
+      <td class="num">${financeFmtAzn(r.prices.saleBaseQepik)}</td>
+      <td class="num"><strong>${financeFmtAzn(valueQepik)}</strong></td>
     </tr>`;
   }).join('');
 }
@@ -10239,37 +10386,78 @@ function financeSaveExpense() {
   const amount = parseFloat((document.getElementById('fe-amount') || {}).value);
   const currency = (document.getElementById('fe-currency') || {}).value || 'AZN';
   const vendor = (document.getElementById('fe-vendor') || {}).value.trim();
-  if(!date || !description || !(amount > 0)) {
+  if(!date || !description || !isFinite(amount) || !(amount > 0)) {
     showToast('Tarix, təsvir və məbləğ doldurulmalıdır.', true);
     return;
   }
+  const actor = currentActivityActor();
+  const now = Date.now();
   const arr = financeGetExpenses();
-  const entry = {
-    id: financeEditingExpenseId || ('exp-' + Date.now()),
-    date,
-    category,
-    description,
-    amount,
-    currency,
-    vendor
-  };
+
   if(financeEditingExpenseId) {
     const idx = arr.findIndex(e => e.id === financeEditingExpenseId);
-    if(idx >= 0) arr[idx] = entry; else arr.push(entry);
+    if(idx < 0) { financeCloseExpenseForm(); return; }
+    const prev = arr[idx];
+    if(prev.voided) { showToast('Ləğv edilmiş xərc redaktə edilə bilməz.', true); return; }
+    const updated = Object.assign({}, prev, {
+      date, category, description, amount, currency, vendor,
+      updatedBy: actor.name, updatedAtMs: now
+    });
+    arr[idx] = updated;
+    financeSaveExpenses(arr);
+    supabaseUpdateExpenseById(updated.id, {
+      date, category, description, amount, currency, vendor,
+      updated_by: actor.name, updated_at_ms: now
+    });
+    logActivity('expense_edited', {
+      expenseId: updated.id, category, description,
+      oldAmount: prev.amount, newAmount: amount, currency
+    });
   } else {
+    // id includes a random suffix (not just Date.now()) so two rapid
+    // creates — e.g. an accidental double-click — never collide on the
+    // same primary key and silently merge into one row.
+    const entry = {
+      id: 'exp-' + now + '-' + Math.random().toString(36).slice(2, 8),
+      date, category, description, amount, currency, vendor,
+      createdByUsername: actor.username, createdByName: actor.name, createdAtMs: now,
+      voided: false
+    };
     arr.push(entry);
+    financeSaveExpenses(arr);
+    supabaseInsertExpense(entry);
+    logActivity('expense_added', {
+      expenseId: entry.id, category, description, amount, currency, vendor
+    });
   }
-  financeSaveExpenses(arr);
   financeCloseExpenseForm();
   financeRender();
   showToast('Xərc saxlanıldı.');
 }
 
+// Soft-delete only: an expense is a financial record, so "removing" it marks
+// voided=true (kept, pale, in the list for audit) instead of a hard delete —
+// the `expenses` table's RLS has no delete policy, enforcing this server-side
+// too. Mirrors adminDeleteSale()'s void pattern for sales.
 function financeDeleteExpense(id) {
-  if(!confirm('Bu xərc silinsin?')) return;
-  financeSaveExpenses(financeGetExpenses().filter(e => e.id !== id));
+  const arr = financeGetExpenses();
+  const idx = arr.findIndex(e => e.id === id);
+  if(idx < 0) return;
+  const exp = arr[idx];
+  if(exp.voided) { showToast('Bu xərc artıq ləğv edilib.', true); return; }
+  if(!confirm('Bu xərc ləğv edilsin?\n\nTarixçə üçün silinmir — audit jurnalında və xərc siyahısında solğun görünəcək.')) return;
+
+  const actor = currentActivityActor();
+  const now = Date.now();
+  arr[idx] = Object.assign({}, exp, { voided: true, voidedBy: actor.name, voidedAtMs: now });
+  financeSaveExpenses(arr);
+  supabaseUpdateExpenseById(id, { voided: true, voided_by: actor.name, voided_at_ms: now });
+  logActivity('expense_voided', {
+    expenseId: id, category: exp.category, description: exp.description,
+    amount: exp.amount, currency: exp.currency
+  });
   financeRender();
-  showToast('Xərc silindi.');
+  showToast('Xərc ləğv edildi.');
 }
 
 function financeExportXlsx() {
@@ -10279,18 +10467,21 @@ function financeExportXlsx() {
   const periodLabel = (document.getElementById('finance-period') || {}).value || 'period';
   const stamp = new Date().toISOString().slice(0, 10);
 
+  // Excel cells want plain decimal AZN, not qəpik integers or re-rounded
+  // floats — qToAzn() is an exact /100 divide of an already-rounded integer,
+  // so no further rounding is introduced at this last export step.
   const plRows = [
-    { 'Göstərici': 'Satış gəliri (AZN)', 'Məbləğ': +m.revenue.toFixed(2) },
-    { 'Göstərici': 'Endirim itkisi (AZN)', 'Məbləğ': +m.discountLoss.toFixed(2) },
-    { 'Göstərici': 'ƏDV 18% təxmini (AZN)', 'Məbləğ': +m.vatAmount.toFixed(2) },
-    { 'Göstərici': 'Gəlir ƏDV xaric (AZN)', 'Məbləğ': +m.revenueExVat.toFixed(2) },
-    { 'Göstərici': 'COGS / Maya (AZN)', 'Məbləğ': +m.cogs.toFixed(2) },
-    { 'Göstərici': 'Bruto mənfəət (AZN)', 'Məbləğ': +m.grossProfit.toFixed(2) },
-    { 'Göstərici': 'OPEX xərclər (AZN)', 'Məbləğ': +m.opex.toFixed(2) },
-    { 'Göstərici': 'Xalis mənfəət (AZN)', 'Məbləğ': +m.netProfit.toFixed(2) },
-    { 'Göstərici': 'Debitor borclar (AZN)', 'Məbləğ': +m.receivables.toFixed(2) },
-    { 'Göstərici': 'Anbar dəyəri — maya (AZN)', 'Məbləğ': +m.inventoryValue.toFixed(2) },
-    { 'Göstərici': 'Anbar dəyəri — satış (AZN)', 'Məbləğ': +m.inventorySaleValue.toFixed(2) },
+    { 'Göstərici': 'Satış gəliri (AZN)', 'Məbləğ': qToAzn(m.revenueQepik) },
+    { 'Göstərici': 'Endirim itkisi (AZN)', 'Məbləğ': qToAzn(m.discountLossQepik) },
+    { 'Göstərici': 'ƏDV 18% təxmini (AZN)', 'Məbləğ': qToAzn(m.vatAmountQepik) },
+    { 'Göstərici': 'Gəlir ƏDV xaric (AZN)', 'Məbləğ': qToAzn(m.revenueExVatQepik) },
+    { 'Göstərici': 'COGS / Maya (AZN)', 'Məbləğ': qToAzn(m.cogsQepik) },
+    { 'Göstərici': 'Bruto mənfəət (AZN)', 'Məbləğ': qToAzn(m.grossProfitQepik) },
+    { 'Göstərici': 'OPEX xərclər (AZN)', 'Məbləğ': qToAzn(m.opexQepik) },
+    { 'Göstərici': 'Xalis mənfəət (AZN)', 'Məbləğ': qToAzn(m.netProfitQepik) },
+    { 'Göstərici': 'Debitor borclar (AZN)', 'Məbləğ': qToAzn(m.receivablesQepik) },
+    { 'Göstərici': 'Anbar dəyəri — maya (AZN)', 'Məbləğ': qToAzn(m.inventoryValueQepik) },
+    { 'Göstərici': 'Anbar dəyəri — satış (AZN)', 'Məbləğ': qToAzn(m.inventorySaleValueQepik) },
     { 'Göstərici': 'USD/AZN məzənnə', 'Məbləğ': financeGetFx() }
   ];
 
@@ -10302,12 +10493,12 @@ function financeExportXlsx() {
       'Qablaşma': r.stock.packLabel,
       'Stok (ədəd)': +r.stock.packages.toFixed(2),
       'Stok (kq/l)': +r.stock.baseUnits.toFixed(3),
-      'Alış/qab AZN': +r.prices.costPackAzn.toFixed(2),
-      'Alış/kq(l) AZN': +r.prices.costBaseAzn.toFixed(2),
-      'Satış/qab AZN': +r.prices.salePackAzn.toFixed(2),
-      'Satış/kq(l) AZN': +r.prices.saleBaseAzn.toFixed(2),
-      'Anbar maya AZN': +r.costValueAzn.toFixed(2),
-      'Anbar satış AZN': +r.saleValueAzn.toFixed(2)
+      'Alış/qab AZN': qToAzn(r.prices.costPackQepik),
+      'Alış/kq(l) AZN': qToAzn(r.prices.costBaseQepik),
+      'Satış/qab AZN': qToAzn(r.prices.salePackQepik),
+      'Satış/kq(l) AZN': qToAzn(r.prices.saleBaseQepik),
+      'Anbar maya AZN': qToAzn(r.costValueQepik),
+      'Anbar satış AZN': qToAzn(r.saleValueQepik)
     }));
 
   const salesRows = m.sales.map(r => ({
@@ -10316,21 +10507,25 @@ function financeExportXlsx() {
     'Satıcı': r.sale.salesperson || '',
     'Müştəri': r.sale.customer || '',
     'Say': r.sale.qty,
-    'Gəlir AZN': +r.revenueAzn.toFixed(2),
-    'Maya AZN': +r.cogsAzn.toFixed(2),
-    'Mənfəət AZN': +r.profitAzn.toFixed(2),
+    'Gəlir AZN': qToAzn(r.revenueQepik),
+    'Maya AZN': qToAzn(r.cogsQepik),
+    'Mənfəət AZN': qToAzn(r.profitQepik),
     'Marja %': +r.marginPct.toFixed(1),
     'Endirim %': r.sale.discountPct || 0,
     'Ödəniş': (FINANCE_PAYMENT_METHODS.find(x => x.value === (r.sale.paymentMethod || 'cash')) || {}).label || 'Nağd'
   }));
 
+  // Voided expenses are exported too (marked, not omitted) so the ledger
+  // export matches what's on screen — but they're already excluded from
+  // 'OPEX xərclər (AZN)' above, since that came from opexQepik (active only).
   const expenseRows = m.expenses.map(e => ({
     'Tarix': e.date,
     'Kateqoriya': e.category,
     'Təsvir': e.description,
     'Məbləğ': e.amount,
     'Valyuta': e.currency || 'AZN',
-    'AZN ekvivalent': +financeExpenseAmountAzn(e).toFixed(2),
+    'AZN ekvivalent': qToAzn(financeExpenseAmountQepik(e)),
+    'Status': e.voided ? 'Ləğv edilib' : 'Aktiv',
     'Qeyd': e.vendor || ''
   }));
 
@@ -10357,7 +10552,7 @@ function financeExportInventoryXlsx() {
   const rows = getProducts()
     .map(p => financeInventoryRow(p))
     .filter(r => r.stock.baseUnits > 0)
-    .sort((a, b) => (mode === 'sale' ? b.saleValueAzn - a.saleValueAzn : b.costValueAzn - a.costValueAzn));
+    .sort((a, b) => (mode === 'sale' ? b.saleValueQepik - a.saleValueQepik : b.costValueQepik - a.costValueQepik));
 
   if(!rows.length) { showToast('Stokda məhsul yoxdur, ixrac ediləcək məlumat yoxdur.', true); return; }
 
@@ -10367,16 +10562,18 @@ function financeExportInventoryXlsx() {
     'Qablaşma': r.stock.packLabel,
     'Stok (ədəd)': +r.stock.packages.toFixed(2),
     'Stok (kq/l)': +r.stock.baseUnits.toFixed(3),
-    'Alış/qab AZN': +r.prices.costPackAzn.toFixed(2),
-    'Alış/kq(l) AZN': +r.prices.costBaseAzn.toFixed(2),
-    'Satış/qab AZN': +r.prices.salePackAzn.toFixed(2),
-    'Satış/kq(l) AZN': +r.prices.saleBaseAzn.toFixed(2),
-    [valueKey]: +(mode === 'sale' ? r.saleValueAzn : r.costValueAzn).toFixed(2)
+    'Alış/qab AZN': qToAzn(r.prices.costPackQepik),
+    'Alış/kq(l) AZN': qToAzn(r.prices.costBaseQepik),
+    'Satış/qab AZN': qToAzn(r.prices.salePackQepik),
+    'Satış/kq(l) AZN': qToAzn(r.prices.saleBaseQepik),
+    [valueKey]: qToAzn(mode === 'sale' ? r.saleValueQepik : r.costValueQepik)
   }));
 
-  const totalValue = rows.reduce((sum, r) => sum + (mode === 'sale' ? r.saleValueAzn : r.costValueAzn), 0);
+  // Exact integer qəpik sum, converted to AZN once at the very end — the
+  // exported total always equals the sum of the exported line values.
+  const totalValueQepik = qSum(rows.map(r => (mode === 'sale' ? r.saleValueQepik : r.costValueQepik)));
   const totalRow = { 'Məhsul': 'CƏMİ' };
-  totalRow[valueKey] = +totalValue.toFixed(2);
+  totalRow[valueKey] = qToAzn(totalValueQepik);
   exportRows.push(totalRow);
 
   const wb = XLSX.utils.book_new();
