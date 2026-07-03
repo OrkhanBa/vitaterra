@@ -2898,6 +2898,7 @@
             <label>Sənəd (çek, faktura/invoice, gömrük sənədi və s.)</label>
             <input type="file" id="fe-files" accept="image/*,application/pdf" multiple onchange="financeHandleExpenseFilesChosen(event)"/>
             <div id="fe-files-preview" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+            <div id="fe-extract-status" style="margin-top:6px;font-size:11px;color:var(--text-light);"></div>
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
@@ -3463,15 +3464,99 @@ var financePendingExpenseFiles = [];
 
 function financeHandleExpenseFilesChosen(event) {
   const chosen = Array.from((event.target && event.target.files) || []);
+  const accepted = [];
   chosen.forEach(function(f) {
     if (f.size > EXPENSE_FILE_MAX_BYTES) {
       showToast('"' + f.name + '" 15MB-dan böyükdür, əlavə edilmədi.', true);
       return;
     }
     financePendingExpenseFiles.push(f);
+    accepted.push(f);
   });
   if (event.target) event.target.value = '';
   financeRenderExpenseFilesPreview();
+  // Best-effort auto-read of the first document attached to a fresh form —
+  // only fills fields that are still empty, so it never clobbers anything
+  // the user already typed. Runs once per open() so re-attaching more files
+  // later doesn't keep re-triggering it.
+  if (accepted.length) financeMaybeExtractFromFirstFile(accepted[0]);
+}
+
+// Set once extraction has been attempted for the currently-open form.
+var financeReceiptExtractAttempted = false;
+
+function financeSetExtractStatus(html) {
+  const el = document.getElementById('fe-extract-status');
+  if (el) el.innerHTML = html;
+}
+
+async function extractExpenseReceiptWithAI(base64, mimeType, filename) {
+  try {
+    const response = await fetch('/.netlify/functions/extract-expense-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64, mimeType, filename })
+    });
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      console.error('Receipt extraction failed:', response.status, errBody);
+      throw new Error(errBody.error || ('HTTP ' + response.status));
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('extractExpenseReceiptWithAI error:', err);
+    return null;
+  }
+}
+
+// Pre-fills the expense form from AI-read document data. Every field is
+// left as-is (and stays fully editable) if it already has a value — this
+// is a convenience prefill, never an authoritative overwrite.
+function financeApplyExtractedReceiptData(data) {
+  if (!data) { financeSetExtractStatus('⚠️ Sənəd oxuna bilmədi — məlumatları əl ilə daxil edin.'); return; }
+  const dateEl = document.getElementById('fe-date');
+  const catEl = document.getElementById('fe-category');
+  const descEl = document.getElementById('fe-desc');
+  const amountEl = document.getElementById('fe-amount');
+  const currencyEl = document.getElementById('fe-currency');
+  const vendorEl = document.getElementById('fe-vendor');
+  const amountWasEmpty = !!amountEl && !amountEl.value;
+  let filledAny = false;
+
+  if (dateEl && !dateEl.value && data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+    dateEl.value = data.date; filledAny = true;
+  }
+  if (catEl && !catEl.value && data.category) {
+    const wanted = String(data.category).toLowerCase();
+    const match = FINANCE_EXPENSE_CATEGORIES.find(function(c) { return c.toLowerCase() === wanted; });
+    if (match) { catEl.value = match; filledAny = true; }
+  }
+  if (descEl && !descEl.value && data.description) {
+    descEl.value = data.description; filledAny = true;
+  }
+  if (amountEl && amountWasEmpty && isFinite(data.amount) && data.amount > 0) {
+    amountEl.value = data.amount; filledAny = true;
+    if (currencyEl && (data.currency === 'AZN' || data.currency === 'USD')) {
+      currencyEl.value = data.currency;
+    }
+  }
+  if (vendorEl && !vendorEl.value && data.vendor) {
+    vendorEl.value = data.vendor; filledAny = true;
+  }
+
+  financeSetExtractStatus(filledAny
+    ? '✅ Sənəddən avtomatik dolduruldu — dəyərləri yoxlayıb təsdiqləyin.'
+    : '⚠️ Sənəddən məlumat çıxarıla bilmədi — sahələri əl ilə doldurun.');
+}
+
+async function financeMaybeExtractFromFirstFile(file) {
+  if (financeReceiptExtractAttempted) return;
+  if (!file || (file.type.indexOf('image/') !== 0 && file.type !== 'application/pdf')) return;
+  financeReceiptExtractAttempted = true;
+  financeSetExtractStatus('🔎 Sənəd oxunur, gözləyin…');
+  const base64 = await fileToBase64(file);
+  const data = await extractExpenseReceiptWithAI(base64, file.type, file.name);
+  financeApplyExtractedReceiptData(data);
 }
 
 function financeRemovePendingExpenseFile(idx) {
@@ -10583,6 +10668,7 @@ function financeRender() {
 function financeOpenExpenseForm() {
   financeEditingExpenseId = null;
   financePendingExpenseFiles = [];
+  financeReceiptExtractAttempted = false;
   const form = document.getElementById('finance-expense-form');
   if(form) form.style.display = '';
   const dateEl = document.getElementById('fe-date');
@@ -10593,6 +10679,7 @@ function financeOpenExpenseForm() {
   });
   const filesEl = document.getElementById('fe-files');
   if(filesEl) filesEl.value = '';
+  financeSetExtractStatus('');
   financeRenderExpenseFilesPreview();
 }
 
@@ -10601,6 +10688,8 @@ function financeCloseExpenseForm() {
   if(form) form.style.display = 'none';
   financeEditingExpenseId = null;
   financePendingExpenseFiles = [];
+  financeReceiptExtractAttempted = false;
+  financeSetExtractStatus('');
   financeRenderExpenseFilesPreview();
 }
 
