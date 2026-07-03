@@ -4470,7 +4470,14 @@ function stockBadgeForProduct(p) {
   return stockBadge(maxSalePackages(p));
 }
 
+// Whether product prices are shown on the PUBLIC site (Products section only).
+// Controlled from the Site Editor; sales/finance/admin panels are unaffected.
+function publicPricesEnabled() {
+  try { return getSiteContent().products_show_prices !== false; } catch (e) { return true; }
+}
+
 function priceStripHTML(p, lang) {
+  if (!publicPricesEnabled()) return '';
   const rawPack  = packagingForProduct(p);
   const packStr  = lang === 'az' ? formatPackAz(rawPack) : rawPack;
   const per      = packStr ? ' / ' + packStr : '';
@@ -5086,7 +5093,7 @@ function openProductModal(id) {
   const modalTotalAzn = modalNetAzn + modalVatAmt;
   const modalRawPk    = packagingForProduct(p);
   const modalPkStr    = currentLang === 'az' ? formatPackAz(modalRawPk) : modalRawPk;
-  const modalPriceBadge = modalTotalAzn > 0
+  const modalPriceBadge = (publicPricesEnabled() && modalTotalAzn > 0)
     ? `<div class="modal-price-badge">₼${modalTotalAzn.toFixed(2)}<span class="mpb-per">${modalPkStr ? ' / ' + modalPkStr : ''}</span>${modalVatAmt > 0 ? `<span class="mpb-vat">${currentLang === 'az' ? 'o cümlədən ƏDV 18%: ₼' + modalVatAmt.toFixed(2) : 'incl. VAT 18%: ₼' + modalVatAmt.toFixed(2)}</span>` : ''}</div>`
     : '';
   const mCatEl = document.getElementById('m-category');
@@ -8877,6 +8884,7 @@ function vseRenderProps() {
   var panel = document.getElementById('vse-props');
   if(!panel) return;
   var c = getSiteContent();
+  var pricesOn = c.products_show_prices !== false;
 
   const langTabs = `
     <div class="vse-lang-tabs">
@@ -8925,8 +8933,16 @@ function vseRenderProps() {
     `,
     products: () => `
       ${langTabs}
-      <div style="padding:16px;background:rgba(62,140,88,0.07);border-radius:8px;font-size:13px;color:var(--green-dark);">
-        💡 Products section text is controlled by the language system. Individual product details are managed in the <strong>Products tab</strong>.
+      <div class="vse-prop-group">
+        <label class="vse-prop-label">Public saytda qiymətlər</label>
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:9px;padding:10px 12px;">
+          <button class="vse-section-toggle ${pricesOn ? 'on' : ''}" id="vse-prices-toggle" onclick="vseTogglePublicPrices()" title="Qiymətləri aç/bağla"></button>
+          <span id="vse-prices-label" style="font-size:13px;font-weight:600;color:var(--text-dark);">${pricesOn ? 'Göstərilir (ON)' : 'Gizlədilib (OFF)'}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5;">Yalnız public saytın <strong>Məhsullar</strong> bölməsindəki qiymətlərə təsir edir. Satış və Maliyyə panellərində qiymətlər həmişə görünür.</div>
+      </div>
+      <div style="padding:14px;background:rgba(62,140,88,0.07);border-radius:8px;font-size:13px;color:var(--green-dark);line-height:1.5;">
+        💡 Məhsul mətnləri dil sistemi ilə idarə olunur. Ayrı-ayrı məhsul detalları <strong>Products</strong> tabındadır.
       </div>`,
 
     contact: () => `
@@ -9448,6 +9464,21 @@ function vseLiveUpdatePreview(key, val) {
     if (el.dataset.vsemulti === '1') el.innerHTML = vseEscHtml(val).split('\n').join('<br/>');
     else el.textContent = val;
   });
+}
+
+// Toggle public-site product prices on/off (Products section only).
+// Sales/Finance/Admin panels always keep prices.
+function vseTogglePublicPrices() {
+  var c = getSiteContent();
+  var on = !(c.products_show_prices !== false); // flip current state
+  c.products_show_prices = on;
+  saveSiteContent(c);
+  var btn = document.getElementById('vse-prices-toggle');
+  var lbl = document.getElementById('vse-prices-label');
+  if (btn) btn.classList.toggle('on', on);
+  if (lbl) lbl.textContent = on ? 'Göstərilir (ON)' : 'Gizlədilib (OFF)';
+  try { renderPublicProducts(); } catch (e) {}
+  vseShowSaved();
 }
 
 // Selecting a section from the left rail: highlight + scroll the matching
