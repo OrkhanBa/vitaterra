@@ -1,13 +1,25 @@
 // netlify/functions/extract-label.js
 // Accepts a POST with { base64, filename } where base64 is a base64-encoded PDF.
 // Proxies the request to the Anthropic Claude API and returns the parsed label data.
+//
+// Protected: caller must send a valid Supabase session token
+//   Authorization: Bearer <supabase access_token>
+// This stops anonymous visitors from draining Claude API credits. A small
+// in-memory rate limiter adds a second layer of abuse protection.
+//
 // Requires env var on Netlify:
 //   CLAUDE_API_KEY  - your Anthropic API key (starts with sk-ant-...)
+// Optional (fall back to the public project values when unset):
+//   SUPABASE_URL, SUPABASE_ANON_KEY
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gqhjntqfgwvyqpynfzut.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaGpudHFmZ3d2eXFweW5menV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODY1NDksImV4cCI6MjA5ODU2MjU0OX0.tezK6Q-UktN14NA1po5KhnliQvRgSn3UUunA9d90aDk';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 function reply(status, body) {
@@ -16,6 +28,41 @@ function reply(status, body) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   };
+}
+
+function getBearerToken(event) {
+  const authHeader = event.headers.authorization || event.headers.Authorization || '';
+  if (!authHeader.startsWith('Bearer ')) return null;
+  return authHeader.slice(7).trim();
+}
+
+// Verify a Supabase access token by asking GoTrue who it belongs to.
+async function verifySupabaseUser(token) {
+  try {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+    });
+    if (!res.ok) return null;
+    const user = await res.json();
+    if (!user || !user.id) return null;
+    return user;
+  } catch (e) {
+    return null;
+  }
+}
+
+// --- Tiny in-memory rate limiter (best-effort; per warm container) ---
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const RATE_MAX_PER_USER = 30;          // per user per window
+const hits = new Map();                // key -> [timestamps]
+
+function rateLimited(key) {
+  const now = Date.now();
+  const arr = (hits.get(key) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  arr.push(now);
+  hits.set(key, arr);
+  if (hits.size > 5000) hits.clear(); // guard against unbounded growth
+  return arr.length > RATE_MAX_PER_USER;
 }
 
 const PROMPT = `You are analyzing a pesticide/agrochemical product label PDF (may be in Russian or English).
@@ -40,6 +87,17 @@ Respond ONLY with valid JSON, no markdown, no extra text. All 12 fields are requ
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: corsHeaders };
   if (event.httpMethod !== 'POST')    return reply(405, { error: 'Method not allowed' });
+
+  // --- Auth: require a valid Supabase session ---
+  const token = getBearerToken(event);
+  if (!token) return reply(401, { error: 'Authentication required' });
+  const user = await verifySupabaseUser(token);
+  if (!user) return reply(401, { error: 'Invalid or expired session' });
+
+  // --- Rate limit per authenticated user ---
+  if (rateLimited(user.id)) {
+    return reply(429, { error: 'Too many requests. Please wait a few minutes and try again.' });
+  }
 
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return reply(500, { error: 'CLAUDE_API_KEY env var not configured on Netlify' });

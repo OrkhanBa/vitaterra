@@ -6914,9 +6914,14 @@ function fileToBase64(file) {
 
 async function extractLabelWithAI(base64, filename) {
   try {
+    if (typeof ensureFreshSession === 'function') { try { await ensureFreshSession(); } catch (e) {} }
+    const headers = { 'Content-Type': 'application/json' };
+    if (supabaseSession && supabaseSession.access_token) {
+      headers['Authorization'] = 'Bearer ' + supabaseSession.access_token;
+    }
     const response = await fetch('/.netlify/functions/extract-label', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ base64, filename })
     });
     if (!response.ok) {
