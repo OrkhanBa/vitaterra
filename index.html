@@ -2167,6 +2167,7 @@
     <div class="dash-nav-right">
       <span class="dash-user" id="admin-user-name">👤 Administrator</span>
       <button class="btn-logout" onclick="adminOpenSales()" title="Satış portalını aç" data-en="Sales" data-az="Satış">Satış</button>
+      <button class="btn-logout" onclick="adminOpenShop()" title="Qusar dükanını aç">🏬 Dükan</button>
       <button class="btn-logout" onclick="adminOpenFinance()" title="Maliyyə panelini aç" data-en="Finance" data-az="Maliyyə">Maliyyə</button>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
@@ -2665,6 +2666,7 @@
     <div class="dash-tabs" style="margin:14px 0 20px;">
       <button class="dash-tab active" onclick="salesSubTab('sell', this)">🛒 Satış et</button>
       <button class="dash-tab" onclick="salesSubTab('warehouse', this)">📦 Anbar</button>
+      <button class="dash-tab" id="sales-tab-shop" onclick="salesSubTab('shop', this)" style="display:none;">🏬 Dükan</button>
     </div>
 
     <div id="sales-subview-sell">
@@ -2698,6 +2700,9 @@
           <div class="form-group" style="margin-top:16px;">
             <label class="form-label" data-en="Customer Name (Optional)" data-az="Müştəri adı (istəyə bağlı)">Müştəri adı (istəyə bağlı)</label>
             <input class="form-input" id="sale-customer" placeholder="Müştəri və ya şirkət adı" data-ph-en="Customer or company name" data-ph-az="Müştəri və ya şirkət adı"/>
+            <!-- Quick preset for Aygun: sell to the Qusar shop. Confirming adds the
+                 items to the Dükan stock automatically. Hidden for other users. -->
+            <button type="button" id="sale-shop-preset" onclick="setSaleShopCustomer()" style="display:none;margin-top:8px;background:rgba(62,140,88,0.1);border:1px dashed var(--green-accent);color:var(--green-dark);font-weight:600;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">🏬 Dükana göndər (Qusar)</button>
           </div>
 
           <!-- Order total -->
@@ -2814,6 +2819,86 @@
         </div>
       </div>
     </div><!-- end sales-subview-warehouse -->
+
+    <!-- DÜKAN (Qusar shop) subsection — visible only to Aygun + admin. A separate
+         stock + sales ledger for the physical shop. Prices are editable by hand
+         and none of this touches company finance. -->
+    <div id="sales-subview-shop" style="display:none;">
+      <div style="background:rgba(62,140,88,0.07);border:1px solid rgba(62,140,88,0.2);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--green-dark);line-height:1.6;">
+        🏬 <strong>Qusar Dükanı.</strong> Anbardan dükana göndərilən məhsullar burada stok kimi görünür. Qiymətləri əl ilə dəyişə, dükanın müştəri satışlarını qeyd edə bilərsən. Bu bölmə <strong>ümumi maliyyəyə təsir etmir</strong> — yalnız dükanın öz uçotudur.
+      </div>
+
+      <div class="kpi-grid" id="shop-kpis" style="margin-bottom:18px;"></div>
+
+      <div class="sales-layout-grid">
+        <!-- LEFT: shop stock -->
+        <div>
+          <div class="sale-form-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+              <div class="sale-form-title" style="margin:0;">Dükan stoku</div>
+              <button class="btn-cancel" style="font-size:12px;padding:6px 14px;" onclick="shopManualSync(this)">☁️ Sinxronlaşdır</button>
+            </div>
+            <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">Anbardan "🏬 Dükana göndər" ilə satılan məhsullar avtomatik buraya düşür. Qiymət və miqdarı əl ilə tənzimlə.</div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="text-align:left;border-bottom:2px solid rgba(0,0,0,0.08);">
+                    <th style="padding:8px 6px;">Məhsul</th>
+                    <th style="padding:8px 6px;width:90px;">Stok</th>
+                    <th style="padding:8px 6px;width:120px;">Qiymət (₼)</th>
+                    <th style="padding:8px 6px;width:120px;">Sat</th>
+                    <th style="padding:8px 6px;width:40px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="shop-stock-tbody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: shop sale form -->
+        <div>
+          <div class="sale-form-card sale-summary-sticky">
+            <div class="sale-form-title">Dükan satışı</div>
+            <div id="shop-cart-items">
+              <div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px 0;">Soldakı "Sat" düyməsi ilə məhsul əlavə et</div>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label class="form-label">Müştəri adı (istəyə bağlı)</label>
+              <input class="form-input" id="shop-customer" placeholder="Müştəri adı"/>
+            </div>
+            <div id="shop-sale-total" style="display:none;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid rgba(0,0,0,0.08);margin-top:8px;">
+              <div style="font-size:14px;font-weight:600;color:var(--text);">Yekun</div>
+              <div class="sale-total" id="shop-sale-total-display">₼0.00</div>
+            </div>
+            <button class="btn-confirm-sale" id="btn-shop-confirm" onclick="shopConfirmSale()" disabled style="opacity:0.5;">Dükan satışını təsdiq et</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shop sales history -->
+      <div class="sale-form-card my-recent-sales-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <div class="sale-form-title" style="font-size:18px;margin:0;">Dükan satışları</div>
+        </div>
+        <div class="my-sales-table-wrap">
+          <table class="my-sales-slip-table">
+            <thead>
+              <tr>
+                <th>Tarix</th>
+                <th>Müştəri</th>
+                <th>Məhsullar</th>
+                <th class="num">Məbləğ</th>
+                <th class="toggle" aria-hidden="true"></th>
+              </tr>
+            </thead>
+            <tbody id="shop-sales-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- end sales-subview-shop -->
   </div>
 </div><!-- end sales-view -->
 
@@ -4132,6 +4217,99 @@ async function syncCatalogFromServer() {
   } catch (e) { console.warn('site_catalog fetch failed:', e); return false; }
 }
 
+// ── Qusar shop (Dükan) sub-ledger ───────────────────────────
+// A separate stock + sales ledger for Aygun's physical shop in Qusar. Stock is
+// received by selling to the "Dükan (Qusar)" customer on the main sales page
+// (which decrements the warehouse and counts in company finance exactly once).
+// The shop's own end-customer sales live only here and never touch the main
+// sales/activity tables — so they have ZERO effect on company finance/KPIs.
+// Stored as a singleton JSONB snapshot in Supabase (same pattern as site_catalog).
+var SHOP_LEDGER_KEY = 'vt_shop_ledger';
+var SHOP_CUSTOMER_LABEL = 'Dükan (Qusar)';
+var _shopLedger = null;
+
+function getShopLedger() {
+  if (_shopLedger) return _shopLedger;
+  try {
+    var raw = localStorage.getItem(SHOP_LEDGER_KEY);
+    _shopLedger = raw ? JSON.parse(raw) : { inventory: [], sales: [] };
+  } catch (e) { _shopLedger = { inventory: [], sales: [] }; }
+  if (!_shopLedger.inventory) _shopLedger.inventory = [];
+  if (!_shopLedger.sales) _shopLedger.sales = [];
+  return _shopLedger;
+}
+
+function saveShopLedger(ledger) {
+  _shopLedger = ledger || { inventory: [], sales: [] };
+  if (!_shopLedger.inventory) _shopLedger.inventory = [];
+  if (!_shopLedger.sales) _shopLedger.sales = [];
+  try { localStorage.setItem(SHOP_LEDGER_KEY, JSON.stringify(_shopLedger)); } catch (e) {}
+}
+
+async function syncShopFromServer() {
+  if (!hasSupabaseSession()) return false;
+  try {
+    await ensureFreshSession();
+    var res = await fetch(SUPABASE_URL + '/rest/v1/shop_ledger?id=eq.1&select=data', { headers: supabaseHeaders() });
+    if (!res.ok) return false;
+    var rows = await res.json();
+    var data = (Array.isArray(rows) && rows[0] && rows[0].data) ? rows[0].data : null;
+    if (data && typeof data === 'object') {
+      saveShopLedger({ inventory: data.inventory || [], sales: data.sales || [] });
+      return true;
+    }
+    return false;
+  } catch (e) { console.warn('shop_ledger fetch failed:', e); return false; }
+}
+
+async function supabaseUpsertShop() {
+  if (!hasSupabaseSession()) return false;
+  try {
+    await ensureFreshSession();
+    var headers = supabaseHeaders();
+    headers['Prefer'] = 'resolution=merge-duplicates';
+    var res = await fetch(SUPABASE_URL + '/rest/v1/shop_ledger?on_conflict=id', {
+      method: 'POST', headers: headers,
+      body: JSON.stringify([{ id: 1, data: getShopLedger(), updated_at: new Date().toISOString() }])
+    });
+    return res.ok;
+  } catch (e) { console.warn('shop_ledger upsert failed:', e); return false; }
+}
+
+// Add received packages to the shop's stock (called when a main-page sale is made
+// to the "Dükan (Qusar)" customer). Default shop price seeds from the sale price
+// but is fully editable in the Dükan tab afterwards.
+function shopReceiveItems(items) {
+  var ledger = getShopLedger();
+  items.forEach(function(it) {
+    var existing = ledger.inventory.filter(function(x) { return x.productId === it.productId; })[0];
+    if (existing) {
+      existing.qty = (parseFloat(existing.qty) || 0) + (parseFloat(it.qty) || 0);
+      existing.name = it.name || existing.name;
+      if (it.unit) existing.unit = it.unit;
+    } else {
+      ledger.inventory.push({
+        productId: it.productId, name: it.name || '',
+        qty: parseFloat(it.qty) || 0,
+        price: parseFloat(it.price) || 0,
+        unit: it.unit || ''
+      });
+    }
+  });
+  saveShopLedger(ledger);
+}
+
+// Whether the current user may see/use the Qusar shop (Dükan) tab.
+// Only Aygun (dedicated sales user) and the master admin.
+function shopAccessAllowed() {
+  try {
+    if (typeof isAdminAuthed === 'function' && isAdminAuthed()) return true;
+    var u = getCurrentSalesUser();
+    var uname = u ? String(u.username || u.name || '').toLowerCase() : '';
+    return uname === 'aygun';
+  } catch (e) { return false; }
+}
+
 function getProducts() {
   try {
     var arr;
@@ -4784,6 +4962,15 @@ function adminOpenSales() {
   renderSalesView();
   updateSalesHeader();
 }
+function adminOpenShop() {
+  if (!isAdminAuthed()) return;
+  setCurrentSalesUser({ username: 'admin', name: (supabaseSession && supabaseSession.name) || 'Administrator' });
+  showView('sales');
+  renderSalesView();
+  updateSalesHeader(); // reveals the Dükan tab for admin
+  var tab = document.getElementById('sales-tab-shop');
+  salesSubTab('shop', tab); // jump straight to the Dükan subtab
+}
 function adminOpenFinance() {
   if (!isAdminAuthed()) return;
   setFinanceSignedIn(true);
@@ -4945,6 +5132,26 @@ function updateSalesHeader() {
   const u = getCurrentSalesUser();
   const nameEl = document.getElementById('sales-user-name');
   if(nameEl && u) nameEl.textContent = '👤 ' + (u.name || u.username);
+  updateShopUiVisibility();
+}
+
+// Show/hide the Qusar shop (Dükan) tab + the "send to shop" preset based on the
+// signed-in user. Only Aygun and the master admin get access.
+function updateShopUiVisibility() {
+  var allowed = shopAccessAllowed();
+  var tab = document.getElementById('sales-tab-shop');
+  if (tab) tab.style.display = allowed ? '' : 'none';
+  var preset = document.getElementById('sale-shop-preset');
+  if (preset) preset.style.display = allowed ? '' : 'none';
+  if (allowed) { syncShopFromServer().then(function(ok) { if (ok && currentView === 'sales') renderShop(); }); }
+}
+
+// Fill the main-page customer field with the shop label. Confirming the sale
+// then decrements the warehouse (counts in finance) AND mirrors the items into
+// the Dükan stock ledger.
+function setSaleShopCustomer() {
+  var inp = document.getElementById('sale-customer');
+  if (inp) { inp.value = SHOP_CUSTOMER_LABEL; inp.focus(); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5176,11 +5383,34 @@ function renderAdminDash() {
 const SALES_AUTO_SYNC_MS = 15000;
 var _salesAutoSyncTimer = null;
 
+// Compact fingerprint of everything the admin/finance/sales views display.
+// The background sync re-renders (rebuilds innerHTML) only when this changes,
+// so an unchanged 15s poll no longer causes a visible flicker/blink.
+var _lastSalesSig = null;
+function _salesDataSignature() {
+  try {
+    return JSON.stringify({
+      s: getSales(),
+      a: getActivityLog(),
+      w: getWarehouseLog(),
+      e: financeGetExpenses(),
+      i: _liveInventory,
+      p: _productPricing
+    });
+  } catch (e) { return String(Date.now()) + Math.random(); }
+}
+
 function startSalesAutoSync() {
   if (_salesAutoSyncTimer) return;
+  // Seed the fingerprint from what's already on screen so the first tick stays
+  // quiet unless real data arrived.
+  _lastSalesSig = _salesDataSignature();
   _salesAutoSyncTimer = setInterval(function() {
     syncSalesFromServer().then(function(ok) {
       if (!ok) return;
+      var sig = _salesDataSignature();
+      if (sig === _lastSalesSig) return; // nothing changed — skip the DOM rebuild
+      _lastSalesSig = sig;
       if (currentView === 'admin') {
         renderAdminKPIs();
         renderSalesLog();
@@ -5207,6 +5437,7 @@ function manualSyncSales(btn) {
   syncSalesFromServer().then(function(ok) {
     // Guarded internally (each checks for its DOM first), so it's safe to call
     // all of these regardless of which view/tab this button was clicked from.
+    _lastSalesSig = _salesDataSignature();
     renderAdminKPIs();
     renderSalesLog();
     renderActivityLog();
@@ -5224,6 +5455,7 @@ function refreshSalesFromServerAndRerender() {
   syncSalesFromServer().then(function(ok) {
     _salesSyncInFlight = false;
     if (!ok) return;
+    _lastSalesSig = _salesDataSignature();
     renderAdminKPIs();
     renderSalesLog();
     renderActivityLog();
@@ -6218,14 +6450,239 @@ function renderSalesView() {
 function salesSubTab(name, btn) {
   const sellEl = document.getElementById('sales-subview-sell');
   const whEl = document.getElementById('sales-subview-warehouse');
+  const shopEl = document.getElementById('sales-subview-shop');
   if (sellEl) sellEl.style.display = (name === 'sell') ? '' : 'none';
   if (whEl) whEl.style.display = (name === 'warehouse') ? '' : 'none';
+  if (shopEl) shopEl.style.display = (name === 'shop') ? '' : 'none';
   document.querySelectorAll('#sales-view .dash-tab').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   if (name === 'warehouse') {
     renderWarehouseOrders();
     syncSalesFromServer().then(function(ok) { if (ok) renderWarehouseOrders(); });
   }
+  if (name === 'shop') {
+    renderShop();
+    syncShopFromServer().then(function(ok) { if (ok) renderShop(); });
+  }
+}
+
+// ── DÜKAN (Qusar shop) — stock + isolated sales ledger ──────
+// shopCart = { productId: qtyToSell }
+var shopCart = {};
+
+function renderShop() {
+  renderShopKpis();
+  renderShopStock();
+  renderShopCart();
+  renderShopSalesHistory();
+}
+
+function renderShopKpis() {
+  var el = document.getElementById('shop-kpis');
+  if (!el) return;
+  var ledger = getShopLedger();
+  var stockValue = 0, units = 0;
+  ledger.inventory.forEach(function(x) {
+    var q = parseFloat(x.qty) || 0, pr = parseFloat(x.price) || 0;
+    stockValue += q * pr; units += q;
+  });
+  var salesRevenue = 0, salesCount = ledger.sales.length;
+  ledger.sales.forEach(function(s) { salesRevenue += (parseFloat(s.total) || 0); });
+  function kpi(label, value) {
+    return '<div class="kpi-card"><div class="kpi-label">' + label + '</div>'
+      + '<div class="kpi-value">' + value + '</div></div>';
+  }
+  el.innerHTML =
+      kpi('Stok dəyəri', formatAzn(stockValue))
+    + kpi('Stokda (ədəd)', formatStockCount(units))
+    + kpi('Dükan satışı', formatAzn(salesRevenue))
+    + kpi('Satış sayı', String(salesCount));
+}
+
+function renderShopStock() {
+  var tb = document.getElementById('shop-stock-tbody');
+  if (!tb) return;
+  var ledger = getShopLedger();
+  if (!ledger.inventory.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur — anbardan "🏬 Dükana göndər" ilə məhsul göndər</td></tr>';
+    return;
+  }
+  tb.innerHTML = ledger.inventory.map(function(x) {
+    var q = parseFloat(x.qty) || 0;
+    var inCart = !!shopCart[x.productId];
+    var unit = x.unit ? (' <span style="color:var(--text-light);font-size:11px;">' + escapeHtml(x.unit) + '</span>') : '';
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+      + '<td style="padding:8px 6px;font-weight:600;">' + escapeHtml(x.name || ('#' + x.productId)) + unit + '</td>'
+      + '<td style="padding:8px 6px;">' + formatStockCount(q) + '</td>'
+      + '<td style="padding:8px 6px;"><input type="number" min="0" step="0.01" value="' + (parseFloat(x.price) || 0).toFixed(2) + '" onchange="shopUpdatePrice(' + x.productId + ',this.value)" style="width:92px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;background:var(--cream);"/></td>'
+      + '<td style="padding:8px 6px;">'
+        + '<button class="btn-add" style="font-size:12px;padding:5px 12px;' + (q < 1 ? 'opacity:0.4;cursor:not-allowed;' : '') + '" ' + (q < 1 ? 'disabled' : ('onclick="shopAddToCart(' + x.productId + ')"')) + '>' + (inCart ? '✓ Səbətdə' : '+ Sat') + '</button>'
+      + '</td>'
+      + '<td style="padding:8px 6px;"><button onclick="shopDeleteStock(' + x.productId + ')" title="Sil" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:15px;">🗑️</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function shopInvItem(pid) {
+  return getShopLedger().inventory.filter(function(x) { return x.productId === pid; })[0] || null;
+}
+
+function shopUpdatePrice(pid, val) {
+  var item = shopInvItem(pid);
+  if (!item) return;
+  var n = parseFloat(val);
+  item.price = (isFinite(n) && n >= 0) ? n : 0;
+  saveShopLedger(getShopLedger());
+  supabaseUpsertShop();
+  renderShopKpis();
+  renderShopCart();
+}
+
+function shopDeleteStock(pid) {
+  if (!confirm('Bu məhsulu dükan stokundan silmək istəyirsən?')) return;
+  var ledger = getShopLedger();
+  ledger.inventory = ledger.inventory.filter(function(x) { return x.productId !== pid; });
+  delete shopCart[pid];
+  saveShopLedger(ledger);
+  supabaseUpsertShop();
+  renderShop();
+}
+
+function shopAddToCart(pid) {
+  var item = shopInvItem(pid);
+  if (!item) return;
+  var avail = parseFloat(item.qty) || 0;
+  if (avail < 1) return;
+  var cur = shopCart[pid] || 0;
+  shopCart[pid] = Math.min(avail, cur + 1);
+  renderShopStock();
+  renderShopCart();
+}
+
+function shopUpdateCartQty(pid, val) {
+  var item = shopInvItem(pid);
+  if (!item) return;
+  var avail = parseFloat(item.qty) || 0;
+  var q = Math.max(1, Math.min(avail, parseInt(val, 10) || 1));
+  shopCart[pid] = q;
+  renderShopCart();
+}
+
+function shopRemoveFromCart(pid) {
+  delete shopCart[pid];
+  renderShopStock();
+  renderShopCart();
+}
+
+function renderShopCart() {
+  var wrap = document.getElementById('shop-cart-items');
+  var totalRow = document.getElementById('shop-sale-total');
+  var totalEl = document.getElementById('shop-sale-total-display');
+  var btn = document.getElementById('btn-shop-confirm');
+  if (!wrap) return;
+  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] > 0; });
+  if (!ids.length) {
+    wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px 0;">Soldakı "Sat" düyməsi ilə məhsul əlavə et</div>';
+    if (totalRow) totalRow.style.display = 'none';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+    return;
+  }
+  var grand = 0;
+  wrap.innerHTML = ids.map(function(pid) {
+    var item = shopInvItem(pid);
+    if (!item) return '';
+    var qty = shopCart[pid];
+    var price = parseFloat(item.price) || 0;
+    var line = price * qty;
+    grand += line;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">'
+      + '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">' + escapeHtml(item.name || ('#' + pid)) + '</div>'
+      + '<div style="font-size:12px;color:var(--text-light);">' + formatAzn(price) + ' × </div></div>'
+      + '<input type="number" min="1" value="' + qty + '" onchange="shopUpdateCartQty(' + pid + ',this.value)" style="width:56px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:center;"/>'
+      + '<div style="width:80px;text-align:right;font-weight:600;font-size:13px;">' + formatAzn(line) + '</div>'
+      + '<button onclick="shopRemoveFromCart(' + pid + ')" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:15px;">✕</button>'
+      + '</div>';
+  }).join('');
+  if (totalEl) totalEl.textContent = formatAzn(grand);
+  if (totalRow) totalRow.style.display = 'flex';
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+}
+
+async function shopConfirmSale() {
+  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] > 0; });
+  if (!ids.length) return;
+  var btn = document.getElementById('btn-shop-confirm');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  try {
+    // Pull the latest ledger so a sale on another device isn't clobbered.
+    await syncShopFromServer();
+    var ledger = getShopLedger();
+    var customer = (document.getElementById('shop-customer') || {}).value || '';
+    customer = customer.trim();
+    var items = [], total = 0, sold = 0;
+    ids.forEach(function(pid) {
+      var item = ledger.inventory.filter(function(x) { return x.productId === pid; })[0];
+      if (!item) return;
+      var avail = parseFloat(item.qty) || 0;
+      var qty = Math.min(avail, shopCart[pid]);
+      if (qty < 1) return;
+      var price = parseFloat(item.price) || 0;
+      var line = +(price * qty).toFixed(2);
+      item.qty = avail - qty;
+      items.push({ productId: pid, name: item.name || '', qty: qty, unitPrice: price, total: line });
+      total += line; sold++;
+    });
+    if (!sold) { showToast('Satılacaq məhsul yoxdur', true); return; }
+    ledger.sales.push({
+      id: 'SHOP-' + Date.now(), ts: Date.now(),
+      customer: customer, items: items, total: +total.toFixed(2)
+    });
+    saveShopLedger(ledger);
+    await supabaseUpsertShop();
+    shopCart = {};
+    var cust = document.getElementById('shop-customer'); if (cust) cust.value = '';
+    renderShop();
+    showToast('Dükan satışı qeyd edildi · ' + formatAzn(total) + ' · ' + sold + ' məhsul');
+  } catch (e) {
+    console.warn('shop sale failed:', e);
+    showToast('Dükan satışı alınmadı', true);
+  } finally {
+    var b = document.getElementById('btn-shop-confirm');
+    if (b && Object.keys(shopCart).length) { b.disabled = false; b.style.opacity = '1'; }
+  }
+}
+
+function renderShopSalesHistory() {
+  var tb = document.getElementById('shop-sales-list');
+  if (!tb) return;
+  var ledger = getShopLedger();
+  var sales = ledger.sales.slice().sort(function(a, b) { return b.ts - a.ts; });
+  if (!sales.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:24px;">Hələ dükan satışı yoxdur</td></tr>';
+    return;
+  }
+  tb.innerHTML = sales.map(function(s) {
+    var d = new Date(s.ts);
+    var dateStr = d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
+    var itemsStr = (s.items || []).map(function(it) { return escapeHtml(it.name) + ' ×' + it.qty; }).join(', ');
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+      + '<td style="padding:10px 6px;white-space:nowrap;">' + dateStr + '</td>'
+      + '<td style="padding:10px 6px;">' + (s.customer ? escapeHtml(s.customer) : '<span style="color:var(--text-light);">—</span>') + '</td>'
+      + '<td style="padding:10px 6px;font-size:12px;color:var(--text-mid);">' + itemsStr + '</td>'
+      + '<td class="num" style="padding:10px 6px;font-weight:700;">' + formatAzn(s.total) + '</td>'
+      + '<td></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function shopManualSync(btn) {
+  var original = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sinxronlaşır...'; }
+  syncShopFromServer().then(function(ok) {
+    renderShop();
+    if (btn) { btn.disabled = false; btn.textContent = original; }
+    showToast(ok ? 'Dükan sinxronlaşdırıldı.' : 'Sinxronizasiya alınmadı.', !ok);
+  });
 }
 
 // ── CART STATE ──────────────────────────────────────────
@@ -6553,6 +7010,7 @@ async function confirmSale() {
   (adjResult.failedItems || []).forEach(function(a) { if (a._ref) failedRefs.push(a._ref); });
 
   let confirmed = 0;
+  const shopReceived = []; // items to push into the Qusar shop stock (if applicable)
   intended.forEach(x => {
     if (failedRefs.indexOf(x) >= 0) return; // decrement rejected — skip
     const p = x.p;
@@ -6569,6 +7027,7 @@ async function confirmSale() {
     }
     sales.push(row);
     confirmed++;
+    shopReceived.push({ productId: p.id, name: p.name, qty: x.qty, price: x.unitPrice, unit: salePackLabel(p, 'az') });
     supabaseInsertSale(row);
     logActivity('sale_confirmed', {
       saleTs: row.ts, productId: p.id, productName: p.name,
@@ -6586,6 +7045,17 @@ async function confirmSale() {
   if(!confirmed) { renderSaleProducts(); renderCart(); return; }
 
   saveSales(sales);
+
+  // If this sale went to the Qusar shop, mirror the items into the shop's own
+  // stock ledger. This is bookkeeping only — the sale above already decremented
+  // the warehouse and counts in company finance; the shop ledger stays isolated.
+  if (customer && customer.trim().toLowerCase() === SHOP_CUSTOMER_LABEL.toLowerCase() && shopReceived.length) {
+    try {
+      await syncShopFromServer();
+      shopReceiveItems(shopReceived);
+      await supabaseUpsertShop();
+    } catch (e) { console.warn('shop receive failed:', e); }
+  }
 
   // Seed the warehouse status history with the initial "Anbarda" entry so the
   // Anbar tab has a first timestamp to show, right from confirmation.
