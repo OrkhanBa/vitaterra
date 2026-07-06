@@ -2721,7 +2721,8 @@
           <!-- Customer -->
           <div class="form-group" style="margin-top:16px;">
             <label class="form-label" data-en="Customer Name (Optional)" data-az="Müştəri adı (istəyə bağlı)">Müştəri adı (istəyə bağlı)</label>
-            <input class="form-input" id="sale-customer" placeholder="Müştəri və ya şirkət adı" data-ph-en="Customer or company name" data-ph-az="Müştəri və ya şirkət adı"/>
+            <input class="form-input" id="sale-customer" list="vt-customer-list" autocomplete="off" placeholder="Müştəri və ya şirkət adı" data-ph-en="Customer or company name" data-ph-az="Müştəri və ya şirkət adı"/>
+            <datalist id="vt-customer-list"></datalist>
             <!-- Quick preset for Aygun: sell to the Qusar shop. Confirming adds the
                  items to the Dükan stock automatically. Hidden for other users. -->
             <button type="button" id="sale-shop-preset" onclick="setSaleShopCustomer()" style="display:none;margin-top:8px;background:rgba(62,140,88,0.1);border:1px dashed var(--green-accent);color:var(--green-dark);font-weight:600;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">🏬 Dükana göndər (Qusar)</button>
@@ -2898,7 +2899,7 @@
             </div>
             <div class="form-group" style="margin-top:16px;">
               <label class="form-label">Müştəri adı (istəyə bağlı)</label>
-              <input class="form-input" id="shop-customer" placeholder="Müştəri adı"/>
+              <input class="form-input" id="shop-customer" list="vt-customer-list" autocomplete="off" placeholder="Müştəri adı"/>
             </div>
             <div id="shop-sale-total" style="display:none;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid rgba(0,0,0,0.08);margin-top:8px;">
               <div style="font-size:14px;font-weight:600;color:var(--text);">Yekun</div>
@@ -6598,6 +6599,7 @@ function renderShop() {
   renderShopStock();
   renderShopCart();
   renderShopSalesHistory();
+  refreshCustomerDatalist();
 }
 
 function renderShopKpis() {
@@ -6746,7 +6748,7 @@ async function shopConfirmSale() {
     await syncShopFromServer();
     var ledger = getShopLedger();
     var customer = (document.getElementById('shop-customer') || {}).value || '';
-    customer = customer.trim();
+    customer = canonicalCustomerName(customer);
     var items = [], total = 0, sold = 0;
     ids.forEach(function(pid) {
       var item = ledger.inventory.filter(function(x) { return x.productId === pid; })[0];
@@ -6908,13 +6910,50 @@ function supabaseDeletePayment(id) {
   }).catch(function(e) { console.warn('payment delete failed:', e); });
 }
 
+// Customer names are matched case-insensitively (trimmed) so that "Man aqro"
+// and "man aqro" are treated as ONE customer everywhere.
+function custKey(n) { return (n || '').trim().toLowerCase(); }
+function sameCust(a, b) { return custKey(a) === custKey(b); }
+
+// Snap a typed name to an existing customer's spelling if one matches
+// case-insensitively — keeps sales from splitting a customer over casing.
+function canonicalCustomerName(name) {
+  var n = (name || '').trim();
+  if (!n) return n;
+  var key = n.toLowerCase();
+  var match = buildCustomerSummaries().filter(function(c) { return c.name.toLowerCase() === key; })[0];
+  return match ? match.name : n;
+}
+
+// Populate the shared <datalist> so the customer inputs show existing
+// customers as an autocomplete dropdown (avoids creating duplicates).
+function refreshCustomerDatalist() {
+  var dl = document.getElementById('vt-customer-list');
+  if (!dl) return;
+  try {
+    dl.innerHTML = buildCustomerSummaries().map(function(c) {
+      return '<option value="' + escapeHtml(c.name) + '"></option>';
+    }).join('');
+  } catch (e) {}
+}
+
 // Aggregate everything we know about each customer from sales + payments +
-// managed records. Returns an array sorted by most-recent activity.
+// managed records. Returns an array sorted by most-recent activity. Rows are
+// grouped by a case-insensitive key; the display name prefers a managed
+// record's spelling, else the most-used spelling among sales/payments.
 function buildCustomerSummaries() {
   var map = {};
   function ensure(name) {
-    if (!map[name]) map[name] = { name: name, totalSold: 0, salesCount: 0, lastTs: 0, paid: 0, paymentCount: 0, phone: '', note: '', address: '' };
-    return map[name];
+    var key = custKey(name);
+    if (!map[key]) map[key] = { name: (name || '').trim(), totalSold: 0, salesCount: 0, lastTs: 0, paid: 0, paymentCount: 0, phone: '', note: '', address: '', _variants: {}, _fromRecord: false };
+    return map[key];
+  }
+  function noteVariant(c, spelling, ts) {
+    var s = (spelling || '').trim();
+    if (!s) return;
+    if (!c._variants[s]) c._variants[s] = { count: 0, ts: 0 };
+    c._variants[s].count++;
+    if (ts > c._variants[s].ts) c._variants[s].ts = ts;
   }
   var seen = {};
   getSales().forEach(function(s) {
@@ -6923,8 +6962,9 @@ function buildCustomerSummaries() {
     var c = ensure(name);
     c.totalSold += (+s.total) || 0;
     if (s.ts > c.lastTs) c.lastTs = s.ts;
+    noteVariant(c, name, s.ts || 0);
     var sid = s.saleId || ('legacy-' + s.ts);
-    var key = name + '|' + sid;
+    var key = custKey(name) + '|' + sid;
     if (!seen[key]) { seen[key] = 1; c.salesCount++; }
   });
   getCustomerPayments().forEach(function(p) {
@@ -6934,14 +6974,29 @@ function buildCustomerSummaries() {
     c.paid += (+p.amount) || 0;
     c.paymentCount++;
     if (p.ts > c.lastTs) c.lastTs = p.ts;
+    noteVariant(c, name, p.ts || 0);
   });
   getCustomers().forEach(function(rec) {
     var name = (rec.name || '').trim();
     if (!name) return;
     var c = ensure(name);
     c.phone = rec.phone || ''; c.note = rec.note || ''; c.address = rec.address || '';
+    c.name = name; c._fromRecord = true;
   });
-  var arr = Object.keys(map).map(function(k) { var c = map[k]; c.balance = +(c.totalSold - c.paid).toFixed(2); return c; });
+  var arr = Object.keys(map).map(function(k) {
+    var c = map[k];
+    if (!c._fromRecord) {
+      var best = null;
+      Object.keys(c._variants).forEach(function(sp) {
+        var v = c._variants[sp];
+        if (!best || v.count > best.count || (v.count === best.count && v.ts > best.ts)) best = { sp: sp, count: v.count, ts: v.ts };
+      });
+      if (best) c.name = best.sp;
+    }
+    delete c._variants; delete c._fromRecord;
+    c.balance = +(c.totalSold - c.paid).toFixed(2);
+    return c;
+  });
   arr.sort(function(a, b) { return b.lastTs - a.lastTs; });
   return arr;
 }
@@ -6995,6 +7050,7 @@ function renderCustomers() {
   }
   var html = summary + head + body;
   containers.forEach(function(el) { el.innerHTML = html; });
+  refreshCustomerDatalist();
 }
 
 var _customerDetailName = null;
@@ -7007,7 +7063,8 @@ function openCustomerDetail(name, isNew) {
   _customerDetailName = isNew ? null : name;
 
   var summaries = buildCustomerSummaries();
-  var c = (!isNew && name) ? (summaries.filter(function(x) { return x.name === name; })[0] || null) : null;
+  var c = (!isNew && name) ? (summaries.filter(function(x) { return sameCust(x.name, name); })[0] || null) : null;
+  if (c) name = c.name;
   if (!c) c = { name: name || '', totalSold: 0, paid: 0, balance: 0, salesCount: 0, phone: '', note: '', address: '' };
 
   var nameField = isNew
@@ -7042,7 +7099,7 @@ function openCustomerDetail(name, isNew) {
       + '<button class="btn-save" style="font-size:13px;padding:9px 18px;" onclick="recordCustomerPayment(' + JSON.stringify(c.name).replace(/"/g, '&quot;') + ')">Əlavə et</button>'
       + '</div></div>';
 
-    var payments = getCustomerPayments().filter(function(p) { return (p.customer || '').trim() === c.name; }).sort(function(a, b) { return b.ts - a.ts; });
+    var payments = getCustomerPayments().filter(function(p) { return sameCust(p.customer, c.name); }).sort(function(a, b) { return b.ts - a.ts; });
     var payRows = payments.length ? payments.map(function(p) {
       var m = (CUSTOMER_PAY_METHODS.filter(function(x) { return x.value === p.method; })[0] || {}).label || p.method;
       return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
@@ -7055,7 +7112,7 @@ function openCustomerDetail(name, isNew) {
     }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:16px;">Ödəniş yoxdur</td></tr>';
     payHistory = '<div style="font-weight:700;margin:6px 0 8px;">Ödənişlər</div><div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;border-bottom:1px solid rgba(0,0,0,0.1);"><th style="padding:6px;">Tarix</th><th style="padding:6px;">Növ</th><th style="padding:6px;">Qeyd</th><th style="padding:6px;" class="num">Məbləğ</th><th></th></tr></thead><tbody>' + payRows + '</tbody></table></div>';
 
-    var custSales = getSales().filter(function(s) { return (s.customer || '').trim() === c.name; });
+    var custSales = getSales().filter(function(s) { return sameCust(s.customer, c.name); });
     var slips = groupMySalesSlips(custSales);
     var saleRows = slips.length ? slips.map(function(sl) {
       var items = sl.items.map(function(it) { return escapeHtml(it.productName) + ' ×' + it.qty; }).join(', ');
@@ -7084,8 +7141,9 @@ function saveCustomerInfo(existingName) {
   if (!name) { var nEl = document.getElementById('cust-info-name'); name = nEl ? nEl.value.trim() : ''; }
   if (!name) { showToast('Müştəri adı boş ola bilməz', true); return; }
   var list = getCustomers();
-  var rec = list.filter(function(c) { return c.name === name; })[0];
+  var rec = list.filter(function(c) { return sameCust(c.name, name); })[0];
   if (!rec) { rec = { name: name }; list.push(rec); }
+  else { rec.name = name; }
   var phoneEl = document.getElementById('cust-info-phone');
   var addrEl = document.getElementById('cust-info-address');
   var noteEl = document.getElementById('cust-info-note');
@@ -7154,6 +7212,7 @@ function addToCart(id) {
 
 function renderSaleProducts(filter) {
   filter = filter || '';
+  refreshCustomerDatalist();
   const products = getProducts();
   const f = filter.toLowerCase();
   const filtered = f ? products.filter(p => p.name.toLowerCase().includes(f)) : products;
@@ -7411,7 +7470,7 @@ async function confirmSale() {
 
   const products = loadRawProducts();
   const sales = getSales();
-  const customer = document.getElementById('sale-customer').value.trim();
+  const customer = canonicalCustomerName(document.getElementById('sale-customer').value);
   const ts = Date.now();
   const saleId = generateSaleId();
   const currentUser = getCurrentSalesUser();
@@ -7835,7 +7894,7 @@ function closeEditSale() {
 function saveEditSale() {
   const ts  = document.getElementById('edit-sale-ts').value;
   const newQty = parseInt(document.getElementById('edit-sale-qty').value);
-  const newCustomer = document.getElementById('edit-sale-customer').value.trim();
+  const newCustomer = canonicalCustomerName(document.getElementById('edit-sale-customer').value);
   if(isNaN(newQty) || newQty < 1) { showToast('Say minimum 1 olmalıdır', true); return; }
 
   const sales    = getSales();
