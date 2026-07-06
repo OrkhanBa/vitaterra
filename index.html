@@ -2112,6 +2112,13 @@
 </div><!-- end public-view -->
 
 <!-- ══════════════ PRODUCT DETAIL MODAL ══════════════ -->
+<!-- Shared customer detail / accounts-receivable modal (used by sales, admin, finance) -->
+<div class="modal-overlay" id="customer-detail-modal">
+  <div class="modal" style="max-width:760px;">
+    <div id="customer-detail-body" style="padding:22px;max-height:82vh;overflow:auto;"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="product-modal">
   <div class="modal">
     <div class="modal-header">
@@ -2181,6 +2188,7 @@
     <div class="dash-tabs">
       <button class="dash-tab active" onclick="adminTab('products',this)">📦 Products</button>
       <button class="dash-tab" onclick="adminTab('sales-log',this)">📊 Sales Log</button>
+      <button class="dash-tab" onclick="adminTab('customers',this)">👥 Müştərilər</button>
       <button class="dash-tab" onclick="adminTab('activity-log',this)">🕵️ Fəaliyyət Jurnalı</button>
       <button class="dash-tab" onclick="adminTab('site-editor',this)">✏️ Site Editor</button>
       <button class="dash-tab" onclick="adminTab('pdf-labels',this)">📄 PDF Labels</button>
@@ -2290,6 +2298,19 @@
             </thead>
             <tbody id="sales-log-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customers Tab (accounts receivable — sales, payments, outstanding balance) -->
+    <div id="admin-tab-customers" class="hidden">
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-title">Müştərilər</div>
+        </div>
+        <div style="padding:4px 2px;">
+          <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">Hər müştəriyə olan satış, ödənişlər və qalıq borc. Ödənişlər maliyyə gəlirinə təsir etmir — gəlir satış anında sayılır.</div>
+          <div id="customers-list-admin"></div>
         </div>
       </div>
     </div>
@@ -2666,6 +2687,7 @@
     <div class="dash-tabs" style="margin:14px 0 20px;">
       <button class="dash-tab active" onclick="salesSubTab('sell', this)">🛒 Satış et</button>
       <button class="dash-tab" onclick="salesSubTab('warehouse', this)">📦 Anbar</button>
+      <button class="dash-tab" onclick="salesSubTab('customers', this)">👥 Müştərilər</button>
       <button class="dash-tab" id="sales-tab-shop" onclick="salesSubTab('shop', this)" style="display:none;">🏬 Dükan</button>
     </div>
 
@@ -2820,12 +2842,21 @@
       </div>
     </div><!-- end sales-subview-warehouse -->
 
+    <!-- MÜŞTƏRİLƏR (customers + accounts receivable) subsection -->
+    <div id="sales-subview-customers" style="display:none;">
+      <div class="sale-form-card" style="margin-bottom:0;">
+        <div class="sale-form-title" style="margin-bottom:6px;">Müştərilər</div>
+        <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">Hər müştəriyə olan satış, ödənişlər və qalıq borc. Müştəri adı satış zamanı yazdığınız adla uyğunlaşır.</div>
+        <div id="customers-list-sales"></div>
+      </div>
+    </div><!-- end sales-subview-customers -->
+
     <!-- DÜKAN (Qusar shop) subsection — visible only to Aygun + admin. A separate
          stock + sales ledger for the physical shop. Prices are editable by hand
          and none of this touches company finance. -->
     <div id="sales-subview-shop" style="display:none;">
       <div style="background:rgba(62,140,88,0.07);border:1px solid rgba(62,140,88,0.2);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--green-dark);line-height:1.6;">
-        🏬 <strong>Qusar Dükanı.</strong> Anbardan dükana göndərilən məhsullar burada stok kimi görünür. Qiymətləri əl ilə dəyişə, dükanın müştəri satışlarını qeyd edə bilərsən. Bu bölmə <strong>ümumi maliyyəyə təsir etmir</strong> — yalnız dükanın öz uçotudur.
+        🏬 <strong>Qusar Dükanı.</strong> Anbardan dükana göndərilən məhsullar burada stok kimi görünür — stok dəyəri anbardan dükana satılan məbləğdə qeyd olunur. Satış qiymətini yalnız səbətə əlavə edəndə dəyişirsən. Bu bölmə <strong>ümumi maliyyəyə təsir etmir</strong> — yalnız dükanın öz uçotudur.
       </div>
 
       <div class="kpi-grid" id="shop-kpis" style="margin-bottom:18px;"></div>
@@ -2838,14 +2869,14 @@
               <div class="sale-form-title" style="margin:0;">Dükan stoku</div>
               <button class="btn-cancel" style="font-size:12px;padding:6px 14px;" onclick="shopManualSync(this)">☁️ Sinxronlaşdır</button>
             </div>
-            <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">Anbardan "🏬 Dükana göndər" ilə satılan məhsullar avtomatik buraya düşür. Qiymət və miqdarı əl ilə tənzimlə.</div>
+            <div style="color:var(--text-light);font-size:12.5px;margin-bottom:12px;">Anbardan "🏬 Dükana göndər" ilə satılan məhsullar avtomatik buraya düşür. Stok dəyəri anbardan dükana satılan məbləğdə qeyd olunur. Satış qiymətini yalnız səbətə əlavə edəndə dəyişə bilərsən.</div>
             <div style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                   <tr style="text-align:left;border-bottom:2px solid rgba(0,0,0,0.08);">
                     <th style="padding:8px 6px;">Məhsul</th>
                     <th style="padding:8px 6px;width:90px;">Stok</th>
-                    <th style="padding:8px 6px;width:120px;">Qiymət (₼)</th>
+                    <th style="padding:8px 6px;width:120px;">Alış dəyəri (₼)</th>
                     <th style="padding:8px 6px;width:120px;">Sat</th>
                     <th style="padding:8px 6px;width:40px;"></th>
                   </tr>
@@ -2955,6 +2986,7 @@
       <button class="finance-subtab" onclick="financeSubTab('products',this)">📦 Məhsul marjası</button>
       <button class="finance-subtab" onclick="financeSubTab('expenses',this)">💸 Xərclər</button>
       <button class="finance-subtab" onclick="financeSubTab('inventory',this)">🏭 Anbar dəyəri</button>
+      <button class="finance-subtab" onclick="financeSubTab('customers',this)">👥 Müştərilər</button>
     </div>
 
     <div id="finance-panel-summary" class="finance-panel">
@@ -3108,6 +3140,16 @@
           <tbody id="finance-inventory-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div id="finance-panel-customers" class="finance-panel hidden">
+      <div class="finance-panel-head">
+        <div>
+          <div class="finance-panel-title">Müştərilər və debitor borcları</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:4px;">Ödənişlər maliyyə gəlirinə təsir etmir — gəlir satış anında sayılır.</div>
+        </div>
+      </div>
+      <div id="customers-list-finance" style="padding:4px 2px;"></div>
     </div>
 
   </div>
@@ -3882,6 +3924,8 @@ async function syncSalesFromServer() {
     // Refresh the authoritative catalog snapshot so portal edits from other
     // devices show up here too (falls back to products.json on failure).
     await syncCatalogFromServer();
+    // Pull customers + payments so the Müştərilər tab stays current across devices.
+    await syncCustomersFromServer();
     if (salesRes.ok) {
       const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
       const localSales = getSales();
@@ -5460,7 +5504,9 @@ function _salesDataSignature() {
       w: getWarehouseLog(),
       e: financeGetExpenses(),
       i: _liveInventory,
-      p: _productPricing
+      p: _productPricing,
+      c: getCustomers(),
+      cp: getCustomerPayments()
     });
   } catch (e) { return String(Date.now()) + Math.random(); }
 }
@@ -5481,12 +5527,15 @@ function startSalesAutoSync() {
         renderSalesLog();
         renderActivityLog();
         renderAdminTable();
+        renderCustomers();
       } else if (currentView === 'finance') {
         financeRender();
+        renderCustomers();
       } else if (currentView === 'sales') {
         renderMySales();
         renderSaleProducts();
         renderWarehouseOrders();
+        renderCustomers();
       }
     });
   }, SALES_AUTO_SYNC_MS);
@@ -6516,9 +6565,11 @@ function salesSubTab(name, btn) {
   const sellEl = document.getElementById('sales-subview-sell');
   const whEl = document.getElementById('sales-subview-warehouse');
   const shopEl = document.getElementById('sales-subview-shop');
+  const custEl = document.getElementById('sales-subview-customers');
   if (sellEl) sellEl.style.display = (name === 'sell') ? '' : 'none';
   if (whEl) whEl.style.display = (name === 'warehouse') ? '' : 'none';
   if (shopEl) shopEl.style.display = (name === 'shop') ? '' : 'none';
+  if (custEl) custEl.style.display = (name === 'customers') ? '' : 'none';
   document.querySelectorAll('#sales-view .dash-tab').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   if (name === 'warehouse') {
@@ -6529,10 +6580,17 @@ function salesSubTab(name, btn) {
     renderShop();
     syncShopFromServer().then(function(ok) { if (ok) renderShop(); });
   }
+  if (name === 'customers') {
+    renderCustomers();
+    syncSalesFromServer().then(function(ok) { if (ok) renderCustomers(); });
+  }
 }
 
 // ── DÜKAN (Qusar shop) — stock + isolated sales ledger ──────
-// shopCart = { productId: qtyToSell }
+// shopCart = { productId: { qty, price } }. The stock's own price is fixed at
+// the warehouse→shop transfer amount and is NOT editable in the stock panel
+// (so stock value stays anchored to what it cost the shop). The sale price to
+// the end customer is edited per-line in the cart only.
 var shopCart = {};
 
 function renderShop() {
@@ -6579,7 +6637,7 @@ function renderShopStock() {
     return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
       + '<td style="padding:8px 6px;font-weight:600;">' + escapeHtml(x.name || ('#' + x.productId)) + unit + '</td>'
       + '<td style="padding:8px 6px;">' + formatStockCount(q) + '</td>'
-      + '<td style="padding:8px 6px;"><input type="number" min="0" step="0.01" value="' + (parseFloat(x.price) || 0).toFixed(2) + '" onchange="shopUpdatePrice(' + x.productId + ',this.value)" style="width:92px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;background:var(--cream);"/></td>'
+      + '<td style="padding:8px 6px;color:var(--text-mid);">' + formatAzn(parseFloat(x.price) || 0) + '</td>'
       + '<td style="padding:8px 6px;">'
         + '<button class="btn-add" style="font-size:12px;padding:5px 12px;' + (q < 1 ? 'opacity:0.4;cursor:not-allowed;' : '') + '" ' + (q < 1 ? 'disabled' : ('onclick="shopAddToCart(' + x.productId + ')"')) + '>' + (inCart ? '✓ Səbətdə' : '+ Sat') + '</button>'
       + '</td>'
@@ -6590,17 +6648,6 @@ function renderShopStock() {
 
 function shopInvItem(pid) {
   return getShopLedger().inventory.filter(function(x) { return x.productId === pid; })[0] || null;
-}
-
-function shopUpdatePrice(pid, val) {
-  var item = shopInvItem(pid);
-  if (!item) return;
-  var n = parseFloat(val);
-  item.price = (isFinite(n) && n >= 0) ? n : 0;
-  saveShopLedger(getShopLedger());
-  supabaseUpsertShop();
-  renderShopKpis();
-  renderShopCart();
 }
 
 function shopDeleteStock(pid) {
@@ -6618,18 +6665,32 @@ function shopAddToCart(pid) {
   if (!item) return;
   var avail = parseFloat(item.qty) || 0;
   if (avail < 1) return;
-  var cur = shopCart[pid] || 0;
-  shopCart[pid] = Math.min(avail, cur + 1);
+  var cur = shopCart[pid];
+  if (cur) {
+    cur.qty = Math.min(avail, (parseFloat(cur.qty) || 0) + 1);
+  } else {
+    // Seed the sale price from the stock's transfer (alış) price; the rep can
+    // adjust it in the cart before confirming.
+    shopCart[pid] = { qty: 1, price: parseFloat(item.price) || 0 };
+  }
   renderShopStock();
   renderShopCart();
 }
 
 function shopUpdateCartQty(pid, val) {
   var item = shopInvItem(pid);
-  if (!item) return;
+  var line = shopCart[pid];
+  if (!item || !line) return;
   var avail = parseFloat(item.qty) || 0;
-  var q = Math.max(1, Math.min(avail, parseInt(val, 10) || 1));
-  shopCart[pid] = q;
+  line.qty = Math.max(1, Math.min(avail, parseInt(val, 10) || 1));
+  renderShopCart();
+}
+
+function shopUpdateCartPrice(pid, val) {
+  var line = shopCart[pid];
+  if (!line) return;
+  var n = parseFloat(val);
+  line.price = (isFinite(n) && n >= 0) ? n : 0;
   renderShopCart();
 }
 
@@ -6645,7 +6706,7 @@ function renderShopCart() {
   var totalEl = document.getElementById('shop-sale-total-display');
   var btn = document.getElementById('btn-shop-confirm');
   if (!wrap) return;
-  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] > 0; });
+  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] && shopCart[id].qty > 0; });
   if (!ids.length) {
     wrap.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px 0;">Soldakı "Sat" düyməsi ilə məhsul əlavə et</div>';
     if (totalRow) totalRow.style.display = 'none';
@@ -6655,14 +6716,16 @@ function renderShopCart() {
   var grand = 0;
   wrap.innerHTML = ids.map(function(pid) {
     var item = shopInvItem(pid);
+    var entry = shopCart[pid];
     if (!item) return '';
-    var qty = shopCart[pid];
-    var price = parseFloat(item.price) || 0;
+    var qty = parseFloat(entry.qty) || 0;
+    var price = parseFloat(entry.price) || 0;
     var line = price * qty;
     grand += line;
     return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">'
       + '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">' + escapeHtml(item.name || ('#' + pid)) + '</div>'
-      + '<div style="font-size:12px;color:var(--text-light);">' + formatAzn(price) + ' × </div></div>'
+      + '<div style="font-size:11px;color:var(--text-light);">Satış qiyməti (₼)</div>'
+      + '<input type="number" min="0" step="0.01" value="' + price.toFixed(2) + '" onchange="shopUpdateCartPrice(' + pid + ',this.value)" style="width:96px;margin-top:3px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;"/></div>'
       + '<input type="number" min="1" value="' + qty + '" onchange="shopUpdateCartQty(' + pid + ',this.value)" style="width:56px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:center;"/>'
       + '<div style="width:80px;text-align:right;font-weight:600;font-size:13px;">' + formatAzn(line) + '</div>'
       + '<button onclick="shopRemoveFromCart(' + pid + ')" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:15px;">✕</button>'
@@ -6674,7 +6737,7 @@ function renderShopCart() {
 }
 
 async function shopConfirmSale() {
-  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] > 0; });
+  var ids = Object.keys(shopCart).map(Number).filter(function(id) { return shopCart[id] && shopCart[id].qty > 0; });
   if (!ids.length) return;
   var btn = document.getElementById('btn-shop-confirm');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
@@ -6687,11 +6750,14 @@ async function shopConfirmSale() {
     var items = [], total = 0, sold = 0;
     ids.forEach(function(pid) {
       var item = ledger.inventory.filter(function(x) { return x.productId === pid; })[0];
-      if (!item) return;
+      var entry = shopCart[pid];
+      if (!item || !entry) return;
       var avail = parseFloat(item.qty) || 0;
-      var qty = Math.min(avail, shopCart[pid]);
+      var qty = Math.min(avail, parseFloat(entry.qty) || 0);
       if (qty < 1) return;
-      var price = parseFloat(item.price) || 0;
+      // Sale price is the cart-edited price (falls back to stock transfer price).
+      var price = parseFloat(entry.price);
+      if (!(price >= 0)) price = parseFloat(item.price) || 0;
       var line = +(price * qty).toFixed(2);
       item.qty = avail - qty;
       items.push({ productId: pid, name: item.name || '', qty: qty, unitPrice: price, total: line });
@@ -6748,6 +6814,319 @@ function shopManualSync(btn) {
     if (btn) { btn.disabled = false; btn.textContent = original; }
     showToast(ok ? 'Dükan sinxronlaşdırıldı.' : 'Sinxronizasiya alınmadı.', !ok);
   });
+}
+
+// ═══════════════════════════════════════════════════════
+// CUSTOMERS (müştərilər) + accounts receivable
+// ═══════════════════════════════════════════════════════
+// Customers are keyed by the trimmed free-text name already stored on each sale.
+// `customers` holds managed contact info; `customer_payments` records money
+// received. Every non-voided sale is a receivable, so:
+//   balance = SUM(non-voided sale totals) - SUM(payments).
+// Payments are AR bookkeeping only and never touch company finance/revenue.
+var CUSTOMERS_KEY = 'vt_customers';
+var CUST_PAYMENTS_KEY = 'vt_customer_payments';
+var _customers = null;
+var _customerPayments = null;
+var customerSearchTerm = '';
+var CUSTOMER_PAY_METHODS = [{ value: 'cash', label: 'Nağd' }, { value: 'bank', label: 'Bank köçürməsi' }];
+
+function getCustomers() {
+  if (_customers) return _customers;
+  try { _customers = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || '[]'); }
+  catch (e) { _customers = []; }
+  if (!Array.isArray(_customers)) _customers = [];
+  return _customers;
+}
+function saveCustomers(list) {
+  _customers = Array.isArray(list) ? list : [];
+  try { localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(_customers)); } catch (e) {}
+}
+function getCustomerPayments() {
+  if (_customerPayments) return _customerPayments;
+  try { _customerPayments = JSON.parse(localStorage.getItem(CUST_PAYMENTS_KEY) || '[]'); }
+  catch (e) { _customerPayments = []; }
+  if (!Array.isArray(_customerPayments)) _customerPayments = [];
+  return _customerPayments;
+}
+function saveCustomerPayments(list) {
+  _customerPayments = Array.isArray(list) ? list : [];
+  try { localStorage.setItem(CUST_PAYMENTS_KEY, JSON.stringify(_customerPayments)); } catch (e) {}
+}
+
+async function syncCustomersFromServer() {
+  if (!hasSupabaseSession()) return false;
+  try {
+    await ensureFreshSession();
+    var results = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/customers?select=*', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/customer_payments?select=*&order=ts.asc', { headers: supabaseHeaders() })
+    ]);
+    var custRes = results[0], payRes = results[1];
+    if (custRes.ok) {
+      var rows = await custRes.json();
+      var byName = {};
+      rows.forEach(function(r) { byName[r.name] = { name: r.name, phone: r.phone || '', note: r.note || '', address: r.address || '' }; });
+      getCustomers().forEach(function(c) { if (!byName[c.name]) byName[c.name] = c; });
+      saveCustomers(Object.keys(byName).map(function(k) { return byName[k]; }));
+    }
+    if (payRes.ok) {
+      var prows = await payRes.json();
+      var byId = {};
+      prows.forEach(function(r) { byId[r.id] = { id: r.id, customer: r.customer, amount: parseFloat(r.amount) || 0, method: r.method || 'cash', note: r.note || '', ts: parseInt(r.ts, 10) || 0, recordedBy: r.recorded_by || '' }; });
+      getCustomerPayments().forEach(function(p) { if (!byId[p.id]) byId[p.id] = p; });
+      saveCustomerPayments(Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a, b) { return a.ts - b.ts; }));
+    }
+    return true;
+  } catch (e) { console.warn('customers fetch failed:', e); return false; }
+}
+
+async function supabaseUpsertCustomer(c) {
+  if (!hasSupabaseSession() || !c || !c.name) return false;
+  try {
+    await ensureFreshSession();
+    var headers = supabaseHeaders({ 'Prefer': 'resolution=merge-duplicates' });
+    var res = await fetch(SUPABASE_URL + '/rest/v1/customers?on_conflict=name', {
+      method: 'POST', headers: headers,
+      body: JSON.stringify([{ name: c.name, phone: c.phone || null, note: c.note || null, address: c.address || null, updated_at: new Date().toISOString() }])
+    });
+    return res.ok;
+  } catch (e) { console.warn('customer upsert failed:', e); return false; }
+}
+
+function supabaseInsertPayment(p) {
+  return fetch(SUPABASE_URL + '/rest/v1/customer_payments', {
+    method: 'POST',
+    headers: supabaseHeaders({ 'Prefer': 'return=minimal,resolution=merge-duplicates' }),
+    body: JSON.stringify({ id: p.id, customer: p.customer, amount: p.amount, method: p.method || 'cash', note: p.note || null, ts: p.ts, recorded_by: p.recordedBy || null })
+  }).catch(function(e) { console.warn('payment sync failed (will retry on next sync):', e); });
+}
+
+function supabaseDeletePayment(id) {
+  return fetch(SUPABASE_URL + '/rest/v1/customer_payments?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: supabaseHeaders()
+  }).catch(function(e) { console.warn('payment delete failed:', e); });
+}
+
+// Aggregate everything we know about each customer from sales + payments +
+// managed records. Returns an array sorted by most-recent activity.
+function buildCustomerSummaries() {
+  var map = {};
+  function ensure(name) {
+    if (!map[name]) map[name] = { name: name, totalSold: 0, salesCount: 0, lastTs: 0, paid: 0, paymentCount: 0, phone: '', note: '', address: '' };
+    return map[name];
+  }
+  var seen = {};
+  getSales().forEach(function(s) {
+    var name = (s.customer || '').trim();
+    if (!name || s.voided) return;
+    var c = ensure(name);
+    c.totalSold += (+s.total) || 0;
+    if (s.ts > c.lastTs) c.lastTs = s.ts;
+    var sid = s.saleId || ('legacy-' + s.ts);
+    var key = name + '|' + sid;
+    if (!seen[key]) { seen[key] = 1; c.salesCount++; }
+  });
+  getCustomerPayments().forEach(function(p) {
+    var name = (p.customer || '').trim();
+    if (!name) return;
+    var c = ensure(name);
+    c.paid += (+p.amount) || 0;
+    c.paymentCount++;
+    if (p.ts > c.lastTs) c.lastTs = p.ts;
+  });
+  getCustomers().forEach(function(rec) {
+    var name = (rec.name || '').trim();
+    if (!name) return;
+    var c = ensure(name);
+    c.phone = rec.phone || ''; c.note = rec.note || ''; c.address = rec.address || '';
+  });
+  var arr = Object.keys(map).map(function(k) { var c = map[k]; c.balance = +(c.totalSold - c.paid).toFixed(2); return c; });
+  arr.sort(function(a, b) { return b.lastTs - a.lastTs; });
+  return arr;
+}
+
+function customersSearch(v) { customerSearchTerm = v || ''; renderCustomers(); }
+
+function renderCustomers() {
+  var containers = ['customers-list-sales', 'customers-list-admin', 'customers-list-finance']
+    .map(function(id) { return document.getElementById(id); })
+    .filter(Boolean);
+  if (!containers.length) return;
+  var all = buildCustomerSummaries();
+  var term = (customerSearchTerm || '').toLowerCase().trim();
+  var rows = term ? all.filter(function(c) { return c.name.toLowerCase().indexOf(term) >= 0 || (c.phone || '').toLowerCase().indexOf(term) >= 0; }) : all;
+
+  var totalReceivable = all.reduce(function(s, c) { return s + Math.max(0, c.balance); }, 0);
+  var summary = '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">'
+    + '<div style="flex:1;min-width:140px;background:var(--cream);border-radius:10px;padding:12px 14px;"><div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;">Müştəri sayı</div><div style="font-size:20px;font-weight:700;color:var(--text);">' + all.length + '</div></div>'
+    + '<div style="flex:1;min-width:140px;background:rgba(201,84,84,0.08);border-radius:10px;padding:12px 14px;"><div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;">Ümumi qalıq borc</div><div style="font-size:20px;font-weight:700;color:#c25454;">' + formatAzn(totalReceivable) + '</div></div>'
+    + '</div>';
+
+  var head = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
+    + '<input class="search-input" style="flex:1;min-width:200px;" placeholder="🔍 Müştəri adı və ya telefon..." value="' + escapeHtml(customerSearchTerm) + '" oninput="customersSearch(this.value)"/>'
+    + '<button class="btn-add" style="font-size:13px;padding:8px 16px;" onclick="openNewCustomer()">➕ Yeni müştəri</button>'
+    + '</div>';
+
+  var body;
+  if (!rows.length) {
+    body = '<div style="text-align:center;color:var(--text-light);padding:36px;">' + (term ? 'Uyğun müştəri tapılmadı' : 'Hələ müştəri yoxdur — satış edildikcə burada görünəcək') + '</div>';
+  } else {
+    body = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<thead><tr style="text-align:left;border-bottom:2px solid rgba(0,0,0,0.08);">'
+      + '<th style="padding:9px 6px;">Müştəri</th><th style="padding:9px 6px;">Telefon</th>'
+      + '<th style="padding:9px 6px;" class="num">Satış</th><th style="padding:9px 6px;" class="num">Ümumi satış</th>'
+      + '<th style="padding:9px 6px;" class="num">Ödənilən</th><th style="padding:9px 6px;" class="num">Qalıq borc</th>'
+      + '<th style="padding:9px 6px;">Son fəaliyyət</th></tr></thead><tbody>'
+      + rows.map(function(c) {
+          var balColor = c.balance > 0.005 ? '#c25454' : (c.balance < -0.005 ? '#3e8c58' : 'var(--text-light)');
+          var last = c.lastTs ? new Date(c.lastTs).toLocaleDateString('az') : '—';
+          return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;" onclick="openCustomerDetail(' + JSON.stringify(c.name).replace(/"/g, '&quot;') + ')">'
+            + '<td style="padding:10px 6px;font-weight:600;">' + escapeHtml(c.name) + '</td>'
+            + '<td style="padding:10px 6px;color:var(--text-mid);">' + (c.phone ? escapeHtml(c.phone) : '—') + '</td>'
+            + '<td style="padding:10px 6px;" class="num">' + c.salesCount + '</td>'
+            + '<td style="padding:10px 6px;" class="num">' + formatAzn(c.totalSold) + '</td>'
+            + '<td style="padding:10px 6px;color:#3e8c58;" class="num">' + formatAzn(c.paid) + '</td>'
+            + '<td style="padding:10px 6px;font-weight:700;" class="num"><span style="color:' + balColor + ';">' + formatAzn(c.balance) + '</span></td>'
+            + '<td style="padding:10px 6px;color:var(--text-light);white-space:nowrap;">' + last + '</td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  }
+  var html = summary + head + body;
+  containers.forEach(function(el) { el.innerHTML = html; });
+}
+
+var _customerDetailName = null;
+function openNewCustomer() { openCustomerDetail(null, true); }
+
+function openCustomerDetail(name, isNew) {
+  var modal = document.getElementById('customer-detail-modal');
+  var body = document.getElementById('customer-detail-body');
+  if (!modal || !body) return;
+  _customerDetailName = isNew ? null : name;
+
+  var summaries = buildCustomerSummaries();
+  var c = (!isNew && name) ? (summaries.filter(function(x) { return x.name === name; })[0] || null) : null;
+  if (!c) c = { name: name || '', totalSold: 0, paid: 0, balance: 0, salesCount: 0, phone: '', note: '', address: '' };
+
+  var nameField = isNew
+    ? '<input class="form-input" id="cust-info-name" placeholder="Müştəri / şirkət adı" style="font-size:16px;font-weight:600;"/>'
+    : '<div style="font-size:20px;font-weight:700;color:var(--text);">' + escapeHtml(c.name) + '</div>';
+
+  var balColor = c.balance > 0.005 ? '#c25454' : (c.balance < -0.005 ? '#3e8c58' : 'var(--text)');
+  var kpis = isNew ? '' : ('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">'
+    + '<div style="flex:1;min-width:110px;background:var(--cream);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Ümumi satış</div><div style="font-size:17px;font-weight:700;">' + formatAzn(c.totalSold) + '</div></div>'
+    + '<div style="flex:1;min-width:110px;background:rgba(62,140,88,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Ödənilən</div><div style="font-size:17px;font-weight:700;color:#3e8c58;">' + formatAzn(c.paid) + '</div></div>'
+    + '<div style="flex:1;min-width:110px;background:rgba(201,84,84,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Qalıq borc</div><div style="font-size:17px;font-weight:700;color:' + balColor + ';">' + formatAzn(c.balance) + '</div></div>'
+    + '</div>');
+
+  var info = '<div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:14px;">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+    + '<div><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Telefon</label><input class="form-input" id="cust-info-phone" value="' + escapeHtml(c.phone || '') + '" placeholder="+994..."/></div>'
+    + '<div><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Ünvan</label><input class="form-input" id="cust-info-address" value="' + escapeHtml(c.address || '') + '" placeholder="Ünvan"/></div>'
+    + '</div>'
+    + '<div style="margin-top:10px;"><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Qeyd</label><input class="form-input" id="cust-info-note" value="' + escapeHtml(c.note || '') + '" placeholder="Qeyd"/></div>'
+    + '<button class="btn-save" style="margin-top:10px;font-size:13px;padding:8px 16px;" onclick="saveCustomerInfo(' + (isNew ? 'null' : JSON.stringify(c.name).replace(/"/g, '&quot;')) + ')">💾 Məlumatı yadda saxla</button>'
+    + '</div>';
+
+  var payForm = '', payHistory = '', salesHistory = '';
+  if (!isNew) {
+    var methodOpts = CUSTOMER_PAY_METHODS.map(function(m) { return '<option value="' + m.value + '">' + m.label + '</option>'; }).join('');
+    payForm = '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;">'
+      + '<div style="font-weight:700;margin-bottom:10px;">💵 Ödəniş qeyd et</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
+      + '<div style="flex:1;min-width:110px;"><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Məbləğ ₼</label><input class="form-input" id="cust-pay-amount" type="number" min="0" step="0.01" placeholder="0.00"/></div>'
+      + '<div style="min-width:130px;"><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Növ</label><select class="form-input" id="cust-pay-method">' + methodOpts + '</select></div>'
+      + '<div style="flex:2;min-width:140px;"><label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;">Qeyd</label><input class="form-input" id="cust-pay-note" placeholder="istəyə bağlı"/></div>'
+      + '<button class="btn-save" style="font-size:13px;padding:9px 18px;" onclick="recordCustomerPayment(' + JSON.stringify(c.name).replace(/"/g, '&quot;') + ')">Əlavə et</button>'
+      + '</div></div>';
+
+    var payments = getCustomerPayments().filter(function(p) { return (p.customer || '').trim() === c.name; }).sort(function(a, b) { return b.ts - a.ts; });
+    var payRows = payments.length ? payments.map(function(p) {
+      var m = (CUSTOMER_PAY_METHODS.filter(function(x) { return x.value === p.method; })[0] || {}).label || p.method;
+      return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+        + '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(p.ts).toLocaleDateString('az') + '</td>'
+        + '<td style="padding:8px 6px;">' + m + '</td>'
+        + '<td style="padding:8px 6px;color:var(--text-mid);">' + (p.note ? escapeHtml(p.note) : '—') + '</td>'
+        + '<td style="padding:8px 6px;font-weight:700;color:#3e8c58;" class="num">' + formatAzn(p.amount) + '</td>'
+        + '<td style="padding:8px 6px;"><button onclick="deleteCustomerPayment(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ',' + JSON.stringify(c.name).replace(/"/g, '&quot;') + ')" style="background:none;border:none;color:var(--text-light);cursor:pointer;">🗑️</button></td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:16px;">Ödəniş yoxdur</td></tr>';
+    payHistory = '<div style="font-weight:700;margin:6px 0 8px;">Ödənişlər</div><div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;border-bottom:1px solid rgba(0,0,0,0.1);"><th style="padding:6px;">Tarix</th><th style="padding:6px;">Növ</th><th style="padding:6px;">Qeyd</th><th style="padding:6px;" class="num">Məbləğ</th><th></th></tr></thead><tbody>' + payRows + '</tbody></table></div>';
+
+    var custSales = getSales().filter(function(s) { return (s.customer || '').trim() === c.name; });
+    var slips = groupMySalesSlips(custSales);
+    var saleRows = slips.length ? slips.map(function(sl) {
+      var items = sl.items.map(function(it) { return escapeHtml(it.productName) + ' ×' + it.qty; }).join(', ');
+      return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);' + (sl.allVoided ? 'opacity:0.5;text-decoration:line-through;' : '') + '">'
+        + '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(sl.ts).toLocaleDateString('az') + '</td>'
+        + '<td style="padding:8px 6px;font-size:12px;color:var(--text-mid);">' + items + '</td>'
+        + '<td style="padding:8px 6px;font-weight:700;" class="num">' + formatAzn(sl.total) + '</td></tr>';
+    }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-light);padding:16px;">Satış yoxdur</td></tr>';
+    salesHistory = '<div style="font-weight:700;margin:6px 0 8px;">Satış tarixçəsi</div><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;border-bottom:1px solid rgba(0,0,0,0.1);"><th style="padding:6px;">Tarix</th><th style="padding:6px;">Məhsullar</th><th style="padding:6px;" class="num">Məbləğ</th></tr></thead><tbody>' + saleRows + '</tbody></table></div>';
+  }
+
+  body.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' + nameField
+    + '<button onclick="closeCustomerDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-light);line-height:1;">×</button></div>'
+    + kpis + info + payForm + payHistory + salesHistory;
+  modal.classList.add('open');
+}
+
+function closeCustomerDetail() {
+  var modal = document.getElementById('customer-detail-modal');
+  if (modal) modal.classList.remove('open');
+  _customerDetailName = null;
+}
+
+function saveCustomerInfo(existingName) {
+  var name = existingName;
+  if (!name) { var nEl = document.getElementById('cust-info-name'); name = nEl ? nEl.value.trim() : ''; }
+  if (!name) { showToast('Müştəri adı boş ola bilməz', true); return; }
+  var list = getCustomers();
+  var rec = list.filter(function(c) { return c.name === name; })[0];
+  if (!rec) { rec = { name: name }; list.push(rec); }
+  var phoneEl = document.getElementById('cust-info-phone');
+  var addrEl = document.getElementById('cust-info-address');
+  var noteEl = document.getElementById('cust-info-note');
+  rec.phone = phoneEl ? phoneEl.value.trim() : '';
+  rec.address = addrEl ? addrEl.value.trim() : '';
+  rec.note = noteEl ? noteEl.value.trim() : '';
+  saveCustomers(list);
+  supabaseUpsertCustomer(rec);
+  showToast('Müştəri məlumatı yadda saxlanıldı');
+  renderCustomers();
+  openCustomerDetail(name);
+}
+
+function recordCustomerPayment(name) {
+  var amtEl = document.getElementById('cust-pay-amount');
+  var methodEl = document.getElementById('cust-pay-method');
+  var noteEl = document.getElementById('cust-pay-note');
+  var amt = parseFloat(amtEl ? amtEl.value : '');
+  if (!isFinite(amt) || amt <= 0) { showToast('Düzgün məbləğ daxil edin', true); return; }
+  var user = getCurrentSalesUser();
+  var p = {
+    id: 'PAY-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000),
+    customer: name, amount: +amt.toFixed(2),
+    method: methodEl ? methodEl.value : 'cash',
+    note: noteEl ? noteEl.value.trim() : '',
+    ts: Date.now(), recordedBy: user ? (user.name || user.username) : 'admin'
+  };
+  var payments = getCustomerPayments(); payments.push(p); saveCustomerPayments(payments);
+  supabaseInsertPayment(p);
+  showToast('Ödəniş qeyd edildi · ' + formatAzn(p.amount));
+  renderCustomers();
+  openCustomerDetail(name);
+}
+
+function deleteCustomerPayment(id, name) {
+  if (!confirm('Bu ödənişi silmək istəyirsən?')) return;
+  saveCustomerPayments(getCustomerPayments().filter(function(p) { return p.id !== id; }));
+  supabaseDeletePayment(id);
+  showToast('Ödəniş silindi');
+  renderCustomers();
+  openCustomerDetail(name);
 }
 
 // ── CART STATE ──────────────────────────────────────────
@@ -8785,7 +9164,7 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log',customers:'admin-tab-customers','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
@@ -8794,6 +9173,7 @@ function adminTab(tab, btn) {
   if(tab === 'pricing')       { setTimeout(pricingInit, 50); }
   if(tab === 'sales-log')     { renderSalesLog(); refreshSalesFromServerAndRerender(); }
   if(tab === 'activity-log')  { renderActivityLog(); refreshSalesFromServerAndRerender(); }
+  if(tab === 'customers')     { renderCustomers(); syncSalesFromServer().then(function(ok){ if(ok) renderCustomers(); }); }
 }
 
 function vseLoadIframe() {
@@ -9146,7 +9526,7 @@ function vseIframeLoaded() {
 function adminTab(tab, btn) {
   document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
+  const tabs = {products:'admin-tab-products','sales-log':'admin-tab-sales-log',customers:'admin-tab-customers','activity-log':'admin-tab-activity-log','site-editor':'admin-tab-site-editor','pdf-labels':'admin-tab-pdf-labels',pricing:'admin-tab-pricing'};
   Object.keys(tabs).forEach(k => {
     const el = document.getElementById(tabs[k]);
     if(el) el.classList.toggle('hidden', k !== tab);
@@ -9155,6 +9535,7 @@ function adminTab(tab, btn) {
   if(tab === 'pricing')       { setTimeout(pricingInit, 50); }
   if(tab === 'sales-log')     { renderSalesLog(); refreshSalesFromServerAndRerender(); }
   if(tab === 'activity-log')  { renderActivityLog(); refreshSalesFromServerAndRerender(); }
+  if(tab === 'customers')     { renderCustomers(); syncSalesFromServer().then(function(ok){ if(ok) renderCustomers(); }); }
 }
 
 function vseInit() {
@@ -10486,6 +10867,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var pfm = document.getElementById('product-form-modal'); if(pfm) pfm.addEventListener('click', function(e){ if(e.target===this) closeProductForm(); });
   var gmm = document.getElementById('global-markup-modal'); if(gmm) gmm.addEventListener('click', function(e){ if(e.target===this) closeGlobalMarkup(); });
   var esm = document.getElementById('edit-sale-modal'); if(esm) esm.addEventListener('click', function(e){ if(e.target===this) closeEditSale(); });
+  var cdm = document.getElementById('customer-detail-modal'); if(cdm) cdm.addEventListener('click', function(e){ if(e.target===this) closeCustomerDetail(); });
 
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
@@ -11625,12 +12007,13 @@ function financeSubTab(name, btn) {
   financeSubTabActive = name;
   document.querySelectorAll('.finance-subtab').forEach(t => t.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  const panels = ['summary', 'sales', 'sellers', 'products', 'expenses', 'inventory'];
+  const panels = ['summary', 'sales', 'sellers', 'products', 'expenses', 'inventory', 'customers'];
   panels.forEach(p => {
     const el = document.getElementById('finance-panel-' + p);
     if(el) el.classList.toggle('hidden', p !== name);
   });
   financeRender();
+  if (name === 'customers') { renderCustomers(); syncSalesFromServer().then(function(ok){ if(ok) renderCustomers(); }); }
 }
 
 // The one place a qəpik integer is allowed to become a display string.
