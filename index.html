@@ -4843,7 +4843,12 @@ async function initClerkIfConfigured() {
     }
     await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } });
     window.Clerk.addListener(function(payload) {
-      if (payload.user && loginTargetRole === 'admin' && window.Clerk.isSignedIn) {
+      // Only auto-open the admin dashboard on the actual sign-in transition
+      // (admin is still on the public/login screen). Clerk also fires this
+      // listener on periodic token refreshes and tab focus — without this guard
+      // those ticks would yank an admin out of the Sales/Finance/Dükan portals
+      // back to the admin view (a "blink" + unwanted redirect).
+      if (payload.user && loginTargetRole === 'admin' && window.Clerk.isSignedIn && currentView === 'public') {
         onAdminClerkSignedIn();
       }
       if (!payload.user && currentView === 'admin') {
