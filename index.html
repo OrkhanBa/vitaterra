@@ -3302,6 +3302,20 @@ function saveSupabaseSession(sess) {
 function supabaseSessionRole() { return supabaseSession && supabaseSession.role; }
 function hasSupabaseSession() { return !!(supabaseSession && supabaseSession.access_token); }
 
+// Surfaces a lost/expired Supabase session instead of letting sales/finance
+// screens silently render as empty (RLS returns HTTP 200 with `[]` for an
+// unauthenticated request — never an error — so without this the user has
+// no way to tell "no data" apart from "couldn't load data"). Shown once per
+// login; cleared again on the next successful sign-in.
+var _sessionLostNotified = false;
+function notifySupabaseSessionLost() {
+  if (_sessionLostNotified) return;
+  _sessionLostNotified = true;
+  if (typeof showToast === 'function') {
+    showToast('Sessiya bitib — məlumatlar yenilənmir. Zəhmət olmasa yenidən daxil olun.', true);
+  }
+}
+
 function sessionFromTokenResponse(r) {
   var meta = (r.user && r.user.app_metadata) || {};
   return {
@@ -3326,6 +3340,7 @@ async function supabaseSignIn(username, password) {
   var data = await res.json();
   var sess = sessionFromTokenResponse(data);
   saveSupabaseSession(sess);
+  _sessionLostNotified = false;
   return sess;
 }
 
@@ -3337,6 +3352,7 @@ function adoptSupabaseSession(access_token, refresh_token, role, name, username,
     role: role || 'admin', name: name || 'Administrator', username: username || 'admin',
   };
   saveSupabaseSession(sess);
+  _sessionLostNotified = false;
   return sess;
 }
 
@@ -3348,7 +3364,22 @@ async function supabaseRefreshSession() {
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: supabaseSession.refresh_token }),
     });
-    if (!res.ok) { saveSupabaseSession(null); return false; }
+    if (!res.ok) {
+      // Only a definitive rejection (expired/invalid/already-used refresh
+      // token — 400/401) means the session is truly dead and the user must
+      // sign in again. A transient network blip or a 5xx from Supabase must
+      // NOT wipe the session here: the token may still be valid for a few
+      // more minutes, and the next poll (15s later) will just try again.
+      // Previously ANY failure nulled the session permanently, which meant
+      // one flaky request could silently and irreversibly log a user out of
+      // Supabase (while still "signed in" per the UI) — every subsequent
+      // read then fell back to the anon key, and since RLS just filters
+      // those rows out (HTTP 200 with an empty array, not an error), the
+      // Finance/Admin/Sales screens quietly showed empty data forever with
+      // no visible error.
+      if (res.status === 400 || res.status === 401) saveSupabaseSession(null);
+      return false;
+    }
     var data = await res.json();
     // Preserve role/name (refresh response app_metadata is present too).
     var next = sessionFromTokenResponse(data);
@@ -3816,7 +3847,14 @@ function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverrid
 // fulfillment status visible across devices without a GitHub publish.
 async function syncSalesFromServer() {
   try {
+    const hadSession = hasSupabaseSession();
     await ensureFreshSession();
+    if (hadSession && !hasSupabaseSession()) {
+      // The refresh token was definitively rejected mid-visit — every read
+      // below will now run as anon and RLS will silently return zero rows.
+      // Tell the user now rather than let Xülasə/registers just look empty.
+      notifySupabaseSessionLost();
+    }
     const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes, pricingRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
@@ -3825,6 +3863,14 @@ async function syncSalesFromServer() {
       fetch(SUPABASE_URL + '/rest/v1/expenses?select=*&order=created_at_ms.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/product_pricing?select=product_id,cost,markup', { headers: supabaseHeaders() }),
     ]);
+    // A 401 here (as opposed to RLS just filtering rows to an empty array,
+    // which PostgREST returns as a normal 200) proves the access token
+    // itself is being rejected — e.g. it expired between ensureFreshSession's
+    // check and this request, or was revoked. Surface it the same way as a
+    // failed refresh so the user knows to re-authenticate.
+    if ([salesRes, activityRes, expensesRes].some(function(r) { return r && r.status === 401; })) {
+      notifySupabaseSessionLost();
+    }
     if (pricingRes && pricingRes.ok) {
       const prows = await pricingRes.json();
       if (Array.isArray(prows)) {
@@ -4960,15 +5006,28 @@ function onAdminClerkSignedIn() {
 function isAdminAuthed() {
   return (clerkReady && window.Clerk && window.Clerk.isSignedIn) || supabaseSessionRole() === 'admin';
 }
-function adminOpenSales() {
+// The Clerk→Supabase bridge normally runs once in the background right after
+// admin login (see onAdminClerkSignedIn), but a fast click on Satış/Dükan/
+// Maliyyə right after signing in — or a bridge call that silently failed —
+// can beat it. Without a real Supabase session every read below falls back
+// to the anon key, and since RLS just filters those rows to an empty array
+// (HTTP 200, not an error), the portal would otherwise show empty data with
+// no explanation. Ensure the bridge has actually run before entering.
+async function ensureAdminSupabaseSession() {
+  if (hasSupabaseSession()) return true;
+  return await acquireAdminSupabaseSession();
+}
+async function adminOpenSales() {
   if (!isAdminAuthed()) return;
+  await ensureAdminSupabaseSession();
   setCurrentSalesUser({ username: 'admin', name: (supabaseSession && supabaseSession.name) || 'Administrator' });
   showView('sales');
   renderSalesView();
   updateSalesHeader();
 }
-function adminOpenShop() {
+async function adminOpenShop() {
   if (!isAdminAuthed()) return;
+  await ensureAdminSupabaseSession();
   setCurrentSalesUser({ username: 'admin', name: (supabaseSession && supabaseSession.name) || 'Administrator' });
   showView('sales');
   renderSalesView();
@@ -4976,8 +5035,9 @@ function adminOpenShop() {
   var tab = document.getElementById('sales-tab-shop');
   salesSubTab('shop', tab); // jump straight to the Dükan subtab
 }
-function adminOpenFinance() {
+async function adminOpenFinance() {
   if (!isAdminAuthed()) return;
+  await ensureAdminSupabaseSession();
   setFinanceSignedIn(true);
   showView('finance');
 }
