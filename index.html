@@ -12461,13 +12461,17 @@ function financeRenderMonthBars() {
   if(!el) return;
   const products = getProducts();
   const allSales = getActiveSales();
+  // Explicit Azerbaijani month names — toLocaleString('az', …) falls back to
+  // "M01"/"M07" when the runtime lacks the "az" locale (common in browsers).
+  const AZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun',
+    'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
   const months = [];
   const now = new Date();
   for(let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push({
       key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
-      label: d.toLocaleString('az', { month: 'short' }),
+      label: AZ_MONTHS[d.getMonth()],
       start: new Date(d.getFullYear(), d.getMonth(), 1),
       end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
     });
