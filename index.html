@@ -1822,6 +1822,13 @@
   }
   .finance-month-bar.profit { background:linear-gradient(180deg, var(--gold-light), var(--gold)); }
   .finance-month-bar-label { font-size:10px; color:var(--text-light); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  /* Revenue amount printed above each month's bars so the figure is readable
+     without hovering (native title tooltips are unreliable / slow). */
+  .finance-month-bar-value { font-size:10px; font-weight:600; color:var(--green-dark); text-align:center; white-space:nowrap; height:14px; line-height:14px; }
+  .finance-legend-item { display:inline-flex; align-items:center; gap:5px; }
+  .finance-legend-swatch { width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .finance-legend-revenue { background:linear-gradient(180deg, var(--green-accent), var(--green-dark)); }
+  .finance-legend-profit { background:linear-gradient(180deg, var(--gold-light), var(--gold)); }
   .finance-expense-form {
     background:var(--cream); border-radius:10px; padding:14px 16px; margin-bottom:14px;
   }
@@ -3032,7 +3039,11 @@
     <div id="finance-panel-summary" class="finance-panel">
       <div class="finance-panel-head">
         <div class="finance-panel-title">Aylıq gəlir və mənfəət</div>
-        <div style="font-size:12px;color:var(--text-light);">Son 6 ay · ₼ AZN</div>
+        <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text-light);">
+          <span class="finance-legend-item"><span class="finance-legend-swatch finance-legend-revenue"></span>Gəlir</span>
+          <span class="finance-legend-item"><span class="finance-legend-swatch finance-legend-profit"></span>Mənfəət</span>
+          <span>Son 6 ay · ₼ AZN</span>
+        </div>
       </div>
       <div class="finance-month-bars" id="finance-month-bars"></div>
     </div>
@@ -12246,6 +12257,19 @@ function financeFmtAzn(qepik) {
   return (neg ? '-' : '') + '₼' + whole + '.' + (cents < 10 ? '0' + cents : cents);
 }
 
+// Compact AZN for tight spots like the month-bar value labels: 1.5M / 421K /
+// ₼950. Full precision stays in financeFmtAzn (used everywhere figures matter).
+function financeFmtCompactAzn(qepik) {
+  const azn = qToAzn(Math.round(qepik || 0));
+  const neg = azn < 0;
+  const a = Math.abs(azn);
+  let out;
+  if (a >= 1000000) out = (a / 1000000).toFixed(a >= 10000000 ? 0 : 1) + 'M';
+  else if (a >= 1000) out = (a / 1000).toFixed(a >= 100000 ? 0 : 1) + 'K';
+  else out = a.toFixed(0);
+  return (neg ? '-₼' : '₼') + out;
+}
+
 function financeRenderKPIs(m) {
   const el = document.getElementById('finance-kpis');
   if(!el) return;
@@ -12321,10 +12345,15 @@ function financeRenderMonthBars() {
   el.innerHTML = data.map(d => {
     const revH = Math.max(4, Math.round(d.revenue / maxVal * 110));
     const profH = Math.max(4, Math.round(Math.max(0, d.profit) / maxVal * 110));
-    return `<div class="finance-month-bar-wrap" title="${d.label}: gəlir ${financeFmtAzn(d.revenue)}, mənfəət ${financeFmtAzn(d.profit)}">
+    const revTip = d.label + ' — Gəlir: ' + financeFmtAzn(d.revenue);
+    const profTip = d.label + ' — Mənfəət: ' + financeFmtAzn(d.profit);
+    const wrapTip = d.label + ': Gəlir ' + financeFmtAzn(d.revenue) + ' · Mənfəət ' + financeFmtAzn(d.profit);
+    const valueLabel = d.revenue > 0 ? financeFmtCompactAzn(d.revenue) : '';
+    return `<div class="finance-month-bar-wrap" title="${escapeHtml(wrapTip)}">
+      <div class="finance-month-bar-value">${escapeHtml(valueLabel)}</div>
       <div class="finance-month-bar-group">
-        <div class="finance-month-bar" style="height:${revH}px;" title="Gəlir"></div>
-        <div class="finance-month-bar profit" style="height:${profH}px;" title="Mənfəət"></div>
+        <div class="finance-month-bar" style="height:${revH}px;" title="${escapeHtml(revTip)}"></div>
+        <div class="finance-month-bar profit" style="height:${profH}px;" title="${escapeHtml(profTip)}"></div>
       </div>
       <div class="finance-month-bar-label">${escapeHtml(d.label)}</div>
     </div>`;
