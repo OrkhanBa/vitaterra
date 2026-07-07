@@ -760,6 +760,9 @@
   td { padding:14px 16px; border-bottom:1px solid var(--border); font-size:14px; color:var(--text-dark); }
   tr:last-child td { border-bottom:none; }
   tr:hover td { background:#fafafa; }
+  th.th-sort { cursor:pointer; user-select:none; white-space:nowrap; transition:color 0.15s; }
+  th.th-sort:hover { color:var(--green-accent); }
+  th.th-sort .sort-ind { font-size:10px; }
   .badge {
     padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600;
   }
@@ -2119,6 +2122,37 @@
   </div>
 </div>
 
+<!-- Edit a confirmed sale (fix quantity / customer). Used by sales reps from
+     "Mənim satışlarım" and referenced by openEditSale()/saveEditSale(). -->
+<div class="modal-overlay" id="edit-sale-modal">
+  <div class="modal" style="max-width:440px;">
+    <div style="padding:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:var(--text);">✏️ Satışı redaktə et</div>
+        <button onclick="closeEditSale()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-light);line-height:1;">×</button>
+      </div>
+      <input type="hidden" id="edit-sale-ts"/>
+      <div style="background:var(--cream);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;">Məhsul</div>
+        <div id="edit-sale-product" style="font-size:15px;font-weight:600;color:var(--text);margin-top:2px;"></div>
+        <div id="edit-sale-date" style="font-size:11px;color:var(--text-light);margin-top:4px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Say (ədəd)</label>
+        <input class="form-input" type="number" id="edit-sale-qty" min="1" step="1"/>
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Müştəri</label>
+        <input class="form-input" id="edit-sale-customer" list="vt-customer-list" autocomplete="off" placeholder="Müştəri adı"/>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button class="btn-cancel" onclick="closeEditSale()">Ləğv et</button>
+        <button class="btn-save" onclick="saveEditSale()">💾 Yadda saxla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="product-modal">
   <div class="modal">
     <div class="modal-header">
@@ -2232,14 +2266,14 @@
                 </th>
                 <th style="width:56px;">Image</th>
                 <th style="width:44px;" title="18% ƏDV">ƏDV</th>
-                <th>Product Name</th>
-                <th>Category</th>
-                <th>Cost Price ($)</th>
-                <th>Markup %</th>
-                <th>Sale Price ($)</th>
+                <th class="th-sort" onclick="adminSortBy('name')" title="Ada görə sırala">Product Name <span class="sort-ind" data-k="name"></span></th>
+                <th class="th-sort" onclick="adminSortBy('category')" title="Kateqoriyaya görə sırala">Category <span class="sort-ind" data-k="category"></span></th>
+                <th class="th-sort" onclick="adminSortBy('cost')" title="Maya dəyərinə görə sırala">Cost Price ($) <span class="sort-ind" data-k="cost"></span></th>
+                <th class="th-sort" onclick="adminSortBy('markup')" title="Markup-a görə sırala">Markup % <span class="sort-ind" data-k="markup"></span></th>
+                <th class="th-sort" onclick="adminSortBy('sale')" title="Satış qiymətinə görə sırala">Sale Price ($) <span class="sort-ind" data-k="sale"></span></th>
                 <th>Unit</th>
-                <th>Stok (ədəd / kq-l)</th>
-                <th>Status</th>
+                <th class="th-sort" onclick="adminSortBy('stock')" title="Stok sayına görə sırala — az/çox">Stok (ədəd / kq-l) <span class="sort-ind" data-k="stock"></span></th>
+                <th class="th-sort" onclick="adminSortBy('stock')" title="Statusa (stok) görə sırala">Status <span class="sort-ind" data-k="status"></span></th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -2879,11 +2913,10 @@
                     <th style="padding:8px 6px;width:90px;">Stok</th>
                     <th style="padding:8px 6px;width:120px;">Alış dəyəri (₼)</th>
                     <th style="padding:8px 6px;width:120px;">Sat</th>
-                    <th style="padding:8px 6px;width:40px;"></th>
                   </tr>
                 </thead>
                 <tbody id="shop-stock-tbody">
-                  <tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur</td></tr>
+                  <tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur</td></tr>
                 </tbody>
               </table>
             </div>
@@ -4390,6 +4423,24 @@ function shopReceiveItems(items) {
   saveShopLedger(ledger);
 }
 
+// Reverse of shopReceiveItems: pull qty back out of the shop stock. Used only
+// when a warehouse→Dükan sale is voided in the sales panel, so the shop stock
+// stays in sync with the (non-voided) sales-to-Dükan total. Stock is never
+// deleted directly from the Dükan panel.
+function shopRemoveItems(items) {
+  var ledger = getShopLedger();
+  items.forEach(function(it) {
+    var idx = -1;
+    ledger.inventory.forEach(function(x, i) { if (x.productId === it.productId) idx = i; });
+    if (idx < 0) return;
+    var cur = ledger.inventory[idx];
+    var remaining = (parseFloat(cur.qty) || 0) - (parseFloat(it.qty) || 0);
+    if (remaining > 0.0001) cur.qty = remaining;
+    else ledger.inventory.splice(idx, 1);
+  });
+  saveShopLedger(ledger);
+}
+
 // Whether the current user may see/use the Qusar shop (Dükan) tab.
 // Only Aygun (dedicated sales user) and the master admin.
 function shopAccessAllowed() {
@@ -5475,6 +5526,43 @@ function closeProductModal() { document.getElementById('product-modal').classLis
 // ADMIN DASHBOARD
 // ═══════════════════════════════════════════════════════
 var adminFilter = '';
+// Admin product table sort. dir: 1 = ascending, -1 = descending. For 'stock'
+// ascending shows out-of-stock (0) and low stock first so they're easy to spot.
+var adminSort = { key: null, dir: 1 };
+
+function adminSortValue(p, key) {
+  switch (key) {
+    case 'name':     return (p.name || '').toLowerCase();
+    case 'category': return (p.category || '').toLowerCase();
+    case 'cost':     return (parseFloat(p.cost) || 0) * packMultiplier(packagingForProduct(p));
+    case 'markup':   return parseFloat(p.markup) || 0;
+    case 'sale':     return salePrice(p) || 0;
+    case 'stock':
+    case 'status':   return maxSalePackages(p) || 0;
+    default:         return 0;
+  }
+}
+
+function adminSortBy(key) {
+  if (adminSort.key === key) {
+    adminSort.dir = -adminSort.dir;
+  } else {
+    adminSort.key = key;
+    // Text columns default A→Z; numeric columns default low→high (so stock
+    // shows out-of-stock / low stock at the top on first click).
+    adminSort.dir = 1;
+  }
+  renderAdminTable();
+}
+
+function updateAdminSortIndicators() {
+  document.querySelectorAll('.sort-ind').forEach(function(el) {
+    var k = el.getAttribute('data-k');
+    var active = adminSort.key === k || (adminSort.key === 'stock' && k === 'status');
+    el.textContent = active ? (adminSort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
+    el.style.color = active ? 'var(--green-accent)' : '';
+  });
+}
 
 function renderAdminDash() {
   renderAdminKPIs();
@@ -5629,9 +5717,19 @@ function renderAdminKPIs() {
 function renderAdminTable(filter) {
   const products = getProducts();
   const f = (filter||adminFilter||'').toLowerCase();
-  const filtered = f ? products.filter(p=>p.name.toLowerCase().includes(f)||p.category.toLowerCase().includes(f)) : products;
+  let filtered = f ? products.filter(p=>p.name.toLowerCase().includes(f)||p.category.toLowerCase().includes(f)) : products.slice();
+  if (adminSort.key) {
+    const key = adminSort.key, dir = adminSort.dir;
+    filtered = filtered.slice().sort(function(a, b) {
+      const va = adminSortValue(a, key), vb = adminSortValue(b, key);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }
   const tbody = document.getElementById('admin-tbody');
   if(!tbody) return;
+  updateAdminSortIndicators();
   tbody.innerHTML = filtered.map(p => {
     const cost     = parseFloat(p.cost)   || 0;  // per kg/L (base unit)
     const markup   = parseFloat(p.markup) || 0;
@@ -6629,7 +6727,7 @@ function renderShopStock() {
   if (!tb) return;
   var ledger = getShopLedger();
   if (!ledger.inventory.length) {
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur — anbardan "🏬 Dükana göndər" ilə məhsul göndər</td></tr>';
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:32px;">Stok boşdur — anbardan "🏬 Dükana göndər" ilə məhsul göndər</td></tr>';
     return;
   }
   tb.innerHTML = ledger.inventory.map(function(x) {
@@ -6643,23 +6741,12 @@ function renderShopStock() {
       + '<td style="padding:8px 6px;">'
         + '<button class="btn-add" style="font-size:12px;padding:5px 12px;' + (q < 1 ? 'opacity:0.4;cursor:not-allowed;' : '') + '" ' + (q < 1 ? 'disabled' : ('onclick="shopAddToCart(' + x.productId + ')"')) + '>' + (inCart ? '✓ Səbətdə' : '+ Sat') + '</button>'
       + '</td>'
-      + '<td style="padding:8px 6px;"><button onclick="shopDeleteStock(' + x.productId + ')" title="Sil" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:15px;">🗑️</button></td>'
       + '</tr>';
   }).join('');
 }
 
 function shopInvItem(pid) {
   return getShopLedger().inventory.filter(function(x) { return x.productId === pid; })[0] || null;
-}
-
-function shopDeleteStock(pid) {
-  if (!confirm('Bu məhsulu dükan stokundan silmək istəyirsən?')) return;
-  var ledger = getShopLedger();
-  ledger.inventory = ledger.inventory.filter(function(x) { return x.productId !== pid; });
-  delete shopCart[pid];
-  saveShopLedger(ledger);
-  supabaseUpsertShop();
-  renderShop();
 }
 
 function shopAddToCart(pid) {
@@ -7884,6 +7971,7 @@ function openEditSale(ts) {
   document.getElementById('edit-sale-qty').value = s.qty;
   document.getElementById('edit-sale-customer').value = s.customer || '';
   document.getElementById('edit-sale-date').textContent = new Date(s.ts).toLocaleString();
+  refreshCustomerDatalist();
   document.getElementById('edit-sale-modal').classList.add('open');
 }
 
@@ -7960,6 +8048,19 @@ function undoSale(ts) {
     saleTs: s.ts, productId: s.productId, productName: s.productName,
     qty: s.qty, total: s.total, customer: s.customer
   });
+
+  // If this was a warehouse→Dükan sale, pull the items back out of the shop
+  // stock so the Dükan stock value stays aligned with the sales-to-Dükan total.
+  if (s.customer && s.customer.trim().toLowerCase() === SHOP_CUSTOMER_LABEL.toLowerCase()) {
+    (async function() {
+      try {
+        await syncShopFromServer();
+        shopRemoveItems([{ productId: s.productId, qty: s.qty }]);
+        await supabaseUpsertShop();
+        if (currentView === 'sales') renderShop();
+      } catch (e) { console.warn('shop void reverse failed:', e); }
+    })();
+  }
 
   renderMySales();
   renderSaleProducts();
