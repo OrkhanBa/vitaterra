@@ -7168,15 +7168,42 @@ function openCustomerDetail(name, isNew) {
   if (c) name = c.name;
   if (!c) c = { name: name || '', totalSold: 0, paid: 0, balance: 0, salesCount: 0, phone: '', note: '', address: '' };
 
+  // Cost/profit are sensitive — only show them to admin & finance, never to
+  // sales reps. Reuse Finance's per-sale enrichment for exact COGS/profit.
+  var showCost = (currentView === 'admin' || currentView === 'finance');
+  var slipCost = {};
+  var totalCostQepik = 0, totalProfitQepik = 0;
+  if (showCost && !isNew && c.name) {
+    var _costProducts = getProducts();
+    getSales().forEach(function(s) {
+      if (s.voided || !sameCust(s.customer, c.name)) return;
+      var en = financeEnrichSale(s, _costProducts);
+      totalCostQepik += en.cogsQepik;
+      totalProfitQepik += en.profitQepik;
+      var id = s.saleId || ('legacy-' + s.ts);
+      if (!slipCost[id]) slipCost[id] = { cost: 0, profit: 0 };
+      slipCost[id].cost += en.cogsQepik;
+      slipCost[id].profit += en.profitQepik;
+    });
+  }
+  var totalRevenueQepik = totalCostQepik + totalProfitQepik;
+  var totalMarginPct = totalRevenueQepik > 0 ? (totalProfitQepik / totalRevenueQepik * 100) : 0;
+
   var nameField = isNew
     ? '<input class="form-input" id="cust-info-name" placeholder="Müştəri / şirkət adı" style="font-size:16px;font-weight:600;"/>'
     : '<div style="font-size:20px;font-weight:700;color:var(--text);">' + escapeHtml(c.name) + '</div>';
 
   var balColor = c.balance > 0.005 ? '#c25454' : (c.balance < -0.005 ? '#3e8c58' : 'var(--text)');
+  var profitColor = totalProfitQepik >= 0 ? '#3e8c58' : '#c25454';
+  var costKpis = showCost
+    ? ('<div style="flex:1;min-width:110px;background:rgba(120,120,120,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Maya dəyəri</div><div style="font-size:17px;font-weight:700;color:var(--text-mid);">' + financeFmtAzn(totalCostQepik) + '</div></div>'
+      + '<div style="flex:1;min-width:110px;background:rgba(62,140,88,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Mənfəət</div><div style="font-size:17px;font-weight:700;color:' + profitColor + ';">' + financeFmtAzn(totalProfitQepik) + ' <span style="font-size:11px;font-weight:400;color:var(--text-light);">(' + totalMarginPct.toFixed(1) + '%)</span></div></div>')
+    : '';
   var kpis = isNew ? '' : ('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">'
     + '<div style="flex:1;min-width:110px;background:var(--cream);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Ümumi satış</div><div style="font-size:17px;font-weight:700;">' + formatAzn(c.totalSold) + '</div></div>'
     + '<div style="flex:1;min-width:110px;background:rgba(62,140,88,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Ödənilən</div><div style="font-size:17px;font-weight:700;color:#3e8c58;">' + formatAzn(c.paid) + '</div></div>'
     + '<div style="flex:1;min-width:110px;background:rgba(201,84,84,0.08);border-radius:9px;padding:10px 12px;"><div style="font-size:10.5px;color:var(--text-light);text-transform:uppercase;">Qalıq borc</div><div style="font-size:17px;font-weight:700;color:' + balColor + ';">' + formatAzn(c.balance) + '</div></div>'
+    + costKpis
     + '</div>');
 
   var info = '<div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:14px;">'
@@ -7215,14 +7242,24 @@ function openCustomerDetail(name, isNew) {
 
     var custSales = getSales().filter(function(s) { return sameCust(s.customer, c.name); });
     var slips = groupMySalesSlips(custSales);
+    var emptyCols = showCost ? 5 : 3;
     var saleRows = slips.length ? slips.map(function(sl) {
       var items = sl.items.map(function(it) { return escapeHtml(it.productName) + ' ×' + it.qty; }).join(', ');
+      var costCells = '';
+      if (showCost) {
+        var sc = slipCost[sl.saleId] || { cost: 0, profit: 0 };
+        var pc = sc.profit >= 0 ? '#3e8c58' : '#c25454';
+        costCells = '<td style="padding:8px 6px;color:var(--text-mid);" class="num">' + (sl.allVoided ? '—' : financeFmtAzn(sc.cost)) + '</td>'
+          + '<td style="padding:8px 6px;font-weight:600;color:' + pc + ';" class="num">' + (sl.allVoided ? '—' : financeFmtAzn(sc.profit)) + '</td>';
+      }
       return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);' + (sl.allVoided ? 'opacity:0.5;text-decoration:line-through;' : '') + '">'
         + '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(sl.ts).toLocaleDateString('az') + '</td>'
         + '<td style="padding:8px 6px;font-size:12px;color:var(--text-mid);">' + items + '</td>'
-        + '<td style="padding:8px 6px;font-weight:700;" class="num">' + formatAzn(sl.total) + '</td></tr>';
-    }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-light);padding:16px;">Satış yoxdur</td></tr>';
-    salesHistory = '<div style="font-weight:700;margin:6px 0 8px;">Satış tarixçəsi</div><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;border-bottom:1px solid rgba(0,0,0,0.1);"><th style="padding:6px;">Tarix</th><th style="padding:6px;">Məhsullar</th><th style="padding:6px;" class="num">Məbləğ</th></tr></thead><tbody>' + saleRows + '</tbody></table></div>';
+        + '<td style="padding:8px 6px;font-weight:700;" class="num">' + formatAzn(sl.total) + '</td>'
+        + costCells + '</tr>';
+    }).join('') : '<tr><td colspan="' + emptyCols + '" style="text-align:center;color:var(--text-light);padding:16px;">Satış yoxdur</td></tr>';
+    var costHead = showCost ? '<th style="padding:6px;" class="num">Maya</th><th style="padding:6px;" class="num">Mənfəət</th>' : '';
+    salesHistory = '<div style="font-weight:700;margin:6px 0 8px;">Satış tarixçəsi</div><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;border-bottom:1px solid rgba(0,0,0,0.1);"><th style="padding:6px;">Tarix</th><th style="padding:6px;">Məhsullar</th><th style="padding:6px;" class="num">Məbləğ</th>' + costHead + '</tr></thead><tbody>' + saleRows + '</tbody></table></div>';
   }
 
   body.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' + nameField
