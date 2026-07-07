@@ -5198,6 +5198,121 @@ function adminBackToAdmin() {
   updateAdminHeaderUser();
 }
 
+// ─── Stock audit / reconciliation (admin) ──────────────────────────────────
+// Read-only view: (1) live stock vs sales records per product, (2) the
+// append-only stock-movement ledger. Helps catch drift like the Predador case
+// where voided sales were never returned to stock.
+function closeStockAudit() {
+  var m = document.getElementById('stock-audit-modal');
+  if (m) m.classList.remove('open');
+}
+
+async function openStockAudit() {
+  if (!isAdminAuthed()) return;
+  var modal = document.getElementById('stock-audit-modal');
+  var body  = document.getElementById('stock-audit-body');
+  if (!modal || !body) return;
+  modal.classList.add('open');
+  body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-light);">Yüklənir…</div>';
+
+  var inv = [], moves = [];
+  try {
+    await ensureAdminSupabaseSession();
+    var results = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,product_name,stock,pack_mult', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/stock_movements?select=*&order=created_at.desc&limit=80', { headers: supabaseHeaders() })
+    ]);
+    if (results[0].ok) inv = await results[0].json();
+    if (results[1].ok) moves = await results[1].json();
+  } catch (e) {
+    body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--danger);">Serverdən məlumat alınmadı. Yenidən cəhd edin.</div>';
+    return;
+  }
+
+  // Aggregate sales per product (base units = qty × pack multiplier).
+  var sales = getSales();
+  var multById = {};
+  inv.forEach(function(r) { multById[r.product_id] = (r.pack_mult != null ? parseFloat(r.pack_mult) : 1) || 1; });
+  var activeById = {}, voidedById = {};
+  sales.forEach(function(s) {
+    var m = multById[s.productId];
+    if (m == null) m = 1;
+    var base = (parseInt(s.qty, 10) || 0) * m;
+    if (s.voided) voidedById[s.productId] = (voidedById[s.productId] || 0) + base;
+    else          activeById[s.productId] = (activeById[s.productId] || 0) + base;
+  });
+
+  function fmt(n) {
+    n = parseFloat(n) || 0;
+    return (Math.abs(n - Math.round(n)) < 0.001) ? String(Math.round(n)) : n.toFixed(1);
+  }
+
+  // Build reconciliation rows.
+  var rows = inv.slice().sort(function(a, b) { return a.product_id - b.product_id; }).map(function(r) {
+    var stock   = parseFloat(r.stock) || 0;
+    var active  = activeById[r.product_id] || 0;
+    var voided  = voidedById[r.product_id] || 0;
+    var implied = stock + active; // total that must have been received given current records
+    var warn = stock < 0;
+    return '<tr' + (warn ? ' style="background:#fdecea;"' : '') + '>' +
+      '<td style="padding:6px 8px;color:var(--text-light);">' + r.product_id + '</td>' +
+      '<td style="padding:6px 8px;">' + (r.product_name || '—') + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;font-weight:700;' + (warn ? 'color:var(--danger);' : '') + '">' + fmt(stock) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + fmt(active) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;color:var(--text-light);">' + (voided > 0 ? fmt(voided) : '—') + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;color:var(--text-light);">' + fmt(implied) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  var reasonLabels = {
+    sale: 'Satış (−)', adjust: 'Düzəliş', void_restore: 'Ləğv → geri', unvoid_decrement: 'Ləğv geri alındı (−)',
+    delete_restore: 'Silindi → geri', manual_fix: 'Əl ilə düzəliş'
+  };
+  var moveRows = moves.map(function(m) {
+    var d = parseFloat(m.delta) || 0;
+    var when = m.created_at ? new Date(m.created_at).toLocaleString('az') : '';
+    return '<tr>' +
+      '<td style="padding:6px 8px;color:var(--text-light);white-space:nowrap;">' + when + '</td>' +
+      '<td style="padding:6px 8px;">' + (m.product_name || m.product_id) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (d < 0 ? 'var(--danger)' : 'var(--primary)') + ';">' + (d > 0 ? '+' : '') + fmt(d) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + (m.new_stock != null ? fmt(m.new_stock) : '—') + '</td>' +
+      '<td style="padding:6px 8px;">' + (reasonLabels[m.reason] || m.reason || '') + '</td>' +
+      '<td style="padding:6px 8px;color:var(--text-light);">' + (m.actor || '') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  body.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">' +
+      '<div><div style="font-size:19px;font-weight:800;color:var(--text);">🧮 Stok Auditi</div>' +
+      '<div style="font-size:12px;color:var(--text-light);margin-top:3px;">Anbar dəyərləri, satış qeydləri və stok hərəkət jurnalı (baza vahidləri: litr/kq).</div></div>' +
+      '<button onclick="closeStockAudit()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;">×</button>' +
+    '</div>' +
+    '<div style="font-size:13px;font-weight:700;color:var(--text);margin:14px 0 6px;">Uyğunluq cədvəli</div>' +
+    '<div style="overflow:auto;border:1px solid var(--border);border-radius:10px;">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
+        '<thead><tr style="background:var(--cream);text-align:left;">' +
+          '<th style="padding:8px;">#</th><th style="padding:8px;">Məhsul</th>' +
+          '<th style="padding:8px;text-align:right;">Cari stok</th>' +
+          '<th style="padding:8px;text-align:right;">Aktiv satış</th>' +
+          '<th style="padding:8px;text-align:right;">Ləğv olunmuş</th>' +
+          '<th style="padding:8px;text-align:right;">Daxil (stok+satış)</th>' +
+        '</tr></thead><tbody>' + (rows || '<tr><td colspan="6" style="padding:14px;text-align:center;color:var(--text-light);">Məlumat yoxdur</td></tr>') + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text-light);margin:6px 0 0;">Qırmızı sətir = mənfi stok (diqqət). "Daxil" = cari stok + aktiv satışlar (indiki qeydlərə görə anbara daxil olmuş ümumi miqdar).</div>' +
+    '<div style="font-size:13px;font-weight:700;color:var(--text);margin:18px 0 6px;">Stok hərəkət jurnalı (son 80)</div>' +
+    '<div style="overflow:auto;border:1px solid var(--border);border-radius:10px;">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
+        '<thead><tr style="background:var(--cream);text-align:left;">' +
+          '<th style="padding:8px;">Tarix</th><th style="padding:8px;">Məhsul</th>' +
+          '<th style="padding:8px;text-align:right;">Dəyişmə</th>' +
+          '<th style="padding:8px;text-align:right;">Yeni stok</th>' +
+          '<th style="padding:8px;">Səbəb</th><th style="padding:8px;">Kim</th>' +
+        '</tr></thead><tbody>' + (moveRows || '<tr><td colspan="6" style="padding:14px;text-align:center;color:var(--text-light);">Hələ hərəkət yoxdur</td></tr>') + '</tbody>' +
+      '</table>' +
+    '</div>';
+}
+
 function loginRoleLabel(role) {
   if(role === 'admin') return 'Admin Dashboard Access';
   if(role === 'finance') return 'Maliyyə / Mühasibat Paneli';
@@ -11121,6 +11236,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var gmm = document.getElementById('global-markup-modal'); if(gmm) gmm.addEventListener('click', function(e){ if(e.target===this) closeGlobalMarkup(); });
   var esm = document.getElementById('edit-sale-modal'); if(esm) esm.addEventListener('click', function(e){ if(e.target===this) closeEditSale(); });
   var cdm = document.getElementById('customer-detail-modal'); if(cdm) cdm.addEventListener('click', function(e){ if(e.target===this) closeCustomerDetail(); });
+  var sam = document.getElementById('stock-audit-modal'); if(sam) sam.addEventListener('click', function(e){ if(e.target===this) closeStockAudit(); });
 
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
