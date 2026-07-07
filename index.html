@@ -1808,8 +1808,11 @@
   .finance-table th.num, .finance-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
   .finance-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
   .finance-table tbody tr:hover { background:rgba(62,140,88,0.04); }
-  .finance-month-bars { display:flex; align-items:flex-end; gap:8px; height:140px; padding:12px 0; }
-  .finance-month-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+  /* Height fits the whole stack (value label + 120px bars + month label +
+     gaps ≈ 164px); a shorter container let the top value label overflow up
+     into the panel header and collide with the legend. */
+  .finance-month-bars { display:flex; align-items:flex-end; gap:8px; height:172px; padding:12px 0; position:relative; }
+  .finance-month-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; cursor:default; }
   /* The pair of bars sits in a fixed-height row that fills the wrap width and
      centers its bars. Bars use a definite width (NOT width:100%): a percentage
      width here depended on a shrink-to-fit parent, a circular sizing case some
@@ -1824,11 +1827,22 @@
   .finance-month-bar-label { font-size:10px; color:var(--text-light); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   /* Revenue amount printed above each month's bars so the figure is readable
      without hovering (native title tooltips are unreliable / slow). */
-  .finance-month-bar-value { font-size:10px; font-weight:600; color:var(--green-dark); text-align:center; white-space:nowrap; height:14px; line-height:14px; }
-  .finance-legend-item { display:inline-flex; align-items:center; gap:5px; }
-  .finance-legend-swatch { width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .finance-month-bar-value { font-size:10px; font-weight:600; color:var(--green-dark); text-align:center; white-space:nowrap; height:16px; line-height:16px; }
+  .finance-legend-item { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .finance-legend-swatch { width:11px; height:11px; border-radius:3px; display:inline-block; flex:0 0 auto; }
   .finance-legend-revenue { background:linear-gradient(180deg, var(--green-accent), var(--green-dark)); }
   .finance-legend-profit { background:linear-gradient(180deg, var(--gold-light), var(--gold)); }
+  /* Instant custom hover tooltip for the month bars (native title tooltips
+     are slow/unreliable and hard to trigger on the thin bars). */
+  .finance-chart-tip {
+    position:fixed; z-index:9999; background:var(--green-dark); color:#fff;
+    padding:7px 11px; border-radius:8px; font-size:12px; line-height:1.5;
+    pointer-events:none; box-shadow:0 6px 18px rgba(0,0,0,0.22); white-space:nowrap;
+    opacity:0; transition:opacity .12s ease;
+  }
+  .finance-chart-tip .tip-month { font-weight:700; margin-bottom:2px; }
+  .finance-chart-tip .tip-row { display:flex; align-items:center; gap:6px; }
+  .finance-chart-tip .tip-dot { width:9px; height:9px; border-radius:2px; display:inline-block; }
   .finance-expense-form {
     background:var(--cream); border-radius:10px; padding:14px 16px; margin-bottom:14px;
   }
@@ -2135,6 +2149,14 @@
   </div>
 </div>
 
+<!-- Stock reconciliation / audit (admin). Compares live stock vs sales records
+     and shows the stock-movement ledger. Opened via openStockAudit(). -->
+<div class="modal-overlay" id="stock-audit-modal">
+  <div class="modal" style="max-width:1000px;">
+    <div id="stock-audit-body" style="padding:22px;max-height:86vh;overflow:auto;"></div>
+  </div>
+</div>
+
 <!-- Edit a confirmed sale (fix quantity / customer). Used by sales reps from
      "Mənim satışlarım" and referenced by openEditSale()/saveEditSale(). -->
 <div class="modal-overlay" id="edit-sale-modal">
@@ -2222,6 +2244,7 @@
       <span class="dash-user" id="admin-user-name">👤 Administrator</span>
       <button class="btn-logout" onclick="adminOpenSales()" title="Satış portalını aç" data-en="Sales" data-az="Satış">Satış</button>
       <button class="btn-logout" onclick="adminOpenShop()" title="Qusar dükanını aç">🏬 Dükan</button>
+      <button class="btn-logout" onclick="openStockAudit()" title="Stok uyğunluğu və hərəkət jurnalı">🧮 Stok Auditi</button>
       <button class="btn-logout" onclick="adminOpenFinance()" title="Maliyyə panelini aç" data-en="Finance" data-az="Maliyyə">Maliyyə</button>
       <button class="btn-logout" onclick="logout()">Sign Out</button>
     </div>
@@ -3046,6 +3069,7 @@
         </div>
       </div>
       <div class="finance-month-bars" id="finance-month-bars"></div>
+      <div class="finance-chart-tip" id="finance-chart-tip" style="display:none;"></div>
     </div>
 
     <div id="finance-panel-sales" class="finance-panel hidden">
@@ -6576,28 +6600,29 @@ function adminDeleteSale(ts) {
   if(s.voided) { showToast('Bu satış artıq ləğv edilib.', true); return; }
   if(!confirm(`Bu satışı ləğv etmək istəyirsiniz?\n\n${s.productName} × ${s.qty}\n\nStock geri qaytarılacaq.`)) return;
 
-  // Restore stock atomically on the server (race-free, no silent no-op).
+  // Optimistic local restore for instant UI only (localStorage, no server push).
+  // The authoritative server-side stock restore is performed by the DB trigger
+  // when `voided` flips to true — that is the single source of truth. We must
+  // NOT adjust server stock here too, or it would be restored twice.
   const products = loadRawProducts();
   const pIdx = products.findIndex(p => p.id === s.productId);
-  const restore = [];
   if(pIdx >= 0) {
     const p = products[pIdx];
-    const rawDelta = stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
-    products[pIdx].stock = (parseFloat(p.stock) || 0) + rawDelta; // optimistic UI
+    products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
     persistProductsLocal(products);
-    restore.push({ id: s.productId, name: s.productName, delta: rawDelta });
   }
 
   sales[idx].voided   = true;
   sales[idx].voidedAt = Date.now();
   sales[idx].voidedBy = 'Admin';
   saveSales(sales);
-  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy });
+  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy })
+    .then(function() { return syncInventoryFromServer(); })
+    .then(function() { renderSalesLog(); renderAdminDash(); renderPublicProducts(); });
   logActivity('sale_voided', {
     saleTs: s.ts, productId: s.productId, productName: s.productName,
     qty: s.qty, total: s.total, customer: s.customer
   });
-  applyStockAdjustments(restore).then(function() { renderSalesLog(); });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
@@ -6613,33 +6638,29 @@ function clearSalesLog() {
   // Restore stock for every active sale — atomically on the server. Deltas are
   // summed per product so one RPC call per product covers multiple sales.
   const products = loadRawProducts();
-  const deltaById = {};
-  const nameById = {};
   active.forEach(s => {
     const pIdx = products.findIndex(p => p.id === s.productId);
     if(pIdx >= 0) {
       const p = products[pIdx];
-      const rawDelta = stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
-      products[pIdx].stock = (parseFloat(p.stock) || 0) + rawDelta; // optimistic UI
-      deltaById[s.productId] = (deltaById[s.productId] || 0) + rawDelta;
-      nameById[s.productId] = s.productName;
+      products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0); // optimistic local UI only
     }
   });
   persistProductsLocal(products);
-  const restore = Object.keys(deltaById).map(function(id) {
-    return { id: parseInt(id, 10), name: nameById[id], delta: deltaById[id] };
-  });
 
   const now = Date.now();
+  const updates = [];
   sales.forEach(function(s) {
     if(!s.voided) {
       s.voided = true; s.voidedAt = now; s.voidedBy = 'Admin (toplu ləğv)';
-      supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: now, voided_by: s.voidedBy });
+      // Server stock is restored by the DB trigger on this update (single source
+      // of truth) — do NOT also adjust_stock here or it would double-restore.
+      updates.push(supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: now, voided_by: s.voidedBy }));
     }
   });
   saveSales(sales);
   logActivity('sales_log_cleared', { count: active.length });
-  applyStockAdjustments(restore).then(function() { renderSalesLog(); });
+  Promise.all(updates).then(function() { return syncInventoryFromServer(); })
+    .then(function() { renderSalesLog(); renderAdminDash(); renderPublicProducts(); });
   renderSalesLog();
   renderAdminDash();
   renderPublicProducts();
@@ -8096,12 +8117,14 @@ function undoSale(ts) {
   if(!confirm('Bu satışı geri almaq? Stok bərpa olunacaq və əməliyyat admin üçün Fəaliyyət Jurnalına yazılacaq.')) return;
 
   const products = loadRawProducts();
-  // Restore stock
+  // Optimistic local restore only (localStorage). Server stock is restored by
+  // the DB trigger when `voided` flips to true — the single source of truth.
+  // Do NOT push stock to the server here (would double-restore via the trigger).
   const pIdx = products.findIndex(p => p.id === s.productId);
   if(pIdx >= 0) {
     const p = products[pIdx];
     products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, s.qty);
-    saveProducts(products);
+    persistProductsLocal(products);
   }
 
   // Soft delete: keep the row (marked voided) so it stays visible to admin in
@@ -8111,7 +8134,9 @@ function undoSale(ts) {
   sales[idx].voidedAt = Date.now();
   sales[idx].voidedBy = actor.name;
   saveSales(sales);
-  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy });
+  supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: sales[idx].voidedAt, voided_by: sales[idx].voidedBy })
+    .then(function() { return syncInventoryFromServer(); })
+    .then(function() { renderMySales(); renderSaleProducts(); renderAdminDash(); });
   logActivity('sale_voided', {
     saleTs: s.ts, productId: s.productId, productName: s.productName,
     qty: s.qty, total: s.total, customer: s.customer
@@ -12345,19 +12370,80 @@ function financeRenderMonthBars() {
   el.innerHTML = data.map(d => {
     const revH = Math.max(4, Math.round(d.revenue / maxVal * 110));
     const profH = Math.max(4, Math.round(Math.max(0, d.profit) / maxVal * 110));
-    const revTip = d.label + ' — Gəlir: ' + financeFmtAzn(d.revenue);
-    const profTip = d.label + ' — Mənfəət: ' + financeFmtAzn(d.profit);
-    const wrapTip = d.label + ': Gəlir ' + financeFmtAzn(d.revenue) + ' · Mənfəət ' + financeFmtAzn(d.profit);
+    // Compact value shown above the bars at rest; the full figures live in the
+    // data-* attributes and are surfaced by the instant hover tooltip.
     const valueLabel = d.revenue > 0 ? financeFmtCompactAzn(d.revenue) : '';
-    return `<div class="finance-month-bar-wrap" title="${escapeHtml(wrapTip)}">
+    return `<div class="finance-month-bar-wrap"
+      data-month="${escapeHtml(d.label)}"
+      data-rev="${escapeHtml(financeFmtAzn(d.revenue))}"
+      data-prof="${escapeHtml(financeFmtAzn(d.profit))}">
       <div class="finance-month-bar-value">${escapeHtml(valueLabel)}</div>
       <div class="finance-month-bar-group">
-        <div class="finance-month-bar" style="height:${revH}px;" title="${escapeHtml(revTip)}"></div>
-        <div class="finance-month-bar profit" style="height:${profH}px;" title="${escapeHtml(profTip)}"></div>
+        <div class="finance-month-bar" style="height:${revH}px;"></div>
+        <div class="finance-month-bar profit" style="height:${profH}px;"></div>
       </div>
       <div class="finance-month-bar-label">${escapeHtml(d.label)}</div>
     </div>`;
   }).join('');
+  financeWireMonthBarTooltip();
+}
+
+var _financeChartTipWired = false;
+function financeWireMonthBarTooltip() {
+  const bars = document.getElementById('finance-month-bars');
+  const tip = document.getElementById('finance-chart-tip');
+  if(!bars || !tip || _financeChartTipWired) return;
+  _financeChartTipWired = true;
+
+  function wrapFrom(target) {
+    let n = target;
+    while(n && n !== bars) {
+      if(n.classList && n.classList.contains('finance-month-bar-wrap')) return n;
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  function showTip(wrap, x, y) {
+    const month = wrap.getAttribute('data-month') || '';
+    const rev = wrap.getAttribute('data-rev') || '';
+    const prof = wrap.getAttribute('data-prof') || '';
+    tip.innerHTML =
+      '<div class="tip-month">' + escapeHtml(month) + '</div>' +
+      '<div class="tip-row"><span class="tip-dot finance-legend-revenue"></span>Gəlir: ' + escapeHtml(rev) + '</div>' +
+      '<div class="tip-row"><span class="tip-dot finance-legend-profit"></span>Mənfəət: ' + escapeHtml(prof) + '</div>';
+    tip.style.display = 'block';
+    moveTip(x, y);
+    requestAnimationFrame(function() { tip.style.opacity = '1'; });
+  }
+
+  function moveTip(x, y) {
+    const pad = 14;
+    const w = tip.offsetWidth || 160;
+    let left = x + pad;
+    if(left + w > window.innerWidth - 8) left = x - w - pad;
+    let top = y - tip.offsetHeight - pad;
+    if(top < 8) top = y + pad;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function hideTip() {
+    tip.style.opacity = '0';
+    tip.style.display = 'none';
+  }
+
+  bars.addEventListener('mouseover', function(e) {
+    const wrap = wrapFrom(e.target);
+    if(wrap) showTip(wrap, e.clientX, e.clientY);
+  });
+  bars.addEventListener('mousemove', function(e) {
+    if(tip.style.display === 'block') moveTip(e.clientX, e.clientY);
+  });
+  bars.addEventListener('mouseout', function(e) {
+    const to = e.relatedTarget;
+    if(!to || !bars.contains(to)) hideTip();
+  });
 }
 
 function financePaymentSelect(ts, current) {
