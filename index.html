@@ -3923,12 +3923,26 @@ function recordWarehouseStatusChange(saleId, status, changedAt, changedByOverrid
 // fulfillment status visible across devices without a GitHub publish.
 async function syncSalesFromServer() {
   try {
-    const hadSession = hasSupabaseSession();
+    // Reloading straight into /finance or /sales (bookmark, F5, restored
+    // browser tab) restores the sessionStorage "signed in" flag instantly,
+    // but the Supabase session lives in localStorage and may have expired,
+    // been rejected, or — for the admin master-login shortcuts — never been
+    // bridged at all in this tab yet. A Clerk-authenticated admin can always
+    // be silently re-bridged, so try that before giving up.
+    if (!hasSupabaseSession() && isAdminAuthed()) {
+      await acquireAdminSupabaseSession();
+    }
     await ensureFreshSession();
-    if (hadSession && !hasSupabaseSession()) {
-      // The refresh token was definitively rejected mid-visit — every read
-      // below will now run as anon and RLS will silently return zero rows.
-      // Tell the user now rather than let Xülasə/registers just look empty.
+    if (!hasSupabaseSession() && isAdminAuthed()) {
+      // ensureFreshSession() just rejected/wiped the session above — one
+      // more silent re-bridge attempt before surfacing anything, since a
+      // valid Clerk session can always mint a fresh Supabase one.
+      await acquireAdminSupabaseSession();
+    }
+    if (!hasSupabaseSession()) {
+      // Every read below will now run as anon and RLS just filters those
+      // rows to an empty array (HTTP 200, not an error) — indistinguishable
+      // from "no sales exist" unless we say otherwise here.
       notifySupabaseSessionLost();
     }
     const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes, pricingRes] = await Promise.all([
