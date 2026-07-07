@@ -1810,8 +1810,14 @@
   .finance-table tbody tr:hover { background:rgba(62,140,88,0.04); }
   .finance-month-bars { display:flex; align-items:flex-end; gap:8px; height:140px; padding:12px 0; }
   .finance-month-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+  /* The pair of bars sits in a fixed-height row that fills the wrap width and
+     centers its bars. Bars use a definite width (NOT width:100%): a percentage
+     width here depended on a shrink-to-fit parent, a circular sizing case some
+     browsers resolve to 0 — which rendered the bars invisible (zero width,
+     full height) while the month labels below still showed. */
+  .finance-month-bar-group { display:flex; align-items:flex-end; justify-content:center; gap:4px; height:120px; width:100%; }
   .finance-month-bar {
-    width:100%; max-width:48px; border-radius:6px 6px 0 0; min-height:4px;
+    width:22px; border-radius:6px 6px 0 0; min-height:4px; flex:0 0 auto;
     background:linear-gradient(180deg, var(--green-accent), var(--green-dark));
   }
   .finance-month-bar.profit { background:linear-gradient(180deg, var(--gold-light), var(--gold)); }
@@ -12316,7 +12322,7 @@ function financeRenderMonthBars() {
     const revH = Math.max(4, Math.round(d.revenue / maxVal * 110));
     const profH = Math.max(4, Math.round(Math.max(0, d.profit) / maxVal * 110));
     return `<div class="finance-month-bar-wrap" title="${d.label}: gəlir ${financeFmtAzn(d.revenue)}, mənfəət ${financeFmtAzn(d.profit)}">
-      <div style="display:flex;align-items:flex-end;gap:3px;height:120px;">
+      <div class="finance-month-bar-group">
         <div class="finance-month-bar" style="height:${revH}px;" title="Gəlir"></div>
         <div class="finance-month-bar profit" style="height:${profH}px;" title="Mənfəət"></div>
       </div>
