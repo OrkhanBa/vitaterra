@@ -4066,6 +4066,8 @@ async function syncSalesFromServer() {
       localSales.forEach(function(s) { if (!byTs[s.ts]) byTs[s.ts] = s; });
       const merged = Object.keys(byTs).map(function(k) { return byTs[k]; }).sort(function(a,b){ return a.ts - b.ts; });
       saveSales(merged);
+      // Register any sale customers that aren't managed records yet (self-heal).
+      backfillCustomersFromSales();
     }
     if (activityRes.ok) {
       const remoteActivity = (await activityRes.json()).map(supabaseRowToActivity);
@@ -7388,6 +7390,34 @@ function ensureCustomerRecord(name) {
   list.push(rec);
   saveCustomers(list);
   supabaseUpsertCustomer(rec);
+}
+
+// One-time self-healing backfill: walk every customer name that appears on a
+// (non-voided) sale and make sure it exists as a managed customer record. This
+// captures names created on sales before auto-registration existed, and also
+// pushes each device's local-only sale customers up to Supabase.
+function backfillCustomersFromSales() {
+  var list = getCustomers();
+  var have = {};
+  list.forEach(function(c) { have[custKey(c.name)] = true; });
+  var toAdd = {};
+  getSales().forEach(function(s) {
+    if (s.voided) return;
+    var n = (s.customer || '').trim();
+    if (!n) return;
+    if (n.toLowerCase() === SHOP_CUSTOMER_LABEL.toLowerCase()) return;
+    var k = custKey(n);
+    if (have[k] || toAdd[k]) return;
+    toAdd[k] = n; // keep first-seen spelling
+  });
+  var names = Object.keys(toAdd);
+  if (!names.length) return;
+  names.forEach(function(k) {
+    var rec = { name: toAdd[k], phone: '', address: '', note: '' };
+    list.push(rec);
+    supabaseUpsertCustomer(rec);
+  });
+  saveCustomers(list);
 }
 
 async function supabaseUpsertCustomer(c) {
