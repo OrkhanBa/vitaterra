@@ -2853,7 +2853,14 @@
 
     <!-- Recent sales — full width below products + summary -->
     <div class="sale-form-card my-recent-sales-card">
-      <div class="sale-form-title" style="font-size:18px;margin-bottom:16px;" data-en="My Recent Sales" data-az="Son satışlarım">Son satışlarım</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div class="sale-form-title" style="font-size:18px;margin:0;" data-en="My Recent Sales" data-az="Son satışlarım">Son satışlarım</div>
+        <div style="position:relative;flex:1;min-width:200px;max-width:340px;">
+          <input type="text" id="my-sales-search" class="form-input" oninput="mySalesSearchChange(this.value)" autocomplete="off" placeholder="🔍 Məhsul adı ilə axtar..." style="padding:8px 30px 8px 12px;font-size:13px;width:100%;"/>
+          <button type="button" id="my-sales-search-clear" onclick="mySalesSearchClear()" title="Təmizlə" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-light);padding:0;">✕</button>
+        </div>
+      </div>
+      <div id="my-sales-search-info" style="display:none;font-size:12px;color:var(--text-light);margin-bottom:10px;"></div>
       <div class="my-sales-table-wrap">
         <table class="my-sales-slip-table">
           <thead>
@@ -7987,7 +7994,26 @@ function groupMySalesSlips(salesRows) {
   return Object.keys(groups).map(function(k) { return groups[k]; }).sort(function(a, b) { return b.ts - a.ts; });
 }
 
+// Search term for filtering executed sales by product name ('' = no filter).
+var mySalesSearch = '';
+function mySalesSearchChange(v) {
+  mySalesSearch = (v || '').trim();
+  const clr = document.getElementById('my-sales-search-clear');
+  if (clr) clr.style.display = mySalesSearch ? 'block' : 'none';
+  renderMySales();
+}
+function mySalesSearchClear() {
+  mySalesSearch = '';
+  const inp = document.getElementById('my-sales-search');
+  if (inp) inp.value = '';
+  const clr = document.getElementById('my-sales-search-clear');
+  if (clr) clr.style.display = 'none';
+  renderMySales();
+}
+
 function renderMySalesLineItem(s) {
+  const term = (mySalesSearch || '').toLowerCase();
+  const isMatch = term && (s.productName || '').toLowerCase().indexOf(term) !== -1;
   const discBadge = (s.discountPct > 0)
     ? '<span style="font-size:10px;background:rgba(230,126,34,0.15);color:var(--warning);padding:2px 7px;border-radius:4px;font-weight:600;margin-right:6px;">−' + s.discountPct + '%</span>'
     : '';
@@ -8003,7 +8029,7 @@ function renderMySalesLineItem(s) {
         '<button type="button" class="btn-edit" style="padding:4px 10px;font-size:11px;" onclick="event.stopPropagation();openEditSale(\'' + s.ts + '\')">Redaktə</button>' +
         '<button type="button" class="btn-del" style="padding:4px 10px;font-size:11px;" onclick="event.stopPropagation();undoSale(\'' + s.ts + '\')">Geri al</button>' +
       '</div>';
-  return '<div class="my-sales-line-item" style="' + (s.voided ? 'opacity:0.7;' : '') + '">' +
+  return '<div class="my-sales-line-item" style="' + (s.voided ? 'opacity:0.7;' : '') + (isMatch ? 'background:rgba(46,204,113,0.14);border-radius:6px;padding-left:6px;' : '') + '">' +
     '<div style="flex:1;min-width:0;">' +
       '<div style="font-size:13px;font-weight:600;' + (s.voided ? 'text-decoration:line-through;' : '') + '">' + escapeHtml(s.productName) + '</div>' +
       '<div style="font-size:11px;color:var(--text-light);">Say: ' + s.qty + ' &middot; ' + formatAzn(s.total) + '</div>' +
@@ -8022,13 +8048,31 @@ function renderMySales() {
   const mine = myKey
     ? sales.filter(s => (s.salespersonUsername || '') === myKey || (!s.salespersonUsername && (s.salesperson || '') === me.name))
     : sales;
-  const slips = groupMySalesSlips(mine).slice(0, 30);
-  if(!slips.length) {
-    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);font-size:13px;padding:24px;">Hələ satış yoxdur.</td></tr>';
+  let slips = groupMySalesSlips(mine);
+  const term = (mySalesSearch || '').toLowerCase();
+  const searchActive = term.length > 0;
+  if (searchActive) {
+    slips = slips.filter(function(slip) {
+      return slip.items.some(function(it) { return (it.productName || '').toLowerCase().indexOf(term) !== -1; });
+    });
+  }
+  const info = document.getElementById('my-sales-search-info');
+  if (info) {
+    if (searchActive) {
+      info.style.display = 'block';
+      info.innerHTML = '«' + escapeHtml(mySalesSearch) + '» üzrə <b>' + slips.length + '</b> satış tapıldı';
+    } else {
+      info.style.display = 'none';
+      info.innerHTML = '';
+    }
+  }
+  const shown = slips.slice(0, searchActive ? 200 : 30);
+  if(!shown.length) {
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);font-size:13px;padding:24px;">' + (searchActive ? 'Bu məhsulla satış tapılmadı.' : 'Hələ satış yoxdur.') + '</td></tr>';
     return;
   }
-  list.innerHTML = slips.map(function(slip) {
-    const expanded = mySalesExpandedSlip === slip.saleId;
+  list.innerHTML = shown.map(function(slip) {
+    const expanded = searchActive || mySalesExpandedSlip === slip.saleId;
     const slipIdEsc = String(slip.saleId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const rowClass = 'my-sales-slip-row' + (expanded ? ' expanded' : '') + (slip.allVoided ? ' voided-slip' : '');
     const customer = slip.customer || '—';
