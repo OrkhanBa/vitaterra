@@ -7580,6 +7580,10 @@ function renderCustomers() {
     + '<button class="btn-add" style="font-size:13px;padding:8px 16px;" onclick="openNewCustomer()">➕ Yeni müştəri</button>'
     + '</div>';
 
+  // Deleting a customer (and reversing their sales' stock) is an admin-only
+  // action, shown only in the admin panel.
+  var canDelete = (typeof currentView !== 'undefined' && currentView === 'admin');
+
   var body;
   if (!rows.length) {
     body = '<div style="text-align:center;color:var(--text-light);padding:36px;">' + (term ? 'Uyğun müştəri tapılmadı' : 'Hələ müştəri yoxdur — satış edildikcə burada görünəcək') + '</div>';
@@ -7589,11 +7593,15 @@ function renderCustomers() {
       + '<th style="padding:9px 6px;">Müştəri</th><th style="padding:9px 6px;">Telefon</th>'
       + '<th style="padding:9px 6px;" class="num">Satış</th><th style="padding:9px 6px;" class="num">Ümumi satış</th>'
       + '<th style="padding:9px 6px;" class="num">Ödənilən</th><th style="padding:9px 6px;" class="num">Qalıq borc</th>'
-      + '<th style="padding:9px 6px;">Son fəaliyyət</th></tr></thead><tbody>'
+      + '<th style="padding:9px 6px;">Son fəaliyyət</th>' + (canDelete ? '<th style="padding:9px 6px;"></th>' : '') + '</tr></thead><tbody>'
       + rows.map(function(c) {
           var balColor = c.balance > 0.005 ? '#c25454' : (c.balance < -0.005 ? '#3e8c58' : 'var(--text-light)');
           var last = c.lastTs ? new Date(c.lastTs).toLocaleDateString('az') : '—';
-          return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;" onclick="openCustomerDetail(' + JSON.stringify(c.name).replace(/"/g, '&quot;') + ')">'
+          var nameArg = JSON.stringify(c.name).replace(/"/g, '&quot;');
+          var delCell = canDelete
+            ? '<td style="padding:10px 6px;white-space:nowrap;"><button title="Müştərini sil" onclick="event.stopPropagation(); deleteCustomer(' + nameArg + ')" style="border:1px solid rgba(192,57,43,0.4);background:rgba(192,57,43,0.06);color:#c0392b;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;">🗑 Sil</button></td>'
+            : '';
+          return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;" onclick="openCustomerDetail(' + nameArg + ')">'
             + '<td style="padding:10px 6px;font-weight:600;">' + escapeHtml(c.name) + '</td>'
             + '<td style="padding:10px 6px;color:var(--text-mid);">' + (c.phone ? escapeHtml(c.phone) : '—') + '</td>'
             + '<td style="padding:10px 6px;" class="num">' + c.salesCount + '</td>'
@@ -7601,6 +7609,7 @@ function renderCustomers() {
             + '<td style="padding:10px 6px;color:#3e8c58;" class="num">' + formatAzn(c.paid) + '</td>'
             + '<td style="padding:10px 6px;font-weight:700;" class="num"><span style="color:' + balColor + ';">' + formatAzn(c.balance) + '</span></td>'
             + '<td style="padding:10px 6px;color:var(--text-light);white-space:nowrap;">' + last + '</td>'
+            + delCell
             + '</tr>';
         }).join('')
       + '</tbody></table></div>';
@@ -7608,6 +7617,75 @@ function renderCustomers() {
   var html = summary + head + body;
   containers.forEach(function(el) { el.innerHTML = html; });
   refreshCustomerDatalist();
+}
+
+function supabaseDeleteCustomer(name) {
+  return fetch(SUPABASE_URL + '/rest/v1/customers?name=eq.' + encodeURIComponent(name), {
+    method: 'DELETE', headers: supabaseHeaders()
+  }).catch(function(e) { console.warn('customer delete failed:', e); });
+}
+
+// Admin-only: delete a customer. Their active (non-voided) sales are voided,
+// which restores the sold stock via the DB trigger (single source of truth —
+// we only do an optimistic local restore for instant UI). The customer's
+// managed record(s) and payments are removed too.
+function deleteCustomer(name) {
+  var n = (name || '').trim();
+  if (!n) return;
+  if (sameCust(n, SHOP_CUSTOMER_LABEL)) {
+    showToast('«' + SHOP_CUSTOMER_LABEL + '» daxili köçürmə müştərisidir — buradan silinə bilməz.', true);
+    return;
+  }
+  var sales = getSales();
+  var active = sales.filter(function(s) { return !s.voided && sameCust(s.customer, n); });
+  var msg = 'Bu müştərini silmək istəyirsən?\n\n«' + n + '»\n';
+  if (active.length) msg += '\n• ' + active.length + ' aktiv satış LƏĞV ediləcək və satılmış stok anbara geri qaytarılacaq.';
+  msg += '\n• Müştəri qeydi və ödənişləri silinəcək.\n\nBu əməliyyat geri qaytarıla bilməz.';
+  if (!confirm(msg)) return;
+
+  var now = Date.now();
+  var products = loadRawProducts();
+  var updates = [];
+  sales.forEach(function(s) {
+    if (s.voided || !sameCust(s.customer, n)) return;
+    // Optimistic local stock restore for instant UI (server stock is restored
+    // authoritatively by the DB trigger when `voided` flips to true).
+    var pIdx = products.findIndex(function(p) { return p.id === s.productId; });
+    if (pIdx >= 0) {
+      var p = products[pIdx];
+      products[pIdx].stock = (parseFloat(p.stock) || 0) + stockDeltaRaw(p, parseInt(s.qty, 10) || 0);
+    }
+    s.voided = true; s.voidedAt = now; s.voidedBy = 'Admin (müştəri silindi)';
+    updates.push(supabaseUpdateSaleByTs(s.ts, { voided: true, voided_at: now, voided_by: s.voidedBy }));
+    logActivity('sale_voided', {
+      saleTs: s.ts, productId: s.productId, productName: s.productName,
+      qty: s.qty, total: s.total, customer: s.customer, reason: 'customer_deleted'
+    });
+  });
+  if (active.length) { persistProductsLocal(products); saveSales(sales); }
+
+  // Remove the customer's payments (local + server).
+  var payments = getCustomerPayments();
+  payments.filter(function(p) { return sameCust(p.customer, n); }).forEach(function(p) { supabaseDeletePayment(p.id); });
+  saveCustomerPayments(payments.filter(function(p) { return !sameCust(p.customer, n); }));
+
+  // Remove the managed customer record(s) — every spelling matching this name.
+  var list = getCustomers();
+  list.filter(function(c) { return sameCust(c.name, n); }).forEach(function(c) { supabaseDeleteCustomer(c.name); });
+  saveCustomers(list.filter(function(c) { return !sameCust(c.name, n); }));
+
+  logActivity('customer_deleted', { customer: n, voidedSales: active.length });
+  showToast('Müştəri silindi' + (active.length ? ' · ' + active.length + ' satış ləğv edildi, stok qaytarıldı' : ''));
+
+  // Refresh inventory from the server (the trigger updated it) then re-render.
+  Promise.all(updates).then(function() { return syncInventoryFromServer(); }).then(function() {
+    renderCustomers();
+    if (typeof renderAdminDash === 'function') renderAdminDash();
+    if (typeof renderSalesLog === 'function') renderSalesLog();
+    if (typeof renderMySales === 'function') renderMySales();
+    if (typeof renderPublicProducts === 'function') renderPublicProducts();
+  });
+  renderCustomers();
 }
 
 var _customerDetailName = null;
