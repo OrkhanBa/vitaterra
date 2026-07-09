@@ -7342,6 +7342,27 @@ function shopCustomerPay(name) {
   if (_shopDetailCustomer && sameCust(_shopDetailCustomer, name)) openShopCustomerDetail(_shopDetailCustomer);
 }
 
+// Inline payment form inside the shop customer detail card (amount + note).
+function shopCustomerPaySubmit(name) {
+  var amtEl = document.getElementById('shop-pay-amount');
+  var noteEl = document.getElementById('shop-pay-note');
+  var amt = parseFloat(String((amtEl && amtEl.value) || '').replace(',', '.'));
+  if (!isFinite(amt) || amt <= 0) { showToast('Düzgün məbləğ daxil edin', true); if (amtEl) amtEl.focus(); return; }
+  var note = (noteEl && noteEl.value ? noteEl.value : '').trim();
+  var ledger = getShopLedger();
+  var user = getCurrentSalesUser();
+  ledger.payments.push({
+    id: 'SPAY-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000),
+    customer: name, amount: +amt.toFixed(2), method: 'cash', note: note,
+    ts: Date.now(), recordedBy: user ? (user.name || user.username) : 'admin'
+  });
+  saveShopLedger(ledger);
+  supabaseUpsertShop();
+  showToast('Dükan ödənişi qeyd edildi · ' + formatAzn(amt));
+  renderShopCustomers();
+  if (_shopDetailCustomer && sameCust(_shopDetailCustomer, name)) openShopCustomerDetail(_shopDetailCustomer);
+}
+
 // ── Dükan müştəri detalı (clickable) ─────────────────────────────────────
 // Opens an isolated detail view for one shop customer: KPIs, every shop sale
 // (with items, unit prices, dates) and the payment history. Nothing here
@@ -7414,8 +7435,11 @@ function openShopCustomerDetail(name) {
       + kpi('Balans (borc)', formatAzn(balance), balColor)
       + kpi('Satış sayı', String(sales.length))
     + '</div>'
-    + '<div style="text-align:right;margin-bottom:14px;">'
-      + '<button onclick="shopCustomerPay(\'' + nameAttr + '\')" style="padding:8px 16px;font-size:13px;border:none;background:var(--primary);color:#fff;border-radius:8px;cursor:pointer;font-weight:600;">＋ Ödəniş qeyd et</button>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:rgba(0,0,0,0.03);padding:12px;border-radius:10px;margin-bottom:16px;">'
+      + '<span style="font-weight:600;margin-right:auto;">Ödəniş əlavə et</span>'
+      + '<input id="shop-pay-amount" type="number" step="0.01" min="0" placeholder="Məbləğ ₼" style="padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;width:130px;font-size:13px;" onkeydown="if(event.key===\'Enter\')shopCustomerPaySubmit(\'' + nameAttr + '\')"/>'
+      + '<input id="shop-pay-note" type="text" placeholder="Qeyd (istəyə bağlı)" style="padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;width:200px;font-size:13px;" onkeydown="if(event.key===\'Enter\')shopCustomerPaySubmit(\'' + nameAttr + '\')"/>'
+      + '<button onclick="shopCustomerPaySubmit(\'' + nameAttr + '\')" style="padding:8px 16px;font-size:13px;border:none;background:var(--primary);color:#fff;border-radius:8px;cursor:pointer;font-weight:600;">＋ Qeyd et</button>'
     + '</div>'
     + '<div style="font-weight:700;margin-bottom:6px;">Satışlar</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:22px;">'
