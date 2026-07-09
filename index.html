@@ -2981,18 +2981,25 @@
 
       <!-- Shop sales history -->
       <div class="sale-form-card my-recent-sales-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
           <div class="sale-form-title" style="font-size:18px;margin:0;">Dükan satışları</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--text-light);">Müştəri filtri:</label>
+            <select id="shop-sales-filter" onchange="shopSalesFilterChange(this.value)" class="form-input" style="min-width:180px;padding:6px 10px;font-size:13px;">
+              <option value="">Hamısı</option>
+            </select>
+          </div>
         </div>
+        <div id="shop-sales-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;"></div>
         <div class="my-sales-table-wrap">
           <table class="my-sales-slip-table">
             <thead>
               <tr>
+                <th style="width:34px;text-align:center;"><input type="checkbox" id="shop-sales-select-all" onclick="shopToggleSelectAllSales(this)" title="Hamısını seç"/></th>
                 <th>Tarix</th>
                 <th>Müştəri</th>
                 <th>Məhsullar</th>
                 <th class="num">Məbləğ</th>
-                <th class="toggle" aria-hidden="true"></th>
               </tr>
             </thead>
             <tbody id="shop-sales-list"></tbody>
@@ -7039,27 +7046,96 @@ async function shopConfirmSale() {
   }
 }
 
+// Selected customer for the Dükan sales filter ('' = show all).
+var shopSalesFilterCustomer = '';
+
+// Fill the customer filter dropdown with the distinct customers that appear on
+// Dükan sales (case-insensitive, keeping the first-seen spelling).
+function shopPopulateSalesFilter(sales) {
+  var sel = document.getElementById('shop-sales-filter');
+  if (!sel) return;
+  var seen = {}, names = [];
+  sales.forEach(function(s) {
+    var name = (s.customer || '').trim();
+    if (!name) return;
+    var k = custKey(name);
+    if (!seen[k]) { seen[k] = true; names.push(name); }
+  });
+  names.sort(function(a, b) { return a.localeCompare(b, 'az'); });
+  var cur = shopSalesFilterCustomer;
+  sel.innerHTML = '<option value="">Hamısı</option>' + names.map(function(n) {
+    return '<option value="' + escapeHtml(n) + '"' + (sameCust(n, cur) ? ' selected' : '') + '>' + escapeHtml(n) + '</option>';
+  }).join('');
+}
+
+function shopSalesFilterChange(val) {
+  shopSalesFilterCustomer = val || '';
+  renderShopSalesHistory();
+}
+
+function shopToggleSelectAllSales(cb) {
+  var boxes = document.querySelectorAll('#shop-sales-list .shop-sale-cb');
+  boxes.forEach(function(b) { b.checked = cb.checked; });
+  shopUpdateSelectionTotal();
+}
+
+// Recompute the "selected" total from whichever row checkboxes are ticked.
+function shopUpdateSelectionTotal() {
+  var boxes = document.querySelectorAll('#shop-sales-list .shop-sale-cb');
+  var count = 0, total = 0;
+  boxes.forEach(function(b) {
+    if (b.checked) { count++; total += parseFloat(b.getAttribute('data-total')) || 0; }
+  });
+  var el = document.getElementById('shop-sales-sel-summary');
+  if (el) {
+    el.innerHTML = count
+      ? '✓ Seçilmiş: <b>' + count + '</b> satış — <b>' + formatAzn(total) + '</b>'
+      : '<span style="color:var(--text-light);">Seçim yoxdur</span>';
+  }
+  var all = document.getElementById('shop-sales-select-all');
+  if (all) all.checked = boxes.length > 0 && count === boxes.length;
+}
+
 function renderShopSalesHistory() {
   var tb = document.getElementById('shop-sales-list');
   if (!tb) return;
   var ledger = getShopLedger();
-  var sales = ledger.sales.slice().sort(function(a, b) { return b.ts - a.ts; });
-  if (!sales.length) {
+  var allSales = ledger.sales.slice().sort(function(a, b) { return b.ts - a.ts; });
+  shopPopulateSalesFilter(allSales);
+  var summaryEl = document.getElementById('shop-sales-summary');
+  if (!allSales.length) {
     tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:24px;">Hələ dükan satışı yoxdur</td></tr>';
+    if (summaryEl) summaryEl.innerHTML = '';
     return;
   }
-  tb.innerHTML = sales.map(function(s) {
-    var d = new Date(s.ts);
-    var dateStr = d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
-    var itemsStr = (s.items || []).map(function(it) { return escapeHtml(it.name) + ' ×' + it.qty; }).join(', ');
-    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
-      + '<td style="padding:10px 6px;white-space:nowrap;">' + dateStr + '</td>'
-      + '<td style="padding:10px 6px;">' + (s.customer ? escapeHtml(s.customer) : '<span style="color:var(--text-light);">—</span>') + '</td>'
-      + '<td style="padding:10px 6px;font-size:12px;color:var(--text-mid);">' + itemsStr + '</td>'
-      + '<td class="num" style="padding:10px 6px;font-weight:700;">' + formatAzn(s.total) + '</td>'
-      + '<td></td>'
-      + '</tr>';
-  }).join('');
+  var flt = shopSalesFilterCustomer;
+  var sales = flt ? allSales.filter(function(s) { return sameCust(s.customer, flt); }) : allSales;
+  if (!sales.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:24px;">Bu müştəri üçün satış tapılmadı</td></tr>';
+  } else {
+    tb.innerHTML = sales.map(function(s) {
+      var d = new Date(s.ts);
+      var dateStr = d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
+      var itemsStr = (s.items || []).map(function(it) { return escapeHtml(it.name) + ' ×' + it.qty; }).join(', ');
+      return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+        + '<td style="padding:10px 6px;text-align:center;"><input type="checkbox" class="shop-sale-cb" data-total="' + (s.total || 0) + '" onchange="shopUpdateSelectionTotal()"/></td>'
+        + '<td style="padding:10px 6px;white-space:nowrap;">' + dateStr + '</td>'
+        + '<td style="padding:10px 6px;">' + (s.customer ? escapeHtml(s.customer) : '<span style="color:var(--text-light);">—</span>') + '</td>'
+        + '<td style="padding:10px 6px;font-size:12px;color:var(--text-mid);">' + itemsStr + '</td>'
+        + '<td class="num" style="padding:10px 6px;font-weight:700;">' + formatAzn(s.total) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+  var fTotal = sales.reduce(function(a, s) { return a + (s.total || 0); }, 0);
+  if (summaryEl) {
+    var label = flt ? ('«' + escapeHtml(flt) + '» üzrə') : 'Cəmi (hamısı)';
+    summaryEl.innerHTML =
+      '<span style="background:rgba(0,0,0,0.04);padding:6px 12px;border-radius:8px;">' + label + ': <b>' + sales.length + '</b> satış — <b>' + formatAzn(fTotal) + '</b></span>'
+      + '<span id="shop-sales-sel-summary" style="background:rgba(0,0,0,0.04);padding:6px 12px;border-radius:8px;"><span style="color:var(--text-light);">Seçim yoxdur</span></span>';
+  }
+  var all = document.getElementById('shop-sales-select-all');
+  if (all) all.checked = false;
+  shopUpdateSelectionTotal();
 }
 
 function shopManualSync(btn) {
