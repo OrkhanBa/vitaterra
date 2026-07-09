@@ -3581,6 +3581,21 @@ function supabaseHeaders(extra) {
 // Fire-and-forget insert — local localStorage write already happened, so a
 // network failure here just means this row syncs on the next successful sync
 // instead of blocking the UI.
+// Re-upload sale rows that exist locally but are missing on the server. Runs
+// on load after the sales merge; each is a plain insert (no stock change), and
+// the sales.ts UNIQUE constraint makes duplicate pushes harmless. Cap the batch
+// so a large local backlog can't flood the network in one go.
+function pushUnsyncedSales(rows) {
+  if (!hasSupabaseSession() || !Array.isArray(rows) || !rows.length) return;
+  var batch = rows.slice(0, 100);
+  batch.forEach(function(s) {
+    if (s && s.ts && (s.productId || s.productName)) supabaseInsertSale(s);
+  });
+  if (rows.length > batch.length) {
+    console.warn('pushUnsyncedSales: ' + (rows.length - batch.length) + ' more will retry next load');
+  }
+}
+
 function supabaseInsertSale(row) {
   const payload = {
     ts: row.ts, product_id: row.productId, product_name: row.productName,
@@ -4064,10 +4079,15 @@ async function syncSalesFromServer() {
       remoteSales.forEach(function(s) { byTs[s.ts] = s; });
       // Keep any local-only rows that haven't synced yet (e.g. created offline).
       localSales.forEach(function(s) { if (!byTs[s.ts]) byTs[s.ts] = s; });
+      // Local rows the server doesn't have yet — re-upload them (retry for
+      // sales whose original insert never reached Supabase). Insert-only; it
+      // does NOT touch inventory, and UNIQUE(ts) guards against duplicates.
+      const unsyncedSales = localSales.filter(function(s) { return !byTs[s.ts]; });
       const merged = Object.keys(byTs).map(function(k) { return byTs[k]; }).sort(function(a,b){ return a.ts - b.ts; });
       saveSales(merged);
       // Register any sale customers that aren't managed records yet (self-heal).
       backfillCustomersFromSales();
+      pushUnsyncedSales(unsyncedSales);
     }
     if (activityRes.ok) {
       const remoteActivity = (await activityRes.json()).map(supabaseRowToActivity);
