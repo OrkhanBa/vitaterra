@@ -848,6 +848,7 @@
     border-bottom:2px solid rgba(0,0,0,0.08);
   }
   .my-sales-slip-table thead th.num { text-align:right; }
+  .shop-cust-row:hover { background:rgba(45,92,63,0.05); }
   .my-sales-slip-row { cursor:pointer; transition:background 0.15s; }
   .my-sales-slip-row:hover { background:rgba(45,92,63,0.04); }
   .my-sales-slip-row.expanded { background:rgba(45,92,63,0.06); }
@@ -2149,6 +2150,14 @@
   </div>
 </div>
 
+<!-- Dükan (shop) customer detail — isolated from the company AR. Shows this
+     customer's shop sales (items, prices, dates), payments and balance. -->
+<div class="modal-overlay" id="shop-customer-detail-modal">
+  <div class="modal" style="max-width:760px;">
+    <div id="shop-customer-detail-body" style="padding:22px;max-height:82vh;overflow:auto;"></div>
+  </div>
+</div>
+
 <!-- Stock reconciliation / audit (admin). Compares live stock vs sales records
      and shows the stock-movement ledger. Opened via openStockAudit(). -->
 <div class="modal-overlay" id="stock-audit-modal">
@@ -2994,7 +3003,7 @@
             <input type="text" id="shop-cust-search" class="form-input" oninput="shopCustSearchChange(this.value)" autocomplete="off" placeholder="🔍 Müştəri axtar..." style="padding:8px 12px;font-size:13px;width:100%;"/>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Balans = satılan − ödənilən. Ödənişlər yalnız Dükana aiddir, şirkət maliyyəsinə təsir etmir.</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Balans = satılan − ödənilən. Ödənişlər yalnız Dükana aiddir, şirkət maliyyəsinə təsir etmir. Detallar üçün müştərinin üstünə klikləyin.</div>
         <div id="shop-customers-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;"></div>
         <div class="my-sales-table-wrap">
           <table class="my-sales-slip-table">
@@ -3005,8 +3014,7 @@
                 <th class="num">Satılan</th>
                 <th class="num">Ödənilən</th>
                 <th class="num">Balans (borc)</th>
-                <th>Son tarix</th>
-                <th style="width:1%;"></th>
+                <th class="num">Son tarix</th>
               </tr>
             </thead>
             <tbody id="shop-customers-list"></tbody>
@@ -7260,29 +7268,30 @@ function renderShopCustomers() {
   var rows = term ? all.filter(function(c) { return c.name.toLowerCase().indexOf(term) !== -1; }) : all;
   var summaryEl = document.getElementById('shop-customers-summary');
   if (!all.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:24px;">Hələ dükan müştərisi yoxdur</td></tr>';
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:24px;">Hələ dükan müştərisi yoxdur</td></tr>';
     if (summaryEl) summaryEl.innerHTML = '';
     return;
   }
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light);padding:24px;">Müştəri tapılmadı</td></tr>';
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:24px;">Müştəri tapılmadı</td></tr>';
   } else {
+    // Cell padding (10px 14px) matches `.my-sales-slip-table thead th`, and the
+    // numeric columns are right-aligned inline so they line up under the headers.
+    var pad = 'padding:12px 14px;';
+    var padR = pad + 'text-align:right;white-space:nowrap;';
     tb.innerHTML = rows.map(function(c) {
       var d = c.lastTs ? new Date(c.lastTs) : null;
       var dateStr = d ? (d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5)) : '—';
       var balColor = c.balance > 0.005 ? '#c0392b' : (c.balance < -0.005 ? '#27ae60' : 'var(--text-light)');
       var nameEsc = escapeHtml(c.name);
       var nameAttr = nameEsc.replace(/'/g, "\\'");
-      return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
-        + '<td style="padding:10px 6px;font-weight:600;cursor:pointer;color:var(--primary);" onclick="shopViewCustomerSales(\'' + nameAttr + '\')" title="Satışlarını göstər">' + nameEsc + '</td>'
-        + '<td class="num" style="padding:10px 6px;">' + c.salesCount + '</td>'
-        + '<td class="num" style="padding:10px 6px;">' + formatAzn(c.totalSold) + '</td>'
-        + '<td class="num" style="padding:10px 6px;">' + formatAzn(c.paid) + '</td>'
-        + '<td class="num" style="padding:10px 6px;font-weight:700;color:' + balColor + ';">' + formatAzn(c.balance) + '</td>'
-        + '<td style="padding:10px 6px;white-space:nowrap;font-size:12px;color:var(--text-mid);">' + dateStr + '</td>'
-        + '<td style="padding:10px 6px;white-space:nowrap;">'
-          + '<button onclick="shopCustomerPay(\'' + nameAttr + '\')" class="btn-mini" style="padding:5px 10px;font-size:12px;border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:6px;cursor:pointer;">＋ Ödəniş</button>'
-        + '</td>'
+      return '<tr class="shop-cust-row" style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;" onclick="openShopCustomerDetail(\'' + nameAttr + '\')" title="Detalları göstər">'
+        + '<td style="' + pad + 'font-weight:600;color:var(--primary);">' + nameEsc + '</td>'
+        + '<td style="' + padR + '">' + c.salesCount + '</td>'
+        + '<td style="' + padR + '">' + formatAzn(c.totalSold) + '</td>'
+        + '<td style="' + padR + '">' + formatAzn(c.paid) + '</td>'
+        + '<td style="' + padR + 'font-weight:700;color:' + balColor + ';">' + formatAzn(c.balance) + '</td>'
+        + '<td style="' + padR + 'font-size:12px;color:var(--text-mid);font-weight:400;">' + dateStr + '</td>'
         + '</tr>';
     }).join('');
   }
@@ -7329,6 +7338,97 @@ function shopCustomerPay(name) {
   supabaseUpsertShop();
   showToast('Dükan ödənişi qeyd edildi · ' + formatAzn(amt));
   renderShopCustomers();
+  // Refresh the detail modal if it's open for this customer.
+  if (_shopDetailCustomer && sameCust(_shopDetailCustomer, name)) openShopCustomerDetail(_shopDetailCustomer);
+}
+
+// ── Dükan müştəri detalı (clickable) ─────────────────────────────────────
+// Opens an isolated detail view for one shop customer: KPIs, every shop sale
+// (with items, unit prices, dates) and the payment history. Nothing here
+// touches the company's main customers/finance.
+var _shopDetailCustomer = null;
+
+function closeShopCustomerDetail() {
+  _shopDetailCustomer = null;
+  var m = document.getElementById('shop-customer-detail-modal');
+  if (m) m.classList.remove('open');
+}
+
+function openShopCustomerDetail(name) {
+  var body = document.getElementById('shop-customer-detail-body');
+  var modal = document.getElementById('shop-customer-detail-modal');
+  if (!body || !modal) return;
+  _shopDetailCustomer = name;
+  var ledger = getShopLedger();
+  var sales = (ledger.sales || []).filter(function(s) { return !s.voided && sameCust(s.customer, name); })
+    .sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+  var payments = (ledger.payments || []).filter(function(p) { return sameCust(p.customer, name); })
+    .sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+  var totalSold = sales.reduce(function(a, s) { return a + ((+s.total) || 0); }, 0);
+  var paid = payments.reduce(function(a, p) { return a + ((+p.amount) || 0); }, 0);
+  var balance = +(totalSold - paid).toFixed(2);
+  var balColor = balance > 0.005 ? '#c0392b' : (balance < -0.005 ? '#27ae60' : 'var(--text-light)');
+  var nameEsc = escapeHtml(name);
+  var nameAttr = nameEsc.replace(/'/g, "\\'");
+
+  function kpi(label, val, color) {
+    return '<div style="flex:1;min-width:120px;background:rgba(0,0,0,0.03);border-radius:10px;padding:12px 14px;">'
+      + '<div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">' + label + '</div>'
+      + '<div style="font-size:20px;font-weight:800;color:' + (color || 'var(--text-dark)') + ';">' + val + '</div></div>';
+  }
+
+  var salesRows = sales.length ? sales.map(function(s) {
+    var d = new Date(s.ts);
+    var dateStr = d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
+    var itemsStr = (s.items || []).map(function(it) {
+      var up = (it.unitPrice != null) ? it.unitPrice : (it.price != null ? it.price : 0);
+      return escapeHtml(it.name) + ' ×' + it.qty + ' @ ' + formatAzn(up);
+    }).join('<br>');
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+      + '<td style="padding:10px 12px;white-space:nowrap;vertical-align:top;">' + dateStr + '</td>'
+      + '<td style="padding:10px 12px;font-size:12px;color:var(--text-mid);">' + (itemsStr || '—') + '</td>'
+      + '<td style="padding:10px 12px;text-align:right;font-weight:700;white-space:nowrap;vertical-align:top;">' + formatAzn(s.total) + '</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-light);padding:18px;">Satış yoxdur</td></tr>';
+
+  var payRows = payments.length ? payments.map(function(p) {
+    var d = new Date(p.ts);
+    var dateStr = d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);">'
+      + '<td style="padding:8px 12px;white-space:nowrap;">' + dateStr + '</td>'
+      + '<td style="padding:8px 12px;font-size:12px;color:var(--text-mid);">' + (escapeHtml(p.note || '') || '—') + '</td>'
+      + '<td style="padding:8px 12px;font-size:12px;color:var(--text-light);">' + escapeHtml(p.recordedBy || '') + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;font-weight:700;color:#27ae60;white-space:nowrap;">' + formatAzn(p.amount) + '</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:14px;">Ödəniş yoxdur</td></tr>';
+
+  body.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;">'
+      + '<div><div style="font-size:22px;font-weight:800;">' + nameEsc + '</div>'
+      + '<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Dükan müştərisi · şirkət maliyyəsindən ayrıdır</div></div>'
+      + '<button onclick="closeShopCustomerDetail()" style="background:none;border:none;font-size:26px;line-height:1;cursor:pointer;color:var(--text-light);">×</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">'
+      + kpi('Satılan', formatAzn(totalSold))
+      + kpi('Ödənilən', formatAzn(paid), '#27ae60')
+      + kpi('Balans (borc)', formatAzn(balance), balColor)
+      + kpi('Satış sayı', String(sales.length))
+    + '</div>'
+    + '<div style="text-align:right;margin-bottom:14px;">'
+      + '<button onclick="shopCustomerPay(\'' + nameAttr + '\')" style="padding:8px 16px;font-size:13px;border:none;background:var(--primary);color:#fff;border-radius:8px;cursor:pointer;font-weight:600;">＋ Ödəniş qeyd et</button>'
+    + '</div>'
+    + '<div style="font-weight:700;margin-bottom:6px;">Satışlar</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:22px;">'
+      + '<thead><tr style="border-bottom:2px solid rgba(0,0,0,0.08);text-align:left;color:var(--text-mid);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">'
+      + '<th style="padding:8px 12px;">Tarix</th><th style="padding:8px 12px;">Məhsullar (qiymət ilə)</th><th style="padding:8px 12px;text-align:right;">Cəmi</th></tr></thead>'
+      + '<tbody>' + salesRows + '</tbody></table>'
+    + '<div style="font-weight:700;margin-bottom:6px;">Ödənişlər</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<thead><tr style="border-bottom:2px solid rgba(0,0,0,0.08);text-align:left;color:var(--text-mid);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">'
+      + '<th style="padding:8px 12px;">Tarix</th><th style="padding:8px 12px;">Qeyd</th><th style="padding:8px 12px;">Qeyd edən</th><th style="padding:8px 12px;text-align:right;">Məbləğ</th></tr></thead>'
+      + '<tbody>' + payRows + '</tbody></table>';
+
+  modal.classList.add('open');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -11660,6 +11760,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var esm = document.getElementById('edit-sale-modal'); if(esm) esm.addEventListener('click', function(e){ if(e.target===this) closeEditSale(); });
   var cdm = document.getElementById('customer-detail-modal'); if(cdm) cdm.addEventListener('click', function(e){ if(e.target===this) closeCustomerDetail(); });
   var sam = document.getElementById('stock-audit-modal'); if(sam) sam.addEventListener('click', function(e){ if(e.target===this) closeStockAudit(); });
+  var scd = document.getElementById('shop-customer-detail-modal'); if(scd) scd.addEventListener('click', function(e){ if(e.target===this) closeShopCustomerDetail(); });
 
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
