@@ -1850,6 +1850,19 @@
   .finance-pay-select {
     border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:12px; background:var(--white);
   }
+  .fin-pay-status-cell { white-space:nowrap; }
+  .fin-pay-badge {
+    display:inline-block; padding:3px 9px; border-radius:100px; font-size:11px; font-weight:700; letter-spacing:.2px;
+  }
+  .fin-pay-paid { background:rgba(39,174,96,0.14); color:#1e7e45; }
+  .fin-pay-debt { background:rgba(230,126,34,0.16); color:#c0620d; }
+  .fin-pay-btn {
+    margin-left:6px; border:none; border-radius:6px; padding:4px 9px; font-size:11px; font-weight:600;
+    cursor:pointer; vertical-align:middle; transition:filter .12s ease;
+  }
+  .fin-pay-btn:hover { filter:brightness(0.94); }
+  .fin-pay-confirm { background:var(--green-dark); color:#fff; }
+  .fin-pay-revert { background:transparent; color:var(--text-light); padding:2px 7px; font-size:13px; }
 
   /* ─── LANGUAGE SWITCHER ─── */
   .lang-switcher {
@@ -3125,7 +3138,7 @@
     <div id="finance-panel-sales" class="finance-panel hidden">
       <div class="finance-panel-head">
         <div class="finance-panel-title">Satış registeri (mühasibat)</div>
-        <div style="font-size:12px;color:var(--text-light);">Ödəniş növünü sətirdən dəyişə bilərsiniz</div>
+        <div style="font-size:12px;color:var(--text-light);">Hər satış avtomatik debitordur — ödəniş daxil olduqda "Ödənişi təsdiqlə"</div>
       </div>
       <div class="finance-table-wrap">
         <table class="finance-table">
@@ -3141,7 +3154,8 @@
               <th class="num">Maya ₼</th>
               <th class="num">Mənfəət ₼</th>
               <th class="num">Marja</th>
-              <th>Ödəniş</th>
+              <th>Ödəniş üsulu</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="finance-sales-tbody"></tbody>
@@ -3613,7 +3627,9 @@ function supabaseInsertSale(row) {
     discount_pct: row.discountPct || null, unit_price_original: row.unitPriceOriginal || null,
     vat_applicable: !!row.vatApplicable, edited: !!row.edited,
     voided: !!row.voided, voided_at: row.voidedAt || null, voided_by: row.voidedBy || null,
-    payment_method: row.paymentMethod || 'cash',
+    payment_method: row.paymentMethod || 'bank',
+    payment_status: row.paymentStatus || 'unpaid',
+    paid_at: row.paidAt || null, paid_by: row.paidBy || null,
     sale_id: row.saleId || null, warehouse_status: row.warehouseStatus || WAREHOUSE_STATUS_DEFAULT,
   };
   return fetch(SUPABASE_URL + '/rest/v1/sales', {
@@ -3655,7 +3671,9 @@ function supabaseRowToSale(r) {
     discountPct: r.discount_pct || undefined, unitPriceOriginal: r.unit_price_original || undefined,
     vatApplicable: !!r.vat_applicable, edited: !!r.edited,
     voided: !!r.voided, voidedAt: r.voided_at || undefined, voidedBy: r.voided_by || undefined,
-    paymentMethod: r.payment_method || 'cash',
+    paymentMethod: r.payment_method || 'bank',
+    paymentStatus: r.payment_status || 'paid',
+    paidAt: r.paid_at || undefined, paidBy: r.paid_by || undefined,
     saleId: r.sale_id || undefined, warehouseStatus: r.warehouse_status || WAREHOUSE_STATUS_DEFAULT,
   };
 }
@@ -8317,7 +8335,8 @@ async function confirmSale() {
       ts: ts + confirmed, productId: p.id, productName: p.name, qty: x.qty,
       unitPrice: x.unitPrice, total: x.total, customer,
       salesperson: sellerName, salespersonUsername: sellerUsername,
-      saleId: saleId, warehouseStatus: WAREHOUSE_STATUS_DEFAULT
+      saleId: saleId, warehouseStatus: WAREHOUSE_STATUS_DEFAULT,
+      paymentMethod: 'bank', paymentStatus: 'unpaid', paidAt: null
     };
     if (productHasVat(p)) row.vatApplicable = true;
     if(discountPct > 0) {
@@ -12621,7 +12640,7 @@ const FINANCE_EXPENSE_CATEGORIES = [
 const FINANCE_PAYMENT_METHODS = [
   { value: 'cash', label: 'Nağd' },
   { value: 'bank', label: 'Bank köçürməsi' },
-  { value: 'credit', label: 'Borc (debitor)' }
+  { value: 'credit', label: 'Borc (köhnə)' }
 ];
 var financeSubTabActive = 'summary';
 var financeEditingExpenseId = null;
@@ -12877,8 +12896,10 @@ function financeCollectMetrics(range) {
   const inventoryValueQepik = invTotals.cost;
   const inventorySaleValueQepik = invTotals.sale;
 
-  const creditSales = sales.filter(r => (r.sale.paymentMethod || 'cash') === 'credit');
-  const receivablesQepik = qSum(creditSales.map(r => r.revenueQepik));
+  const unpaidSales = sales.filter(r => (r.sale.paymentStatus || 'paid') !== 'paid');
+  const receivablesQepik = qSum(unpaidSales.map(r => r.revenueQepik));
+  const collectedQepik = revenueQepik - receivablesQepik;
+  const receivableCount = unpaidSales.length;
 
   return {
     sales,
@@ -12897,6 +12918,8 @@ function financeCollectMetrics(range) {
     inventorySaleValueQepik,
     inventoryDisplayValueQepik: invTotals.value,
     receivablesQepik,
+    collectedQepik,
+    receivableCount,
     saleCount: sales.length
   };
 }
@@ -12998,7 +13021,8 @@ function financeRenderPL(m) {
       <div class="pl-label">Əməliyyat xərcləri (OPEX)</div><div class="pl-val pl-negative">−${financeFmtAzn(m.opexQepik)}</div>
       <div class="pl-label pl-total">Xalis mənfəət</div><div class="pl-val pl-total ${netCls}">${financeFmtAzn(m.netProfitQepik)}</div>
       <div class="pl-section">Balans qeydləri</div>
-      <div class="pl-label">Debitor borclar (kredit satış)</div><div class="pl-val">${financeFmtAzn(m.receivablesQepik)}</div>
+      <div class="pl-label">Debitor borclar (ödənilməmiş${m.receivableCount ? ' · ' + m.receivableCount + ' satış' : ''})</div><div class="pl-val">${financeFmtAzn(m.receivablesQepik)}</div>
+      <div class="pl-label">Yığılmış ödəniş</div><div class="pl-val">${financeFmtAzn(m.collectedQepik)}</div>
       <div class="pl-label">Anbar dəyəri (maya / alış)</div><div class="pl-val">${financeFmtAzn(m.inventoryValueQepik)}</div>
       <div class="pl-label">Anbar dəyəri (satış qiyməti)</div><div class="pl-val">${financeFmtAzn(m.inventorySaleValueQepik)}</div>
     </div>`;
@@ -13115,7 +13139,7 @@ function financeWireMonthBarTooltip() {
 }
 
 function financePaymentSelect(ts, current) {
-  const cur = current || 'cash';
+  const cur = current || 'bank';
   const opts = FINANCE_PAYMENT_METHODS.map(m =>
     `<option value="${m.value}"${m.value === cur ? ' selected' : ''}>${escapeHtml(m.label)}</option>`
   ).join('');
@@ -13127,16 +13151,69 @@ function financeSetPaymentMethod(ts, method) {
   const idx = sales.findIndex(s => String(s.ts) === String(ts));
   if(idx < 0) return;
   sales[idx].paymentMethod = method;
+  const patch = { payment_method: method };
+  // Cash is the exception path: it is settled at the counter, so switching a
+  // sale to Nağd also marks it paid straight away (unless already paid).
+  if(method === 'cash' && (sales[idx].paymentStatus || 'unpaid') !== 'paid') {
+    const actor = currentActivityActor();
+    const now = Date.now();
+    sales[idx].paymentStatus = 'paid';
+    sales[idx].paidAt = now;
+    sales[idx].paidBy = actor.name || actor.username || '';
+    patch.payment_status = 'paid';
+    patch.paid_at = now;
+    patch.paid_by = sales[idx].paidBy;
+  }
   saveSales(sales);
-  supabaseUpdateSaleByTs(sales[idx].ts, { payment_method: method });
+  supabaseUpdateSaleByTs(sales[idx].ts, patch);
   financeRender();
+}
+
+// Toggle a sale between debitor (unpaid) and settled (paid). This is how
+// finance confirms that a bank transfer / cash has actually landed.
+function financeSetPaymentStatus(ts, status) {
+  const sales = getSales();
+  const idx = sales.findIndex(s => String(s.ts) === String(ts));
+  if(idx < 0) return;
+  const actor = currentActivityActor();
+  if(status === 'paid') {
+    const now = Date.now();
+    sales[idx].paymentStatus = 'paid';
+    sales[idx].paidAt = now;
+    sales[idx].paidBy = actor.name || actor.username || '';
+    saveSales(sales);
+    supabaseUpdateSaleByTs(sales[idx].ts, { payment_status: 'paid', paid_at: now, paid_by: sales[idx].paidBy });
+    logActivity('sale_payment_confirmed', { saleTs: sales[idx].ts, saleId: sales[idx].saleId, customer: sales[idx].customer, total: sales[idx].total });
+    showToast('Ödəniş təsdiqləndi · ' + escapeHtml(sales[idx].customer || sales[idx].productName || ''));
+  } else {
+    sales[idx].paymentStatus = 'unpaid';
+    sales[idx].paidAt = null;
+    sales[idx].paidBy = '';
+    saveSales(sales);
+    supabaseUpdateSaleByTs(sales[idx].ts, { payment_status: 'unpaid', paid_at: null, paid_by: null });
+    logActivity('sale_payment_reverted', { saleTs: sales[idx].ts, saleId: sales[idx].saleId, customer: sales[idx].customer, total: sales[idx].total });
+    showToast('Debitor kimi qeyd olundu');
+  }
+  financeRender();
+}
+
+function financePaymentStatusCell(s) {
+  const paid = (s.paymentStatus || 'paid') === 'paid';
+  if(paid) {
+    const when = s.paidAt ? new Date(s.paidAt).toLocaleDateString() : '';
+    const tip = when ? (' title="' + escapeHtml('Ödənilib: ' + when + (s.paidBy ? (' · ' + s.paidBy) : '')) + '"') : '';
+    return '<span class="fin-pay-badge fin-pay-paid"' + tip + '>Ödənilib</span>'
+      + '<button class="fin-pay-btn fin-pay-revert" onclick="financeSetPaymentStatus(\'' + s.ts + '\', \'unpaid\')" title="Debitora qaytar">↺</button>';
+  }
+  return '<span class="fin-pay-badge fin-pay-debt">Debitor</span>'
+    + '<button class="fin-pay-btn fin-pay-confirm" onclick="financeSetPaymentStatus(\'' + s.ts + '\', \'paid\')">Ödənişi təsdiqlə</button>';
 }
 
 function financeRenderSalesRegister(rows) {
   const tbody = document.getElementById('finance-sales-tbody');
   if(!tbody) return;
   if(!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-light);padding:28px;">Seçilmiş dövrdə satış yoxdur.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-light);padding:28px;">Seçilmiş dövrdə satış yoxdur.</td></tr>';
     return;
   }
   tbody.innerHTML = [...rows].reverse().map(r => {
@@ -13154,6 +13231,7 @@ function financeRenderSalesRegister(rows) {
       <td class="num ${r.profitQepik >= 0 ? 'pl-positive' : 'pl-negative'}">${financeFmtAzn(r.profitQepik)}</td>
       <td class="num ${marginCls}">${r.marginPct.toFixed(1)}%</td>
       <td>${financePaymentSelect(s.ts, s.paymentMethod)}</td>
+      <td class="fin-pay-status-cell">${financePaymentStatusCell(s)}</td>
     </tr>`;
   }).join('');
 }
@@ -13448,6 +13526,7 @@ function financeExportXlsx() {
     { 'Göstərici': 'OPEX xərclər (AZN)', 'Məbləğ': qToAzn(m.opexQepik) },
     { 'Göstərici': 'Xalis mənfəət (AZN)', 'Məbləğ': qToAzn(m.netProfitQepik) },
     { 'Göstərici': 'Debitor borclar (AZN)', 'Məbləğ': qToAzn(m.receivablesQepik) },
+    { 'Göstərici': 'Yığılmış ödəniş (AZN)', 'Məbləğ': qToAzn(m.collectedQepik) },
     { 'Göstərici': 'Anbar dəyəri — maya (AZN)', 'Məbləğ': qToAzn(m.inventoryValueQepik) },
     { 'Göstərici': 'Anbar dəyəri — satış (AZN)', 'Məbləğ': qToAzn(m.inventorySaleValueQepik) },
     { 'Göstərici': 'USD/AZN məzənnə', 'Məbləğ': financeGetFx() }
@@ -13480,7 +13559,9 @@ function financeExportXlsx() {
     'Mənfəət AZN': qToAzn(r.profitQepik),
     'Marja %': +r.marginPct.toFixed(1),
     'Endirim %': r.sale.discountPct || 0,
-    'Ödəniş': (FINANCE_PAYMENT_METHODS.find(x => x.value === (r.sale.paymentMethod || 'cash')) || {}).label || 'Nağd'
+    'Ödəniş üsulu': (FINANCE_PAYMENT_METHODS.find(x => x.value === (r.sale.paymentMethod || 'bank')) || {}).label || 'Bank köçürməsi',
+    'Status': (r.sale.paymentStatus || 'paid') === 'paid' ? 'Ödənilib' : 'Debitor',
+    'Ödəniş tarixi': r.sale.paidAt ? new Date(r.sale.paidAt).toLocaleDateString() : ''
   }));
 
   // Voided expenses are exported too (marked, not omitted) so the ledger
