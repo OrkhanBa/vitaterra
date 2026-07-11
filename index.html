@@ -1863,6 +1863,8 @@
   .fin-pay-btn:hover { filter:brightness(0.94); }
   .fin-pay-confirm { background:var(--green-dark); color:#fff; }
   .fin-pay-revert { background:transparent; color:var(--text-light); padding:2px 7px; font-size:13px; }
+  .cust-sale-row:hover { background:rgba(46,204,113,0.08); }
+  .fin-sale-link:hover { color:var(--green-dark); }
 
   /* ─── LANGUAGE SWITCHER ─── */
   .lang-switcher {
@@ -7928,7 +7930,7 @@ function openCustomerDetail(name, isNew) {
         costCells = '<td style="padding:8px 6px;color:var(--text-mid);" class="num">' + (sl.allVoided ? '—' : financeFmtAzn(sc.cost)) + '</td>'
           + '<td style="padding:8px 6px;font-weight:600;color:' + pc + ';" class="num">' + (sl.allVoided ? '—' : financeFmtAzn(sc.profit)) + '</td>';
       }
-      return '<tr style="border-bottom:1px solid rgba(0,0,0,0.05);' + (sl.allVoided ? 'opacity:0.5;text-decoration:line-through;' : '') + '">'
+      return '<tr class="cust-sale-row" style="border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;' + (sl.allVoided ? 'opacity:0.5;text-decoration:line-through;' : '') + '" onclick="showSaleSlipDetail(' + JSON.stringify(sl.saleId).replace(/"/g, '&quot;') + ')" title="Qaiməni aç">'
         + '<td style="padding:8px 6px;white-space:nowrap;">' + new Date(sl.ts).toLocaleDateString('az') + '</td>'
         + '<td style="padding:8px 6px;font-size:12px;color:var(--text-mid);">' + items + '</td>'
         + '<td style="padding:8px 6px;font-weight:700;" class="num">' + formatAzn(sl.total) + '</td>'
@@ -8532,6 +8534,7 @@ function renderMySales() {
           '<div class="my-sales-slip-items">' +
             slip.items.map(renderMySalesLineItem).join('') +
           '</div>' +
+          '<div style="text-align:right;padding:6px 4px 2px;"><button type="button" onclick="event.stopPropagation();showSaleSlipDetail(\'' + slipIdEsc + '\')" style="background:var(--cream);color:var(--green-dark);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;">🧾 Qaimə aç</button></div>' +
         '</td></tr>'
       : '';
     return '<tr class="' + rowClass + '" onclick="toggleMySalesSlip(\'' + slipIdEsc + '\')">' +
@@ -8730,6 +8733,92 @@ function exportSaleSlipPdf(saleId) {
     console.error('PDF render failed:', e);
     showToast('PDF yaradıla bilmədi.', true);
   });
+}
+
+// ─── Sale invoice (qaimə) viewer ────────────────────────────
+// A single reusable modal that shows one order/slip as an invoice: per-product
+// unit price, quantity and line total, plus the grand total and payment status.
+// Wired everywhere a sale is listed (customer card, Finance register, sales log)
+// so any panel can drill from a row into the full breakdown.
+function showSaleSlipDetail(saleId) {
+  if (!saleId) return;
+  var items = getSales().filter(function(s) { return _warehouseIdMatch(String(saleId), s); });
+  if (!items.length) { showToast('Bu satış üçün məlumat tapılmadı.', true); return; }
+  items = items.slice().sort(function(a, b) { return (a.ts || 0) - (b.ts || 0); });
+  var first = items[0];
+
+  var grandTotal = 0, grandVat = 0, grandNet = 0, grandQty = 0, activeCount = 0;
+  var rowsHtml = items.map(function(it) {
+    var total = (+it.total) || 0;
+    var qty = (+it.qty) || 0;
+    var voided = !!it.voided;
+    var unit = qty > 0 ? total / qty : 0;
+    if (!voided) { grandTotal += total; grandQty += qty; activeCount++;
+      var vatAmt = it.vatApplicable ? total * VAT_RATE / (100 + VAT_RATE) : 0;
+      grandVat += vatAmt; grandNet += (total - vatAmt);
+    }
+    var discBadge = (it.discountPct > 0)
+      ? ' <span style="font-size:10px;background:rgba(230,126,34,0.15);color:#c0620d;padding:1px 6px;border-radius:4px;font-weight:600;">−' + it.discountPct + '%</span>'
+      : '';
+    var origHtml = (it.discountPct > 0 && it.unitPriceOriginal)
+      ? '<div style="font-size:10.5px;color:var(--text-light);text-decoration:line-through;">' + formatAzn(it.unitPriceOriginal) + '</div>'
+      : '';
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,0.06);' + (voided ? 'opacity:0.45;text-decoration:line-through;' : '') + '">'
+      + '<td style="padding:9px 8px;font-weight:600;">' + escapeHtml(it.productName) + discBadge + (voided ? ' <span style="font-size:10px;color:var(--danger);">LƏĞV</span>' : '') + '</td>'
+      + '<td style="padding:9px 8px;text-align:right;white-space:nowrap;">' + formatAzn(unit) + origHtml + '</td>'
+      + '<td style="padding:9px 8px;text-align:right;">' + qty + '</td>'
+      + '<td style="padding:9px 8px;text-align:right;font-weight:700;white-space:nowrap;">' + formatAzn(total) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var paid = (first.paymentStatus || 'paid') === 'paid';
+  var statusBadge = paid
+    ? '<span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(39,174,96,0.14);color:#1e7e45;">Ödənilib</span>'
+    : '<span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(230,126,34,0.16);color:#c0620d;">Debitor</span>';
+  var methodLabel = (FINANCE_PAYMENT_METHODS.filter(function(x){ return x.value === (first.paymentMethod || 'bank'); })[0] || {}).label || 'Bank köçürməsi';
+  var isLegacy = String(saleId).indexOf('legacy-') === 0;
+
+  var inner = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">'
+    + '<div><div style="font-size:18px;font-weight:800;color:var(--green-dark);">Qaimə</div>'
+    + '<div style="font-size:12px;color:var(--text-light);">' + escapeHtml(isLegacy ? '—' : String(saleId)) + '</div></div>'
+    + '<button onclick="closeSaleSlipDetail()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;">×</button></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12.5px;margin-bottom:16px;">'
+    + '<div><span style="color:var(--text-light);">Tarix:</span> ' + new Date(first.ts).toLocaleString('az') + '</div>'
+    + '<div><span style="color:var(--text-light);">Müştəri:</span> <strong>' + escapeHtml(first.customer || '—') + '</strong></div>'
+    + '<div><span style="color:var(--text-light);">Satıcı:</span> ' + escapeHtml(first.salesperson || '—') + '</div>'
+    + '<div><span style="color:var(--text-light);">Ödəniş:</span> ' + escapeHtml(methodLabel) + ' &middot; ' + statusBadge + '</div>'
+    + '</div>'
+    + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+    + '<thead><tr style="text-align:left;border-bottom:2px solid rgba(0,0,0,0.12);color:var(--text-light);font-size:11px;text-transform:uppercase;">'
+    + '<th style="padding:8px;">Məhsul</th><th style="padding:8px;text-align:right;">Vahid qiyməti</th><th style="padding:8px;text-align:right;">Say</th><th style="padding:8px;text-align:right;">Cəmi</th>'
+    + '</tr></thead><tbody>' + rowsHtml + '</tbody>'
+    + '<tfoot><tr style="border-top:2px solid rgba(0,0,0,0.12);">'
+    + '<td style="padding:10px 8px;font-weight:700;">Ümumi (' + activeCount + ' məhsul)</td>'
+    + '<td></td><td style="padding:10px 8px;text-align:right;font-weight:700;">' + grandQty + '</td>'
+    + '<td style="padding:10px 8px;text-align:right;font-weight:800;font-size:15px;color:var(--green-dark);">' + formatAzn(grandTotal) + '</td>'
+    + '</tr></tfoot></table></div>'
+    + (grandVat > 0 ? '<div style="text-align:right;font-size:11.5px;color:var(--text-light);margin-top:8px;">ƏDV-siz: ' + formatAzn(grandNet) + ' &middot; o cümlədən ƏDV (18%): ' + formatAzn(grandVat) + '</div>' : '')
+    + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">'
+    + (isLegacy ? '' : '<button onclick="exportSaleSlipPdf(' + JSON.stringify(String(saleId)).replace(/"/g, '&quot;') + ')" style="background:var(--cream);color:var(--green-dark);border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">PDF yüklə</button>')
+    + '<button onclick="closeSaleSlipDetail()" style="background:var(--green-dark);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">Bağla</button>'
+    + '</div>';
+
+  var existing = document.getElementById('sale-slip-modal');
+  if (existing) existing.parentNode.removeChild(existing);
+  var overlay = document.createElement('div');
+  overlay.id = 'sale-slip-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSaleSlipDetail(); });
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:14px;max-width:640px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+  card.innerHTML = inner;
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function closeSaleSlipDetail() {
+  var m = document.getElementById('sale-slip-modal');
+  if (m && m.parentNode) m.parentNode.removeChild(m);
 }
 
 function openEditSale(ts) {
@@ -13219,9 +13308,10 @@ function financeRenderSalesRegister(rows) {
   tbody.innerHTML = [...rows].reverse().map(r => {
     const s = r.sale;
     const marginCls = r.marginPct >= 20 ? 'pl-positive' : (r.marginPct < 10 ? 'pl-negative' : '');
+    const slipId = s.saleId || ('legacy-' + s.ts);
     return `<tr>
       <td>${new Date(s.ts).toLocaleString()}</td>
-      <td><strong>${escapeHtml(s.productName)}</strong></td>
+      <td><strong class="fin-sale-link" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="Qaiməni aç" onclick="showSaleSlipDetail('${slipId}')">${escapeHtml(s.productName)}</strong></td>
       <td>${escapeHtml(s.salesperson || '—')}</td>
       <td>${escapeHtml(s.customer || '—')}</td>
       <td class="num">${s.qty}</td>
