@@ -2879,9 +2879,14 @@
     <div class="sale-form-card my-recent-sales-card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
         <div class="sale-form-title" style="font-size:18px;margin:0;" data-en="My Recent Sales" data-az="Son satışlarım">Son satışlarım</div>
-        <div style="position:relative;flex:1;min-width:200px;max-width:340px;">
-          <input type="text" id="my-sales-search" class="form-input" oninput="mySalesSearchChange(this.value)" autocomplete="off" placeholder="🔍 Məhsul adı ilə axtar..." style="padding:8px 30px 8px 12px;font-size:13px;width:100%;"/>
-          <button type="button" id="my-sales-search-clear" onclick="mySalesSearchClear()" title="Təmizlə" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-light);padding:0;">✕</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;justify-content:flex-end;">
+          <select id="my-sales-cust-filter" class="form-input" onchange="mySalesCustFilterChange(this.value)" style="padding:8px 12px;font-size:13px;width:auto;max-width:220px;">
+            <option value="">Bütün müştərilər</option>
+          </select>
+          <div style="position:relative;flex:1;min-width:180px;max-width:300px;">
+            <input type="text" id="my-sales-search" class="form-input" oninput="mySalesSearchChange(this.value)" autocomplete="off" placeholder="🔍 Məhsul adı ilə axtar..." style="padding:8px 30px 8px 12px;font-size:13px;width:100%;"/>
+            <button type="button" id="my-sales-search-clear" onclick="mySalesSearchClear()" title="Təmizlə" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:14px;color:var(--text-light);padding:0;">✕</button>
+          </div>
         </div>
       </div>
       <div id="my-sales-search-info" style="display:none;font-size:12px;color:var(--text-light);margin-bottom:10px;"></div>
@@ -8444,6 +8449,7 @@ function groupMySalesSlips(salesRows) {
 
 // Search term for filtering executed sales by product name ('' = no filter).
 var mySalesSearch = '';
+var mySalesCustFilter = '';
 function mySalesSearchChange(v) {
   mySalesSearch = (v || '').trim();
   const clr = document.getElementById('my-sales-search-clear');
@@ -8457,6 +8463,30 @@ function mySalesSearchClear() {
   const clr = document.getElementById('my-sales-search-clear');
   if (clr) clr.style.display = 'none';
   renderMySales();
+}
+function mySalesCustFilterChange(v) {
+  mySalesCustFilter = (v || '').trim();
+  renderMySales();
+}
+// Fill the customer dropdown from the full set of the user's own slips,
+// preserving the current selection (case-insensitive).
+function mySalesPopulateCustFilter(slips) {
+  const sel = document.getElementById('my-sales-cust-filter');
+  if (!sel) return;
+  const seen = {}, names = [];
+  slips.forEach(function(s) {
+    const c = (s.customer || '').trim();
+    if (!c) return;
+    const k = custKey(c);
+    if (!seen[k]) { seen[k] = 1; names.push(c); }
+  });
+  names.sort(function(a, b) { return a.localeCompare(b, 'az'); });
+  const cur = mySalesCustFilter;
+  if (cur && !names.some(function(n) { return sameCust(n, cur); })) { mySalesCustFilter = ''; }
+  sel.innerHTML = '<option value="">Bütün müştərilər</option>' + names.map(function(n) {
+    const val = escapeHtml(n).replace(/"/g, '&quot;');
+    return '<option value="' + val + '"' + (sameCust(n, mySalesCustFilter) ? ' selected' : '') + '>' + escapeHtml(n) + '</option>';
+  }).join('');
 }
 
 function renderMySalesLineItem(s) {
@@ -8497,6 +8527,11 @@ function renderMySales() {
     ? sales.filter(s => (s.salespersonUsername || '') === myKey || (!s.salespersonUsername && (s.salesperson || '') === me.name))
     : sales;
   let slips = groupMySalesSlips(mine);
+  mySalesPopulateCustFilter(slips);
+  const custActive = (mySalesCustFilter || '').length > 0;
+  if (custActive) {
+    slips = slips.filter(function(slip) { return sameCust(slip.customer || '', mySalesCustFilter); });
+  }
   const term = (mySalesSearch || '').toLowerCase();
   const searchActive = term.length > 0;
   if (searchActive) {
@@ -8504,19 +8539,24 @@ function renderMySales() {
       return slip.items.some(function(it) { return (it.productName || '').toLowerCase().indexOf(term) !== -1; });
     });
   }
+  const anyFilter = custActive || searchActive;
   const info = document.getElementById('my-sales-search-info');
   if (info) {
-    if (searchActive) {
+    if (anyFilter) {
+      const parts = [];
+      if (custActive) parts.push('«' + escapeHtml(mySalesCustFilter) + '»');
+      if (searchActive) parts.push('«' + escapeHtml(mySalesSearch) + '» məhsulu');
       info.style.display = 'block';
-      info.innerHTML = '«' + escapeHtml(mySalesSearch) + '» üzrə <b>' + slips.length + '</b> satış tapıldı';
+      info.innerHTML = parts.join(' + ') + ' üzrə <b>' + slips.length + '</b> satış';
     } else {
-      info.style.display = 'none';
-      info.innerHTML = '';
+      info.style.display = 'block';
+      info.innerHTML = 'Cəmi <b>' + slips.length + '</b> satış';
     }
   }
-  const shown = slips.slice(0, searchActive ? 200 : 30);
+  // Show every slip that matches — no cap, so each user sees all their sales.
+  const shown = slips;
   if(!shown.length) {
-    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);font-size:13px;padding:24px;">' + (searchActive ? 'Bu məhsulla satış tapılmadı.' : 'Hələ satış yoxdur.') + '</td></tr>';
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);font-size:13px;padding:24px;">' + (anyFilter ? 'Bu filtrə uyğun satış tapılmadı.' : 'Hələ satış yoxdur.') + '</td></tr>';
     return;
   }
   list.innerHTML = shown.map(function(slip) {
