@@ -2236,6 +2236,14 @@
   </div>
 </div>
 
+<!-- Per-product sales history (admin). Shows who bought a product, how much,
+     at what price and when. Opened via openProductSalesHistory(productId). -->
+<div class="modal-overlay" id="product-sales-modal">
+  <div class="modal" style="max-width:920px;">
+    <div id="product-sales-body" style="padding:22px;max-height:86vh;overflow:auto;"></div>
+  </div>
+</div>
+
 <!-- Create / edit an app login (sales &/or finance). Roles are tick boxes so a
      single account can be granted both portals. Opened via openSalesUserModal()
      (create) or appUserEditRoles() (edit roles). -->
@@ -2861,6 +2869,7 @@
     </div>
     <div class="dash-nav-right">
       <span class="dash-user" id="sales-user-name">👤 Satış Komandası</span>
+      <button class="btn-logout" id="sales-to-finance" onclick="switchPortal('finance')" style="display:none">💰 Maliyyə</button>
       <button class="btn-logout" id="sales-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()" data-en="Sign Out" data-az="Çıxış">Çıxış</button>
     </div>
@@ -3173,6 +3182,7 @@
     </div>
     <div class="dash-nav-right">
       <span class="dash-user" id="finance-user-name">👤 Mühasibat</span>
+      <button class="btn-logout" id="finance-to-sales" onclick="switchPortal('sales')" style="display:none">🛒 Satış</button>
       <button class="btn-logout" id="finance-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()">Çıxış</button>
     </div>
@@ -5109,12 +5119,45 @@ function showView(v) {
   if (sba) sba.style.display = (v === 'sales' && adminAuthed) ? '' : 'none';
   var fba = document.getElementById('finance-back-admin');
   if (fba) fba.style.display = (v === 'finance' && adminAuthed) ? '' : 'none';
+  // Portal switcher: a user who can enter both portals (role 'sales_finance')
+  // can hop between Satış and Maliyyə without logging out and back in.
+  var both = canUseBothPortals();
+  var s2f = document.getElementById('sales-to-finance');
+  if (s2f) s2f.style.display = (v === 'sales' && both) ? '' : 'none';
+  var f2s = document.getElementById('finance-to-sales');
+  if (f2s) f2s.style.display = (v === 'finance' && both) ? '' : 'none';
   // Keep sales data live across devices while any data-sensitive view is open;
   // stop polling once back on the public site so we're not calling Supabase
   // for nothing.
   if(v === 'admin' || v === 'finance' || v === 'sales') startSalesAutoSync();
   else stopSalesAutoSync();
 }
+// True when the signed-in account may enter BOTH the sales and finance portals
+// (the combined 'sales_finance' role). Admins have their own navigation.
+function canUseBothPortals() {
+  return supabaseSessionRole() === 'sales_finance';
+}
+
+// Hop between the Satış and Maliyyə portals without re-authenticating. Only
+// works for accounts allowed in both; login already primed both sessions.
+function switchPortal(target) {
+  if(!canUseBothPortals()) return;
+  if(target === 'finance') {
+    setFinanceSignedIn(true);
+    showView('finance');
+  } else {
+    if(!getCurrentSalesUser()) {
+      setCurrentSalesUser({
+        username: (supabaseSession && supabaseSession.username) || '',
+        name: (supabaseSession && supabaseSession.name) || ''
+      });
+    }
+    showView('sales');
+    renderSalesView();
+    updateSalesHeader();
+  }
+}
+
 function scrollTo_(id) {
   const el = document.querySelector(id);
   if(el) el.scrollIntoView({behavior:'smooth'});
@@ -5607,14 +5650,19 @@ async function doLogin() {
       return;
     }
 
+    // Accounts that can enter both portals get both sessions primed at login,
+    // so they can switch between Satış and Maliyyə without signing in again.
+    const bothPortals = (role === 'sales_finance');
     if(loginTargetRole === 'sales') {
       setCurrentSalesUser({ username: sess.username || user, name: sess.name || sess.username || user });
+      if(bothPortals) setFinanceSignedIn(true);
       closeLogin();
       showView('sales');
       renderSalesView();
       updateSalesHeader();
     } else {
       setFinanceSignedIn(true);
+      if(bothPortals) setCurrentSalesUser({ username: sess.username || user, name: sess.name || sess.username || user });
       closeLogin();
       showView('finance');
     }
@@ -6127,6 +6175,7 @@ function renderAdminTable(filter) {
       <td>${adminStockCellHtml(p)}</td>
       <td>${adminStatusBadge(p)}</td>
       <td><div class="action-btns">
+        <button class="btn-edit" style="background:#2d6cb5;" onclick="openProductSalesHistory(${p.id})" title="Satış tarixçəsi">📜 Satışlar</button>
         <button class="btn-edit" onclick="openProductForm(${p.id})">Edit</button>
         <button class="btn-del" onclick="deleteProduct(${p.id})">Delete</button>
       </div></td>
@@ -6139,6 +6188,102 @@ function renderAdminTable(filter) {
 }
 
 function filterAdminTable(v) { adminFilter=v; renderAdminTable(v); }
+
+// ─── Per-product sales history (admin) ──────────────────────
+function closeProductSalesHistory() {
+  var m = document.getElementById('product-sales-modal');
+  if (m) m.classList.remove('open');
+}
+
+// Opens a timeline of every sale of a given product: who, how much, at what
+// unit price, when — plus totals. Voided sales are shown dimmed for audit.
+function openProductSalesHistory(id) {
+  var modal = document.getElementById('product-sales-modal');
+  var body  = document.getElementById('product-sales-body');
+  if (!modal || !body) return;
+
+  var products = getProducts();
+  var p = products.find(function(x){ return String(x.id) === String(id); });
+  var pname = (p && p.name) || 'Məhsul';
+
+  var rows = getSales().filter(function(s){ return String(s.productId) === String(id); });
+  rows.sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+
+  var active = rows.filter(function(s){ return !s.voided; });
+  var totalQty = active.reduce(function(t, s){ return t + (parseFloat(s.qty) || 0); }, 0);
+  var totalRev = active.reduce(function(t, s){
+    var tot = (s.total != null) ? parseFloat(s.total) : (parseFloat(s.qty)||0) * (parseFloat(s.unitPrice)||0);
+    return t + (tot || 0);
+  }, 0);
+  var custMap = {};
+  active.forEach(function(s){ var c = (s.customer || '').trim(); if (c) custMap[c.toLowerCase()] = true; });
+  var custCount = Object.keys(custMap).length;
+
+  function fmtTs(ts){
+    if (!ts) return '—';
+    var d = new Date(ts);
+    return d.toLocaleDateString('az') + ' ' + d.toTimeString().slice(0, 5);
+  }
+  function money(n){ return '₼' + (parseFloat(n) || 0).toFixed(2); }
+
+  var kpis =
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:14px 0 18px;">' +
+      '<div style="flex:1;min-width:130px;background:var(--cream);border-radius:10px;padding:12px 14px;">' +
+        '<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;">Satış sayı</div>' +
+        '<div style="font-size:20px;font-weight:700;color:var(--green-dark);">' + active.length + '</div></div>' +
+      '<div style="flex:1;min-width:130px;background:var(--cream);border-radius:10px;padding:12px 14px;">' +
+        '<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;">Ümumi say</div>' +
+        '<div style="font-size:20px;font-weight:700;color:var(--green-dark);">' + (Math.round(totalQty * 100) / 100) + '</div></div>' +
+      '<div style="flex:1;min-width:130px;background:var(--cream);border-radius:10px;padding:12px 14px;">' +
+        '<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;">Müştəri</div>' +
+        '<div style="font-size:20px;font-weight:700;color:var(--green-dark);">' + custCount + '</div></div>' +
+      '<div style="flex:1;min-width:130px;background:var(--cream);border-radius:10px;padding:12px 14px;">' +
+        '<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;">Ümumi məbləğ</div>' +
+        '<div style="font-size:20px;font-weight:700;color:var(--green-dark);">' + money(totalRev) + '</div></div>' +
+    '</div>';
+
+  var tableRows = rows.map(function(s){
+    var tot = (s.total != null) ? parseFloat(s.total) : (parseFloat(s.qty)||0) * (parseFloat(s.unitPrice)||0);
+    var voided = !!s.voided;
+    var dim = voided ? 'opacity:.5;text-decoration:line-through;' : '';
+    var statusBadge = voided
+      ? '<span style="background:#f8d7da;color:#c0392b;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">Ləğv</span>'
+      : ((s.paymentStatus === 'paid')
+          ? '<span style="background:#d4edda;color:#1e7e34;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">Ödənilib</span>'
+          : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">Ödənilməyib</span>');
+    return '<tr style="border-bottom:1px solid var(--border);' + dim + '">' +
+      '<td style="padding:9px 8px;white-space:nowrap;">' + fmtTs(s.ts) + '</td>' +
+      '<td style="padding:9px 8px;font-weight:600;color:var(--green-dark);">' + escapeHtml(s.customer || '—') + '</td>' +
+      '<td style="padding:9px 8px;color:var(--text-light);">' + escapeHtml(s.salesperson || s.salespersonUsername || '—') + '</td>' +
+      '<td style="padding:9px 8px;text-align:right;">' + (Math.round((parseFloat(s.qty)||0) * 100) / 100) + '</td>' +
+      '<td style="padding:9px 8px;text-align:right;">' + money(s.unitPrice) + '</td>' +
+      '<td style="padding:9px 8px;text-align:right;font-weight:700;">' + money(tot) + '</td>' +
+      '<td style="padding:9px 8px;text-align:center;">' + statusBadge + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var table = rows.length
+    ? ('<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<thead><tr style="background:var(--cream);text-align:left;">' +
+          '<th style="padding:9px 8px;">Tarix</th>' +
+          '<th style="padding:9px 8px;">Müştəri</th>' +
+          '<th style="padding:9px 8px;">Satıcı</th>' +
+          '<th style="padding:9px 8px;text-align:right;">Say</th>' +
+          '<th style="padding:9px 8px;text-align:right;">Vahid</th>' +
+          '<th style="padding:9px 8px;text-align:right;">Cəmi</th>' +
+          '<th style="padding:9px 8px;text-align:center;">Status</th>' +
+        '</tr></thead><tbody>' + tableRows + '</tbody></table></div>')
+    : '<div style="color:var(--text-light);padding:24px 0;text-align:center;">Bu məhsul üçün satış qeydi yoxdur.</div>';
+
+  body.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+      '<div><div style="font-size:18px;font-weight:700;color:var(--text);">📜 Satış tarixçəsi</div>' +
+      '<div style="font-size:13px;color:var(--text-light);margin-top:2px;">' + escapeHtml(pname) + '</div></div>' +
+      '<button onclick="closeProductSalesHistory()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-light);line-height:1;">×</button>' +
+    '</div>' + kpis + table;
+
+  modal.classList.add('open');
+}
 
 function toggleProductVat(id, checked) {
   const products = loadRawProducts();
@@ -12123,6 +12268,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var sam = document.getElementById('stock-audit-modal'); if(sam) sam.addEventListener('click', function(e){ if(e.target===this) closeStockAudit(); });
   var scd = document.getElementById('shop-customer-detail-modal'); if(scd) scd.addEventListener('click', function(e){ if(e.target===this) closeShopCustomerDetail(); });
   var sum = document.getElementById('sales-user-modal'); if(sum) sum.addEventListener('click', function(e){ if(e.target===this) closeSalesUserModal(); });
+  var psm = document.getElementById('product-sales-modal'); if(psm) psm.addEventListener('click', function(e){ if(e.target===this) closeProductSalesHistory(); });
 
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
