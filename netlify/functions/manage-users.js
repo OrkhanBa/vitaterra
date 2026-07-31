@@ -16,7 +16,8 @@ const { verifyClerkAuth } = require('./_clerk-auth');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gqhjntqfgwvyqpynfzut.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const EMAIL_DOMAIN = 'users.vitaterra.az';
-const VALID_ROLES = ['sales', 'finance'];
+// 'sales_finance' grants access to BOTH the sales and finance portals.
+const VALID_ROLES = ['sales', 'finance', 'sales_finance'];
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,7 +112,7 @@ exports.handler = async (event) => {
       const name = String(body.name || username).trim();
       if (!username) return reply(400, { error: 'Username required' });
       if (password.length < 6) return reply(400, { error: 'Password must be at least 6 characters' });
-      if (VALID_ROLES.indexOf(role) < 0) return reply(400, { error: 'Role must be sales or finance' });
+      if (VALID_ROLES.indexOf(role) < 0) return reply(400, { error: 'Role must be sales, finance or sales_finance' });
       if (await findByUsername(username)) return reply(409, { error: 'Username already exists' });
 
       const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
@@ -136,7 +137,7 @@ exports.handler = async (event) => {
       const appMeta = {};
       if (body.name !== undefined) appMeta.name = String(body.name).trim();
       if (body.role !== undefined) {
-        if (VALID_ROLES.indexOf(body.role) < 0) return reply(400, { error: 'Role must be sales or finance' });
+        if (VALID_ROLES.indexOf(body.role) < 0) return reply(400, { error: 'Role must be sales, finance or sales_finance' });
         appMeta.role = body.role;
       }
       if (Object.keys(appMeta).length) patch.app_metadata = appMeta;
@@ -154,6 +155,17 @@ exports.handler = async (event) => {
       });
       if (!res.ok) return reply(502, { error: 'Update failed', detail: (await res.text()).slice(0, 300) });
       return reply(200, { ok: true, user: toPublicUser(await res.json()) });
+    }
+
+    if (action === 'delete') {
+      const id = String(body.id || '').trim();
+      if (!id) return reply(400, { error: 'User id required' });
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (!res.ok) return reply(502, { error: 'Delete failed', detail: (await res.text()).slice(0, 300) });
+      return reply(200, { ok: true });
     }
 
     return reply(400, { error: 'Unknown action' });

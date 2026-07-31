@@ -1884,6 +1884,61 @@
   }
   .lang-btn:hover:not(.active) { color:var(--white); background:rgba(255,255,255,0.1); }
 
+  /* ─── WAREHOUSE RELEASE SLIP ─── */
+  /* Shown on screen in a modal, then handed to the browser's own print
+     dialog (which offers "Save as PDF" on every desktop and mobile OS).
+     This replaces the old jsPDF/html2canvas blob download, which silently
+     did nothing on iOS Safari and whenever the download lost its
+     user-gesture context. */
+  .slip-sheet {
+    background:#fff; color:#222; font-family:'DM Sans',sans-serif;
+    padding:28px; box-sizing:border-box;
+  }
+  .slip-sheet h1 { font-size:21px; font-weight:800; color:#1b4332; margin:0; }
+  .slip-sheet .slip-sub { font-size:14px; color:#555; margin:2px 0 18px; }
+  .slip-sheet .slip-meta { font-size:13px; line-height:1.9; margin-bottom:16px; }
+  /* Narrow phones can't fit five money columns, so the table scrolls sideways
+     on screen. Print always has the full page width and must not clip. */
+  .slip-table-wrap { overflow-x:auto; }
+  .slip-sheet table { width:100%; border-collapse:collapse; font-size:13px; }
+  .slip-sheet thead tr { background:#f2f2f2; }
+  .slip-sheet th { padding:7px 8px; text-align:left; border-bottom:2px solid #999; white-space:nowrap; }
+  .slip-sheet th.num, .slip-sheet td.num { text-align:right; white-space:nowrap; }
+  .slip-sheet td { padding:7px 8px; border-bottom:1px solid #ddd; }
+  .slip-sheet .slip-totals { text-align:right; font-size:12px; color:#555; margin-top:10px; line-height:1.7; }
+  .slip-sheet .slip-grand { text-align:right; font-size:15px; font-weight:800; margin-top:4px; }
+  /* Ruled blanks rather than rows of underscores, so the signature lines
+     reflow cleanly instead of wrapping mid-underscore on small screens. */
+  .slip-sheet .slip-signs { margin-top:44px; font-size:13px; }
+  .slip-sheet .slip-sign-row { display:flex; align-items:flex-end; gap:8px; margin-top:28px; white-space:nowrap; }
+  .slip-sheet .slip-line { flex:1 1 auto; min-width:70px; border-bottom:1px solid #444; height:1.1em; }
+  .slip-sheet .slip-line.sm { flex:0 0 96px; }
+
+  @media (max-width:520px) {
+    .slip-sheet { padding:20px 16px; }
+    .slip-sheet table { font-size:12px; }
+    .slip-sheet th, .slip-sheet td { padding:6px; }
+  }
+
+  @media print {
+    /* Hide the whole app and print only the slip. The modal is appended as a
+       direct child of <body>, so this sibling rule reaches everything else. */
+    body.printing-slip > *:not(#warehouse-slip-modal) { display:none !important; }
+    body.printing-slip { background:#fff !important; }
+    body.printing-slip #warehouse-slip-modal {
+      position:static !important; inset:auto !important; display:block !important;
+      background:#fff !important; padding:0 !important; overflow:visible !important;
+    }
+    body.printing-slip #warehouse-slip-modal .slip-card {
+      box-shadow:none !important; border-radius:0 !important;
+      max-width:none !important; width:100% !important; max-height:none !important;
+      overflow:visible !important;
+    }
+    body.printing-slip #warehouse-slip-modal .slip-actions { display:none !important; }
+    body.printing-slip .slip-sheet { padding:0 !important; }
+    body.printing-slip .slip-table-wrap { overflow:visible !important; }
+    @page { margin:14mm; }
+  }
 </style>
 </head>
 <body class="site-v2">
@@ -2178,6 +2233,42 @@
 <div class="modal-overlay" id="stock-audit-modal">
   <div class="modal" style="max-width:1000px;">
     <div id="stock-audit-body" style="padding:22px;max-height:86vh;overflow:auto;"></div>
+  </div>
+</div>
+
+<!-- Create / edit an app login (sales &/or finance). Roles are tick boxes so a
+     single account can be granted both portals. Opened via openSalesUserModal()
+     (create) or appUserEditRoles() (edit roles). -->
+<div class="modal-overlay" id="sales-user-modal">
+  <div class="modal" style="max-width:440px;">
+    <div style="padding:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px;">
+        <div id="su-title" style="font-size:18px;font-weight:700;color:var(--text);">Yeni istifadəçi</div>
+        <button onclick="closeSalesUserModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-light);line-height:1;">×</button>
+      </div>
+      <input type="hidden" id="su-edit-id"/>
+      <div id="su-create-fields">
+        <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:4px;">Ad</label>
+        <input id="su-name" type="text" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:14px;"/>
+        <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:4px;">İstifadəçi adı (login)</label>
+        <input id="su-username" type="text" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:14px;"/>
+        <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:4px;">Şifrə (ən az 6 simvol)</label>
+        <input id="su-password" type="text" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;font-size:14px;"/>
+      </div>
+      <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:8px;">Giriş (birini və ya hər ikisini seçin)</label>
+      <div style="display:flex;gap:10px;margin-bottom:18px;">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" id="su-role-sales" style="width:16px;height:16px;"/> Satış
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" id="su-role-finance" style="width:16px;height:16px;"/> Maliyyə
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeSalesUserModal()" class="btn-add" style="background:var(--cream);color:var(--text);border-color:var(--border);">Ləğv et</button>
+        <button id="su-submit" onclick="submitSalesUser()" class="btn-add">Əlavə et</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3434,8 +3525,6 @@
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="/products-data.js"></script>
 <script>
 // Global state — declared first for safe hoisting
@@ -5510,8 +5599,7 @@ async function doLogin() {
     // A user may only enter the portal matching their role; an admin account
     // (master login) may enter either sales or finance too.
     const role = sess.role;
-    const allowed = (loginTargetRole === 'sales'  && (role === 'sales'  || role === 'admin'))
-                 || (loginTargetRole === 'finance' && (role === 'finance' || role === 'admin'));
+    const allowed = roleAllows(role, loginTargetRole);
     if(!allowed) {
       await supabaseSignOut();
       err.textContent = 'Bu hesabın bu panelə girişi yoxdur.';
@@ -6662,7 +6750,18 @@ async function manageUsersCall(payload) {
   return data;
 }
 
-function roleLabelAz(role) { return role === 'finance' ? 'Maliyyə' : 'Satış'; }
+function roleLabelAz(role) {
+  if(role === 'sales_finance') return 'Satış + Maliyyə';
+  return role === 'finance' ? 'Maliyyə' : 'Satış';
+}
+
+// Whether an account role may enter a given portal. 'admin' may enter any;
+// 'sales_finance' may enter both sales and finance portals.
+function roleAllows(role, target) {
+  if(role === 'admin') return true;
+  if(role === 'sales_finance') return target === 'sales' || target === 'finance';
+  return role === target;
+}
 
 async function refreshAppUsers() {
   const wrap = document.getElementById('sales-users-list');
@@ -6693,32 +6792,97 @@ function renderSalesUsers() {
   }
   wrap.innerHTML = users.map((u) => `
     <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;opacity:${u.active ? '1' : '0.55'};">
-      <div style="width:36px;height:36px;border-radius:50%;background:${u.role==='finance'?'#8e44ad':'var(--green-dark)'};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:${u.role==='sales_finance'?'#2d6cb5':(u.role==='finance'?'#8e44ad':'var(--green-dark)')};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
       <div>
         <div style="font-weight:600;color:var(--green-dark);">${escapeHtml(u.name || u.username)} <span style="font-size:11px;color:var(--text-light);font-weight:500;">· ${roleLabelAz(u.role)}</span></div>
         <div style="font-size:12px;color:var(--text-light);">@${escapeHtml(u.username)}${u.active ? '' : ' · deaktiv'}</div>
       </div>
       <div style="display:flex;gap:4px;margin-left:8px;">
+        <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="appUserEditRoles('${escapeHtml(u.id)}','${escapeHtml(u.username)}','${escapeHtml(u.role||'')}')" title="Rolları dəyiş">🎚️</button>
         <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="appUserResetPassword('${escapeHtml(u.id)}','${escapeHtml(u.username)}')" title="Şifrəni dəyiş">🔑</button>
         <button class="btn-add" style="padding:4px 10px;font-size:12px;" onclick="appUserToggleActive('${escapeHtml(u.id)}',${u.active ? 'false' : 'true'})" title="${u.active ? 'Deaktiv et' : 'Aktivləşdir'}">${u.active ? '🚫' : '✅'}</button>
+        <button class="btn-add" style="padding:4px 10px;font-size:12px;background:#c0392b;border-color:#c0392b;" onclick="appUserDelete('${escapeHtml(u.id)}','${escapeHtml(u.username)}')" title="Sil">🗑</button>
       </div>
     </div>`).join('');
 }
 
-async function openSalesUserModal() {
-  const name = prompt('İstifadəçinin adı:');
-  if(name == null) return;
-  const username = prompt('İstifadəçi adı (login):');
-  if(username == null) return;
-  const roleIn = prompt('Rol — "satis" yoxsa "maliyye"?', 'satis');
-  if(roleIn == null) return;
-  const role = /maliyy|finance/i.test(roleIn) ? 'finance' : 'sales';
-  const password = prompt('Şifrə (ən az 6 simvol):');
-  if(password == null) return;
-  if(!name.trim() || !username.trim() || !password.trim()) { showToast('Bütün sahələri doldurun.', true); return; }
+// Build the canonical role string from the two role checkboxes. Returns null
+// if neither is ticked (caller shows an error).
+function salesUserRoleFromChecks() {
+  const wantSales   = !!(document.getElementById('su-role-sales')   || {}).checked;
+  const wantFinance = !!(document.getElementById('su-role-finance') || {}).checked;
+  if(!wantSales && !wantFinance) return null;
+  if(wantSales && wantFinance) return 'sales_finance';
+  return wantFinance ? 'finance' : 'sales';
+}
+
+function openSalesUserModal() {
+  const m = document.getElementById('sales-user-modal');
+  if(!m) return;
+  // Reset to "create" mode.
+  document.getElementById('su-title').textContent = 'Yeni istifadəçi';
+  document.getElementById('su-name').value = '';
+  document.getElementById('su-username').value = '';
+  document.getElementById('su-password').value = '';
+  document.getElementById('su-role-sales').checked = true;
+  document.getElementById('su-role-finance').checked = false;
+  // Show name/username/password (create mode).
+  document.getElementById('su-create-fields').style.display = '';
+  document.getElementById('su-edit-id').value = '';
+  document.getElementById('su-submit').textContent = 'Əlavə et';
+  m.classList.add('open');
+  setTimeout(function(){ var el = document.getElementById('su-name'); if(el) el.focus(); }, 50);
+}
+
+// Open the same modal in "edit roles" mode for an existing user.
+function appUserEditRoles(id, username, role) {
+  const m = document.getElementById('sales-user-modal');
+  if(!m) return;
+  document.getElementById('su-title').textContent = 'Rollar — @' + username;
+  document.getElementById('su-create-fields').style.display = 'none';
+  document.getElementById('su-edit-id').value = id;
+  document.getElementById('su-role-sales').checked   = (role === 'sales' || role === 'sales_finance');
+  document.getElementById('su-role-finance').checked = (role === 'finance' || role === 'sales_finance');
+  document.getElementById('su-submit').textContent = 'Yadda saxla';
+  m.classList.add('open');
+}
+
+function closeSalesUserModal() {
+  const m = document.getElementById('sales-user-modal');
+  if(m) m.classList.remove('open');
+}
+
+async function submitSalesUser() {
+  const role = salesUserRoleFromChecks();
+  if(!role) { showToast('Ən azı bir rol seçin (Satış və ya Maliyyə).', true); return; }
+  const editId = (document.getElementById('su-edit-id').value || '').trim();
+  const btn = document.getElementById('su-submit');
+  if(btn) btn.disabled = true;
   try {
-    await manageUsersCall({ action: 'create', username: username.trim(), password: password, role: role, name: name.trim() });
-    showToast('İstifadəçi əlavə edildi (' + roleLabelAz(role) + ').');
+    if(editId) {
+      // Edit roles of an existing user.
+      await manageUsersCall({ action: 'update', id: editId, role: role });
+      showToast('Rollar yeniləndi (' + roleLabelAz(role) + ').');
+    } else {
+      const name = (document.getElementById('su-name').value || '').trim();
+      const username = (document.getElementById('su-username').value || '').trim();
+      const password = document.getElementById('su-password').value || '';
+      if(!name || !username || !password.trim()) { showToast('Bütün sahələri doldurun.', true); return; }
+      if(password.trim().length < 6) { showToast('Şifrə ən az 6 simvol olmalıdır.', true); return; }
+      await manageUsersCall({ action: 'create', username: username, password: password, role: role, name: name });
+      showToast('İstifadəçi əlavə edildi (' + roleLabelAz(role) + ').');
+    }
+    closeSalesUserModal();
+    refreshAppUsers();
+  } catch (e) { showToast('Xəta: ' + e.message, true); }
+  finally { if(btn) btn.disabled = false; }
+}
+
+async function appUserDelete(id, username) {
+  if(!confirm('"' + username + '" istifadəçisini tamamilə silmək istəyirsiniz?\n\nGiriş imkanı ləğv olunacaq. Bu geri qaytarıla bilməz.')) return;
+  try {
+    await manageUsersCall({ action: 'delete', id: id });
+    showToast('İstifadəçi silindi.');
     refreshAppUsers();
   } catch (e) { showToast('Xəta: ' + e.message, true); }
 }
@@ -8367,7 +8531,15 @@ async function confirmSale() {
     showToast('Stok çatmır: ' + names.join(', ') + ' satılmadı.', true);
   }
 
-  if(!confirmed) { renderSaleProducts(); renderCart(); return; }
+  // Every line was rejected by the server (expired session, no connection, or
+  // stock ran out). Say so — this used to return silently, which looked exactly
+  // like a successful sale that produced no slip.
+  if(!confirmed) {
+    if (!(adjResult.insufficient && adjResult.insufficient.length)) {
+      showToast('Satış tamamlanmadı — server stoku yeniləmədi. Yenidən daxil olub cəhd edin.', true);
+    }
+    renderSaleProducts(); renderCart(); return;
+  }
 
   saveSales(sales);
 
@@ -8395,9 +8567,10 @@ async function confirmSale() {
   const discountMsg = discountPct > 0 ? (' (−' + discountPct + '%)') : '';
   showToast('Satış təsdiqləndi! ' + saleId + ' · ' + formatAzn(grandTotal) + discountMsg + ' · ' + confirmed + ' məhsul');
 
-  // Fire off the warehouse release slip immediately — same click, so browsers
-  // don't block it as a pop-up (it's a synchronous save() call, not async).
-  exportSaleSlipPdf(saleId);
+  // Show the warehouse release slip right away so the rep can print it and
+  // hand it to the warehouse. Rendering a modal needs no user gesture, so this
+  // is safe to do after the awaits above (a file download would not be).
+  showWarehouseSlip(saleId);
 
   cartItems = {};
   cartDiscount = 0;
@@ -8649,7 +8822,7 @@ function renderWarehouseOrders() {
         '<select class="search-input" style="padding:5px 8px;width:auto;color:' + statusColor + ';font-weight:600;" onchange="setWarehouseOrderStatus(\'' + o.saleId + '\', this.value)">' + statusOptions + '</select>' +
       '</td>' +
       '<td style="padding:8px 6px;font-size:11px;color:var(--text-light);max-width:220px;">' + historyHtml + '</td>' +
-      '<td style="padding:8px 6px;"><button class="btn-add" style="padding:5px 10px;font-size:12px;white-space:nowrap;" onclick="exportSaleSlipPdf(\'' + o.saleId + '\')">🖨 Sənəd</button></td>' +
+      '<td style="padding:8px 6px;"><button class="btn-add" style="padding:5px 10px;font-size:12px;white-space:nowrap;" onclick="showWarehouseSlip(\'' + o.saleId + '\')">🖨 Sənəd</button></td>' +
     '</tr>';
   }).join('');
 }
@@ -8673,106 +8846,122 @@ function setWarehouseOrderStatus(saleId, status) {
   showToast('Anbar statusu yeniləndi: ' + status);
 }
 
-// Builds a printable "warehouse release slip" PDF for one order (all product
-// lines under a saleId) so it can be physically handed to warehouse staff.
+// Builds the "warehouse release slip" (anbar buraxılış sənədi) for one order
+// (all product lines under a saleId) so it can be physically handed to
+// warehouse staff. The slip is shown on screen and printed through the
+// browser's own print dialog, whose "Save as PDF" option covers every
+// desktop and mobile platform.
 //
-// jsPDF's built-in fonts (Helvetica/Times/Courier) only cover WinAnsi
-// encoding, which is missing Azerbaijani letters like ə, ı and ş — text
-// using them renders as garbled substitute glyphs. Rather than embedding a
-// custom Unicode font, we lay the slip out as plain HTML (using the page's
-// own 'DM Sans' font, which the browser already renders correctly) and
-// rasterize it with html2canvas, then drop that image into the PDF. This
-// guarantees the Azerbaijani text always looks right, at the cost of the
-// text not being selectable in the resulting PDF.
-function exportSaleSlipPdf(saleId) {
-  const items = getSales().filter(function(s) { return _warehouseIdMatch(saleId, s); });
+// It deliberately does NOT build the file in JavaScript any more. The previous
+// version rasterised the slip with html2canvas and downloaded it via jsPDF's
+// save(), which failed silently in two situations reps hit constantly:
+//   1. iOS Safari ignores the `download` attribute on blob URLs, so save()
+//      simply did nothing at all — no file, no error.
+//   2. After a sale the download no longer belonged to the click that started
+//      it (confirmSale awaits session refresh, stock adjustment and Supabase
+//      writes first, and html2canvas adds another async hop), so browsers
+//      dropped it as an unrequested automatic download.
+// Rendering into the DOM has neither restriction: it needs no user gesture and
+// works identically on every device.
+function showWarehouseSlip(saleId) {
+  var items = getSales().filter(function(s) { return _warehouseIdMatch(String(saleId), s); });
   if (!items.length) { showToast('Bu sifariş üçün məlumat tapılmadı.', true); return; }
-  if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
-    showToast('PDF kitabxanası yüklənmədi — internetinizi yoxlayın.', true);
-    return;
-  }
+  items = items.slice().sort(function(a, b) { return (a.ts || 0) - (b.ts || 0); });
 
-  const first = items[0];
-  let grandTotal = 0, grandVat = 0, grandNet = 0;
-  const rowsHtml = items.map(function(it) {
-    const total = (+it.total) || 0;
-    grandTotal += total;
+  var first = items[0];
+  var grandTotal = 0, grandVat = 0, grandNet = 0, grandQty = 0;
+  var rowsHtml = items.map(function(it) {
+    var total = (+it.total) || 0;
+    var qty = (+it.qty) || 0;
     // it.total is VAT-inclusive (see salePackPriceAZN), so the VAT shown here
     // is backed out of it rather than added on top — same math as Finance.
-    const vatAmt = it.vatApplicable ? total * VAT_RATE / (100 + VAT_RATE) : 0;
-    const netAmt = total - vatAmt;
+    var vatAmt = it.vatApplicable ? total * VAT_RATE / (100 + VAT_RATE) : 0;
+    grandTotal += total;
     grandVat += vatAmt;
-    grandNet += netAmt;
+    grandNet += (total - vatAmt);
+    grandQty += qty;
     return '<tr>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;">' + escapeHtml(it.productName) + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + it.qty + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">' + formatAzn(netAmt) + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;color:#666;">' + (it.vatApplicable ? formatAzn(vatAmt) : '—') + '</td>'
-      + '<td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;font-weight:600;">' + formatAzn(total) + '</td>'
+      + '<td>' + escapeHtml(it.productName) + '</td>'
+      + '<td class="num">' + qty + '</td>'
+      + '<td class="num">' + formatAzn(total - vatAmt) + '</td>'
+      + '<td class="num" style="color:#666;">' + (it.vatApplicable ? formatAzn(vatAmt) : '—') + '</td>'
+      + '<td class="num" style="font-weight:700;">' + formatAzn(total) + '</td>'
       + '</tr>';
   }).join('');
 
-  const slip = document.createElement('div');
-  slip.style.cssText = 'position:fixed;left:-9999px;top:0;width:780px;background:#fff;padding:36px;font-family:"DM Sans",sans-serif;color:#222;box-sizing:border-box;';
-  slip.innerHTML = `
-    <div style="font-size:22px;font-weight:700;color:#1b4332;">VITA TERRA MMC</div>
-    <div style="font-size:15px;color:#555;margin-bottom:18px;">Anbar Buraxılış Sənədi</div>
-    <div style="font-size:13px;line-height:1.9;margin-bottom:18px;">
-      <div><strong>Sifariş ID:</strong> ${escapeHtml(saleId)}</div>
-      <div><strong>Tarix:</strong> ${new Date(first.ts).toLocaleString()}</div>
-      <div><strong>Müştəri:</strong> ${escapeHtml(first.customer || '—')}</div>
-      <div><strong>Satıcı:</strong> ${escapeHtml(first.salesperson || '—')}</div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="background:#f2f2f2;">
-          <th style="padding:6px 8px;text-align:left;border-bottom:2px solid #999;">Məhsul</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Miqdar</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Qiymət (ƏDV-siz)</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;" title="18% ƏDV">+ ƏDV</th>
-          <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #999;">Ümumi</th>
-        </tr>
-      </thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
-    <div style="text-align:right;font-size:12px;color:#666;margin-top:10px;line-height:1.7;">
-      <div>Qiymət (ƏDV-siz): ${formatAzn(grandNet)}</div>
-      ${grandVat > 0 ? '<div>+ ƏDV (18%): ' + formatAzn(grandVat) + '</div>' : ''}
-    </div>
-    <div style="text-align:right;font-size:14px;font-weight:700;margin-top:4px;">Ümumi: ${formatAzn(grandTotal)}</div>
-    <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:13px;">
-      <div>Anbar məsulu: _______________________&nbsp;&nbsp;Tarix: __________</div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:36px;font-size:13px;">
-      <div>Təhvil alan: _______________________&nbsp;&nbsp;&nbsp;&nbsp;Tarix: __________</div>
-    </div>
-  `;
-  document.body.appendChild(slip);
+  var isLegacy = String(saleId).indexOf('legacy-') === 0;
+  var sheet = '<div class="slip-sheet">'
+    + '<h1>VITA TERRA MMC</h1>'
+    + '<div class="slip-sub">Anbar Buraxılış Sənədi</div>'
+    + '<div class="slip-meta">'
+      + '<div><strong>Sifariş ID:</strong> ' + escapeHtml(isLegacy ? '—' : String(saleId)) + '</div>'
+      + '<div><strong>Tarix:</strong> ' + new Date(first.ts).toLocaleString('az') + '</div>'
+      + '<div><strong>Müştəri:</strong> ' + escapeHtml(first.customer || '—') + '</div>'
+      + '<div><strong>Satıcı:</strong> ' + escapeHtml(first.salesperson || '—') + '</div>'
+    + '</div>'
+    + '<div class="slip-table-wrap"><table><thead><tr>'
+      + '<th>Məhsul</th>'
+      + '<th class="num">Miqdar</th>'
+      + '<th class="num">Qiymət (ƏDV-siz)</th>'
+      + '<th class="num">+ ƏDV (18%)</th>'
+      + '<th class="num">Ümumi</th>'
+    + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>'
+    + '<div class="slip-totals">'
+      + '<div>Məhsul sayı: ' + grandQty + '</div>'
+      + '<div>Qiymət (ƏDV-siz): ' + formatAzn(grandNet) + '</div>'
+      + (grandVat > 0 ? '<div>+ ƏDV (18%): ' + formatAzn(grandVat) + '</div>' : '')
+    + '</div>'
+    + '<div class="slip-grand">Ümumi: ' + formatAzn(grandTotal) + '</div>'
+    + '<div class="slip-signs">'
+      + '<div class="slip-sign-row"><span>Anbar məsulu:</span><span class="slip-line"></span><span>Tarix:</span><span class="slip-line sm"></span></div>'
+      + '<div class="slip-sign-row"><span>Təhvil alan:</span><span class="slip-line"></span><span>Tarix:</span><span class="slip-line sm"></span></div>'
+    + '</div>'
+  + '</div>';
 
-  window.html2canvas(slip, { scale: 2, backgroundColor: '#ffffff' }).then(function(canvas) {
-    document.body.removeChild(slip);
-    const jsPDF = window.jspdf.jsPDF;
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210, pageHeight = 297;
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const imgData = canvas.toDataURL('image/png');
-    let heightLeft = imgHeight;
-    let position = 0;
-    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      doc.addPage();
-      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-    doc.save('VitaTerra-' + saleId + '.pdf');
-  }).catch(function(e) {
-    if (slip.parentNode) document.body.removeChild(slip);
-    console.error('PDF render failed:', e);
-    showToast('PDF yaradıla bilmədi.', true);
+  var actions = '<div class="slip-actions" style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid rgba(0,0,0,0.08);background:#fafafa;">'
+    + '<button onclick="closeWarehouseSlip()" style="background:var(--cream);color:var(--green-dark);border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;">Bağla</button>'
+    + '<button onclick="printWarehouseSlip()" style="background:var(--green-dark);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">🖨 Çap et / PDF saxla</button>'
+    + '</div>';
+
+  closeWarehouseSlip();
+  var overlay = document.createElement('div');
+  overlay.id = 'warehouse-slip-modal';
+  // Above #sale-slip-modal (100000) so it stacks correctly when opened from the
+  // qaimə view.
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100001;display:flex;align-items:flex-start;justify-content:center;padding:28px 12px;overflow:auto;';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeWarehouseSlip(); });
+  var card = document.createElement('div');
+  card.className = 'slip-card';
+  card.style.cssText = 'background:#fff;border-radius:12px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);overflow:hidden;';
+  card.innerHTML = sheet + actions;
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function printWarehouseSlip() {
+  if (!document.getElementById('warehouse-slip-modal')) return;
+  document.body.classList.add('printing-slip');
+  var cleanup = function() {
+    document.body.classList.remove('printing-slip');
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  // Let the print-only layout land before opening the dialog, otherwise some
+  // mobile browsers capture the pre-reflow page.
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      window.print();
+      // afterprint never fires on parts of mobile Safari, so guarantee the app
+      // can't stay stuck in the print-only layout.
+      setTimeout(cleanup, 3000);
+    });
   });
+}
+
+function closeWarehouseSlip() {
+  var m = document.getElementById('warehouse-slip-modal');
+  if (m && m.parentNode) m.parentNode.removeChild(m);
+  document.body.classList.remove('printing-slip');
 }
 
 // ─── Sale invoice (qaimə) viewer ────────────────────────────
@@ -8839,7 +9028,7 @@ function showSaleSlipDetail(saleId) {
     + '</tr></tfoot></table></div>'
     + (grandVat > 0 ? '<div style="text-align:right;font-size:11.5px;color:var(--text-light);margin-top:8px;">ƏDV-siz: ' + formatAzn(grandNet) + ' &middot; o cümlədən ƏDV (18%): ' + formatAzn(grandVat) + '</div>' : '')
     + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">'
-    + (isLegacy ? '' : '<button onclick="exportSaleSlipPdf(' + JSON.stringify(String(saleId)).replace(/"/g, '&quot;') + ')" style="background:var(--cream);color:var(--green-dark);border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">PDF yüklə</button>')
+    + (isLegacy ? '' : '<button onclick="showWarehouseSlip(' + JSON.stringify(String(saleId)).replace(/"/g, '&quot;') + ')" style="background:var(--cream);color:var(--green-dark);border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;">🖨 Anbar sənədi</button>')
     + '<button onclick="closeSaleSlipDetail()" style="background:var(--green-dark);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">Bağla</button>'
     + '</div>';
 
@@ -11933,6 +12122,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   var cdm = document.getElementById('customer-detail-modal'); if(cdm) cdm.addEventListener('click', function(e){ if(e.target===this) closeCustomerDetail(); });
   var sam = document.getElementById('stock-audit-modal'); if(sam) sam.addEventListener('click', function(e){ if(e.target===this) closeStockAudit(); });
   var scd = document.getElementById('shop-customer-detail-modal'); if(scd) scd.addEventListener('click', function(e){ if(e.target===this) closeShopCustomerDetail(); });
+  var sum = document.getElementById('sales-user-modal'); if(sum) sum.addEventListener('click', function(e){ if(e.target===this) closeSalesUserModal(); });
 
   handleRouteFromPath();
   window.addEventListener('popstate', handleRouteFromPath);
