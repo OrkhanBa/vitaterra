@@ -4175,13 +4175,14 @@ async function syncSalesFromServer() {
       // from "no sales exist" unless we say otherwise here.
       notifySupabaseSessionLost();
     }
-    const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes, pricingRes] = await Promise.all([
+    const [salesRes, activityRes, inventoryRes, warehouseRes, expensesRes, pricingRes, tombstoneRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/sales?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/activity_log?select=*&order=ts.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/inventory?select=product_id,stock', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/warehouse_status_log?select=*&order=changed_at.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/expenses?select=*&order=created_at_ms.asc', { headers: supabaseHeaders() }),
       fetch(SUPABASE_URL + '/rest/v1/product_pricing?select=product_id,cost,markup', { headers: supabaseHeaders() }),
+      fetch(SUPABASE_URL + '/rest/v1/deleted_sales?select=ts', { headers: supabaseHeaders() }),
     ]);
     // A 401 here (as opposed to RLS just filtering rows to an empty array,
     // which PostgREST returns as a normal 200) proves the access token
@@ -4204,17 +4205,29 @@ async function syncSalesFromServer() {
     await syncCatalogFromServer();
     // Pull customers + payments so the Müştərilər tab stays current across devices.
     await syncCustomersFromServer();
+    // Sales deliberately removed on the server. A stale device still holds them
+    // in localStorage, and the re-upload below would resurrect them, so drop
+    // them locally instead of treating them as "not synced yet".
+    const deletedTs = {};
+    if (tombstoneRes && tombstoneRes.ok) {
+      const trows = await tombstoneRes.json();
+      if (Array.isArray(trows)) trows.forEach(function(r) { deletedTs[r.ts] = true; });
+    }
     if (salesRes.ok) {
       const remoteSales = (await salesRes.json()).map(supabaseRowToSale);
       const localSales = getSales();
+      const onServer = {};
+      remoteSales.forEach(function(s) { onServer[s.ts] = true; });
       const byTs = {};
       remoteSales.forEach(function(s) { byTs[s.ts] = s; });
       // Keep any local-only rows that haven't synced yet (e.g. created offline).
-      localSales.forEach(function(s) { if (!byTs[s.ts]) byTs[s.ts] = s; });
+      localSales.forEach(function(s) { if (!byTs[s.ts] && !deletedTs[s.ts]) byTs[s.ts] = s; });
       // Local rows the server doesn't have yet — re-upload them (retry for
       // sales whose original insert never reached Supabase). Insert-only; it
       // does NOT touch inventory, and UNIQUE(ts) guards against duplicates.
-      const unsyncedSales = localSales.filter(function(s) { return !byTs[s.ts]; });
+      // Must be tested against `onServer`, not `byTs`: the merge above already
+      // put every local row into `byTs`, which would make this always empty.
+      const unsyncedSales = localSales.filter(function(s) { return !onServer[s.ts] && !deletedTs[s.ts]; });
       const merged = Object.keys(byTs).map(function(k) { return byTs[k]; }).sort(function(a,b){ return a.ts - b.ts; });
       saveSales(merged);
       // Register any sale customers that aren't managed records yet (self-heal).
