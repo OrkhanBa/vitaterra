@@ -2964,6 +2964,9 @@
               <span id="sale-discount-amount-display">-₼0.00</span>
             </div>
 
+            <!-- Names the lines an order discount deliberately skips -->
+            <div id="sale-discount-exempt-note" style="display:none;font-size:12px;line-height:1.45;color:#8a5a00;background:rgba(230,126,34,0.12);border:1px solid rgba(230,126,34,0.3);border-radius:6px;padding:7px 9px;margin-bottom:10px;"></div>
+
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);">
               <div id="sale-total-label" style="font-size:14px;color:var(--text);font-weight:600;" data-en="Order Total" data-az="Yekun məbləğ">Yekun məbləğ</div>
               <div class="sale-total" id="sale-total-display">₼0.00</div>
@@ -4901,6 +4904,22 @@ var VAT_RATE = 18;
 
 function productHasVat(p) { return !!(p && p.vatApplicable); }
 
+// Products excluded from order-level discounts by policy: an order discount
+// applies to every other line but leaves these at list price.
+var NO_DISCOUNT_PRODUCT_IDS = [18, 19, 21, 35, 39, 40, 44];
+var NO_DISCOUNT_PRODUCT_NAMES = [
+  'tratar 700 wg', 'mandriguera 100 cs', 'ajustar 200 wp', 'cercado 625 wg',
+  'acarus 240 sc', 'detectar 200 ec', 'corriente 480 sc',
+];
+
+// Matched on both id and name so a catalog re-import that shifts ids can't
+// silently start discounting these again.
+function productAllowsDiscount(p) {
+  if (!p) return true;
+  if (NO_DISCOUNT_PRODUCT_IDS.indexOf(p.id) >= 0) return false;
+  return NO_DISCOUNT_PRODUCT_NAMES.indexOf(String(p.name || '').trim().toLowerCase()) < 0;
+}
+
 function vatAmountOnNet(net) {
   const n = parseFloat(net) || 0;
   return n > 0 ? n * VAT_RATE / 100 : 0;
@@ -6179,7 +6198,7 @@ function renderAdminTable(filter) {
       <td style="text-align:center;">
         <input type="checkbox" class="admin-vat-cb" ${p.vatApplicable ? 'checked' : ''} onchange="toggleProductVat(${p.id}, this.checked)" title="18% ƏDV"/>
       </td>
-      <td><strong>${p.name||'\u2014'}</strong>${p.vatApplicable ? ' <span style="font-size:10px;color:var(--green-accent);font-weight:600;">ƏDV</span>' : ''}</td>
+      <td><strong>${p.name||'\u2014'}</strong>${p.vatApplicable ? ' <span style="font-size:10px;color:var(--green-accent);font-weight:600;">ƏDV</span>' : ''}${productAllowsDiscount(p) ? '' : ' <span title="Endirim tətbiq olunmur" style="font-size:10px;color:#8a5a00;font-weight:600;">ENDİRİMSİZ</span>'}</td>
       <td>${CATEGORY_ICONS[p.category]||'📦'} ${p.category||'Other'}</td>
       <td style="color:var(--text-light);font-style:italic;" title="Vahid: $${cost.toFixed(2)} / ${mult > 0 ? (mult >= 1 ? mult + ' kq/L' : (mult*1000) + ' q/ml') : 'unit'}">$${packCost.toFixed(2)}${perPack}</td>
       <td>${markup}%</td>
@@ -8446,7 +8465,8 @@ function refreshCartItemSubtotal(id) {
 function refreshCartTotals() {
   const ids = Object.keys(cartItems).map(Number);
   const products = getProducts();
-  let subtotal = 0, totalQty = 0, vatGross = 0;
+  let subtotal = 0, totalQty = 0, vatGross = 0, discountable = 0;
+  const exemptNames = [];
   ids.forEach(id => {
     const item = cartItems[id];
     if(!item) return;
@@ -8454,13 +8474,17 @@ function refreshCartTotals() {
     subtotal += rowTotal; totalQty += item.qty;
     const p = products.find(x => x.id === id);
     if(p && productHasVat(p)) vatGross += rowTotal;
+    // Discount-exempt lines stay at list price, so they must not enter the
+    // base the order discount is computed from.
+    if(p && !productAllowsDiscount(p)) exemptNames.push(p.name);
+    else discountable += rowTotal;
   });
   // "Ümumi" shows the VAT-excl. (net) value; ƏDV is added on top of it to
   // reach the gross subtotal, which the discount is then applied to, giving
   // the VAT-inclusive "Yekun Qiymət".
   const vatAmt      = vatGross * VAT_RATE / (100 + VAT_RATE);
   const subtotalNet = subtotal - vatAmt;
-  const discountAmt = subtotal * (cartDiscount / 100);
+  const discountAmt = discountable * (cartDiscount / 100);
   const grandTotal  = subtotal - discountAmt;
 
   const subEl       = document.getElementById('sale-subtotal-display');
@@ -8487,6 +8511,17 @@ function refreshCartTotals() {
     if(amtEl)  amtEl.textContent    = '-' + formatAzn(discountAmt);
   } else if(lineEl) {
     lineEl.style.display = 'none';
+  }
+
+  const exemptEl = document.getElementById('sale-discount-exempt-note');
+  if(exemptEl) {
+    if(cartDiscount > 0 && exemptNames.length) {
+      exemptEl.style.display = 'block';
+      exemptEl.innerHTML = '⚠️ Endirim tətbiq olunmur: <strong>' +
+        exemptNames.map(escapeHtml).join(', ') + '</strong> — bu məhsullar tam qiymətlə satılır.';
+    } else {
+      exemptEl.style.display = 'none';
+    }
   }
 
   if(vatGross > 0) {
@@ -8559,7 +8594,7 @@ function renderCart() {
     return `<div class="cart-item" id="cart-item-${id}">
       <div class="cart-item-header">
         <div>
-          <div class="cart-item-name">${p.name}</div>
+          <div class="cart-item-name">${p.name}${productAllowsDiscount(p) ? '' : ' <span title="Bu məhsula endirim tətbiq olunmur" style="font-size:10px;background:rgba(230,126,34,0.15);color:#8a5a00;padding:2px 6px;border-radius:4px;font-weight:700;">ENDİRİMSİZ</span>'}</div>
           <div class="cart-item-cat">${p.category}</div>
         </div>
         <button class="cart-item-remove" onclick="removeFromCart(${id})" title="Sil">&#x2715;</button>
@@ -8637,10 +8672,12 @@ async function confirmSale() {
     const qty = Math.min(item.qty, maxSalePackages(p));
     if(qty < 1) return;
     const unitPriceOriginal = item.customPrice;
-    const unitPrice = +(unitPriceOriginal * discountMul).toFixed(4);
+    // Exempt products ignore the order discount and stay at list price.
+    const discounted = discountPct > 0 && productAllowsDiscount(p);
+    const unitPrice = +(unitPriceOriginal * (discounted ? discountMul : 1)).toFixed(4);
     const total     = +(unitPrice * qty).toFixed(2);
     const rawDelta  = stockDeltaRaw(p, qty);
-    intended.push({ p: p, qty: qty, unitPrice: unitPrice, unitPriceOriginal: unitPriceOriginal, total: total, rawDelta: rawDelta });
+    intended.push({ p: p, qty: qty, unitPrice: unitPrice, unitPriceOriginal: unitPriceOriginal, total: total, rawDelta: rawDelta, discounted: discounted });
   });
 
   if(!intended.length) { showToast('Satılacaq etibarlı məhsul yoxdur', true); return; }
@@ -8668,7 +8705,7 @@ async function confirmSale() {
       paymentMethod: 'bank', paymentStatus: 'unpaid', paidAt: null
     };
     if (productHasVat(p)) row.vatApplicable = true;
-    if(discountPct > 0) {
+    if(x.discounted) {
       row.discountPct       = discountPct;
       row.unitPriceOriginal = x.unitPriceOriginal;
     }
@@ -8722,7 +8759,12 @@ async function confirmSale() {
   recordWarehouseStatusChange(saleId, WAREHOUSE_STATUS_DEFAULT, ts);
 
   const grandTotal = sales.slice(-confirmed).reduce((s, x) => s + x.total, 0);
-  const discountMsg = discountPct > 0 ? (' (−' + discountPct + '%)') : '';
+  const exemptCount = intended.filter(function(x) {
+    return failedRefs.indexOf(x) < 0 && !x.discounted;
+  }).length;
+  const discountMsg = discountPct > 0
+    ? (' (−' + discountPct + '%' + (exemptCount ? ', ' + exemptCount + ' məhsul endirimsiz' : '') + ')')
+    : '';
   showToast('Satış təsdiqləndi! ' + saleId + ' · ' + formatAzn(grandTotal) + discountMsg + ' · ' + confirmed + ' məhsul');
 
   // Show the warehouse release slip right away so the rep can print it and
