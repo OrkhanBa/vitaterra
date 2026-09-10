@@ -16,8 +16,15 @@ const { verifyClerkAuth } = require('./_clerk-auth');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gqhjntqfgwvyqpynfzut.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const EMAIL_DOMAIN = 'users.vitaterra.az';
-// 'sales_finance' grants access to BOTH the sales and finance portals.
-const VALID_ROLES = ['sales', 'finance', 'sales_finance'];
+// Roles are underscore-joined capability sets. A single account can hold any
+// combination of the three portals — e.g. 'sales_finance' (Satış + Maliyyə) or
+// 'sales_finance_warehouse' (all three). 'warehouse' is the read-only Anbar
+// panel (products, stock, per-product sales history).
+const VALID_ROLES = [
+  'sales', 'finance', 'warehouse',
+  'sales_finance', 'sales_warehouse', 'finance_warehouse',
+  'sales_finance_warehouse',
+];
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -112,7 +119,7 @@ exports.handler = async (event) => {
       const name = String(body.name || username).trim();
       if (!username) return reply(400, { error: 'Username required' });
       if (password.length < 6) return reply(400, { error: 'Password must be at least 6 characters' });
-      if (VALID_ROLES.indexOf(role) < 0) return reply(400, { error: 'Role must be sales, finance or sales_finance' });
+      if (VALID_ROLES.indexOf(role) < 0) return reply(400, { error: 'Role must be a combination of sales, finance, warehouse' });
       if (await findByUsername(username)) return reply(409, { error: 'Username already exists' });
 
       const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
@@ -137,7 +144,7 @@ exports.handler = async (event) => {
       const appMeta = {};
       if (body.name !== undefined) appMeta.name = String(body.name).trim();
       if (body.role !== undefined) {
-        if (VALID_ROLES.indexOf(body.role) < 0) return reply(400, { error: 'Role must be sales, finance or sales_finance' });
+        if (VALID_ROLES.indexOf(body.role) < 0) return reply(400, { error: 'Role must be a combination of sales, finance, warehouse' });
         appMeta.role = body.role;
       }
       if (Object.keys(appMeta).length) patch.app_metadata = appMeta;

@@ -2263,13 +2263,16 @@
         <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:4px;">Şifrə (ən az 6 simvol)</label>
         <input id="su-password" type="text" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;font-size:14px;"/>
       </div>
-      <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:8px;">Giriş (birini və ya hər ikisini seçin)</label>
-      <div style="display:flex;gap:10px;margin-bottom:18px;">
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+      <label style="display:block;font-size:12px;color:var(--text-light);margin-bottom:8px;">Giriş (bir və ya bir neçəsini seçin)</label>
+      <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+        <label style="flex:1;min-width:110px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
           <input type="checkbox" id="su-role-sales" style="width:16px;height:16px;"/> Satış
         </label>
-        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+        <label style="flex:1;min-width:110px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
           <input type="checkbox" id="su-role-finance" style="width:16px;height:16px;"/> Maliyyə
+        </label>
+        <label style="flex:1;min-width:110px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" id="su-role-warehouse" style="width:16px;height:16px;"/> 📦 Anbar
         </label>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
@@ -2861,6 +2864,54 @@
 </div>
 
 <!-- ══════════════ SALES PORTAL ══════════════ -->
+<!-- ══════════════ ANBAR (WAREHOUSE) PANEL ══════════════
+     Read-only view for warehouse staff: every product, its stock count, and
+     per-product sales history. Reached via switchPortal('warehouse') from the
+     sales/finance navs for accounts whose role includes 'warehouse'. -->
+<div id="warehouse-view" class="view">
+  <div class="dash-nav">
+    <div class="dash-nav-left">
+      <div class="dash-brand">🌿 Vita Terra</div>
+      <div class="dash-role-badge">📦 Anbar Paneli</div>
+    </div>
+    <div class="dash-nav-right">
+      <span class="dash-user" id="warehouse-user-name">👤 Anbar</span>
+      <button class="btn-logout" id="warehouse-to-sales" onclick="switchPortal('sales')" style="display:none">🛒 Satış</button>
+      <button class="btn-logout" id="warehouse-to-finance" onclick="switchPortal('finance')" style="display:none">💰 Maliyyə</button>
+      <button class="btn-logout" id="warehouse-back-admin" onclick="adminBackToAdmin()" style="display:none">Admin</button>
+      <button class="btn-logout" onclick="logout()">Çıxış</button>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="dash-title">Anbar — Məhsullar və Stok</div>
+    <div class="dash-sub">Bütün məhsullar, stok sayı və məhsul üzrə satış tarixçəsi</div>
+
+    <div id="warehouse-kpis" style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0;"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+      <input id="warehouse-search" type="text" oninput="warehouseSearch(this.value)" placeholder="🔍 Məhsul və ya kateqoriya axtar..." style="flex:1;min-width:220px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;"/>
+      <button class="btn-logout" onclick="manualSyncSales(this)">🔄 Yenilə</button>
+    </div>
+
+    <div style="overflow:auto;background:#fff;border:1px solid var(--border);border-radius:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--cream);text-align:left;">
+            <th style="padding:11px 8px;width:56px;">Şəkil</th>
+            <th style="padding:11px 8px;cursor:pointer;user-select:none;" onclick="warehouseSortBy('name')">Məhsul<span class="wh-sort-ind" data-k="name"></span></th>
+            <th style="padding:11px 8px;">Kateqoriya</th>
+            <th style="padding:11px 8px;">Qablaşdırma</th>
+            <th style="padding:11px 8px;cursor:pointer;user-select:none;" onclick="warehouseSortBy('stock')">Stok<span class="wh-sort-ind" data-k="stock"></span></th>
+            <th style="padding:11px 8px;">Status</th>
+            <th style="padding:11px 8px;text-align:center;">Satış tarixçəsi</th>
+          </tr>
+        </thead>
+        <tbody id="warehouse-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="sales-view" class="view">
   <div class="dash-nav">
     <div class="dash-nav-left">
@@ -2870,6 +2921,7 @@
     <div class="dash-nav-right">
       <span class="dash-user" id="sales-user-name">👤 Satış Komandası</span>
       <button class="btn-logout" id="sales-to-finance" onclick="switchPortal('finance')" style="display:none">💰 Maliyyə</button>
+      <button class="btn-logout" id="sales-to-warehouse" onclick="switchPortal('warehouse')" style="display:none">📦 Anbar</button>
       <button class="btn-logout" id="sales-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()" data-en="Sign Out" data-az="Çıxış">Çıxış</button>
     </div>
@@ -3186,6 +3238,7 @@
     <div class="dash-nav-right">
       <span class="dash-user" id="finance-user-name">👤 Mühasibat</span>
       <button class="btn-logout" id="finance-to-sales" onclick="switchPortal('sales')" style="display:none">🛒 Satış</button>
+      <button class="btn-logout" id="finance-to-warehouse" onclick="switchPortal('warehouse')" style="display:none">📦 Anbar</button>
       <button class="btn-logout" id="finance-back-admin" onclick="adminBackToAdmin()" style="display:none" data-en="Admin" data-az="Admin">Admin</button>
       <button class="btn-logout" onclick="logout()">Çıxış</button>
     </div>
@@ -5154,25 +5207,54 @@ function showView(v) {
   // Portal switcher: a user who can enter both portals (role 'sales_finance')
   // can hop between Satış and Maliyyə without logging out and back in.
   var both = canUseBothPortals();
+  var canWh = canUseWarehouse();
   var s2f = document.getElementById('sales-to-finance');
   if (s2f) s2f.style.display = (v === 'sales' && both) ? '' : 'none';
   var f2s = document.getElementById('finance-to-sales');
   if (f2s) f2s.style.display = (v === 'finance' && both) ? '' : 'none';
+  // "📦 Anbar" switch button in the sales & finance navs (warehouse-capable only).
+  var s2w = document.getElementById('sales-to-warehouse');
+  if (s2w) s2w.style.display = (v === 'sales' && canWh) ? '' : 'none';
+  var f2w = document.getElementById('finance-to-warehouse');
+  if (f2w) f2w.style.display = (v === 'finance' && canWh) ? '' : 'none';
+  // Anbar panel's own switch-back buttons (only to portals the account holds).
+  var w2s = document.getElementById('warehouse-to-sales');
+  if (w2s) w2s.style.display = (v === 'warehouse' && roleAllows(supabaseSessionRole(), 'sales')) ? '' : 'none';
+  var w2f = document.getElementById('warehouse-to-finance');
+  if (w2f) w2f.style.display = (v === 'warehouse' && roleAllows(supabaseSessionRole(), 'finance')) ? '' : 'none';
+  var wba = document.getElementById('warehouse-back-admin');
+  if (wba) wba.style.display = (v === 'warehouse' && adminAuthed) ? '' : 'none';
+  if (v === 'warehouse' && typeof renderWarehouse === 'function') renderWarehouse();
   // Keep sales data live across devices while any data-sensitive view is open;
   // stop polling once back on the public site so we're not calling Supabase
   // for nothing.
-  if(v === 'admin' || v === 'finance' || v === 'sales') startSalesAutoSync();
+  if(v === 'admin' || v === 'finance' || v === 'sales' || v === 'warehouse') startSalesAutoSync();
   else stopSalesAutoSync();
 }
-// True when the signed-in account may enter BOTH the sales and finance portals
-// (the combined 'sales_finance' role). Admins have their own navigation.
+// True when the signed-in account may enter BOTH the sales and finance portals.
+// Admins have their own navigation, so they're excluded here.
 function canUseBothPortals() {
-  return supabaseSessionRole() === 'sales_finance';
+  var r = supabaseSessionRole();
+  if(r === 'admin') return false;
+  return roleAllows(r, 'sales') && roleAllows(r, 'finance');
 }
 
-// Hop between the Satış and Maliyyə portals without re-authenticating. Only
-// works for accounts allowed in both; login already primed both sessions.
+// True when the account may open the read-only Anbar (warehouse) panel.
+function canUseWarehouse() {
+  var r = supabaseSessionRole();
+  if(r === 'admin') return true;
+  return roleAllows(r, 'warehouse');
+}
+
+// Hop between the Satış / Maliyyə / Anbar panels without re-authenticating.
+// Only works for accounts whose role grants the target; login already primed
+// the relevant sessions.
 function switchPortal(target) {
+  if(target === 'warehouse') {
+    if(!canUseWarehouse()) return;
+    showView('warehouse');
+    return;
+  }
   if(!canUseBothPortals()) return;
   if(target === 'finance') {
     setFinanceSignedIn(true);
@@ -5684,7 +5766,7 @@ async function doLogin() {
 
     // Accounts that can enter both portals get both sessions primed at login,
     // so they can switch between Satış and Maliyyə without signing in again.
-    const bothPortals = (role === 'sales_finance');
+    const bothPortals = roleAllows(role, 'sales') && roleAllows(role, 'finance');
     if(loginTargetRole === 'sales') {
       setCurrentSalesUser({ username: sess.username || user, name: sess.name || sess.username || user });
       if(bothPortals) setFinanceSignedIn(true);
@@ -6001,6 +6083,113 @@ function updateAdminSortIndicators() {
   });
 }
 
+// ═══════════════════════════════════════════════════════
+// ANBAR (WAREHOUSE) PANEL — read-only products + stock + per-product sales
+// ═══════════════════════════════════════════════════════
+var warehouseFilter = '';
+var warehouseSort = { key: 'name', dir: 1 };
+
+function whSortValue(p, key) {
+  switch (key) {
+    case 'stock':    return maxSalePackages(p) || 0;
+    case 'name':
+    default:         return (p.name || '').toLowerCase();
+  }
+}
+
+function warehouseSortBy(key) {
+  if (warehouseSort.key === key) warehouseSort.dir = -warehouseSort.dir;
+  else { warehouseSort.key = key; warehouseSort.dir = 1; }
+  renderWarehouse();
+}
+
+function updateWarehouseSortIndicators() {
+  document.querySelectorAll('.wh-sort-ind').forEach(function(el) {
+    var k = el.getAttribute('data-k');
+    var active = warehouseSort.key === k;
+    el.textContent = active ? (warehouseSort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
+    el.style.color = active ? 'var(--green-accent)' : '';
+  });
+}
+
+function warehouseSearch(v) { warehouseFilter = v || ''; renderWarehouse(); }
+
+function updateWarehouseHeaderUser() {
+  var el = document.getElementById('warehouse-user-name');
+  if (!el) return;
+  var name = (supabaseSession && (supabaseSession.name || supabaseSession.username)) || 'Anbar';
+  el.textContent = '👤 ' + name;
+}
+
+function renderWarehouse() {
+  var tbody = document.getElementById('warehouse-tbody');
+  if (!tbody) return;
+  updateWarehouseHeaderUser();
+
+  var products = getProducts();
+  var f = (warehouseFilter || '').toLowerCase();
+  var list = f
+    ? products.filter(function(p){ return (p.name||'').toLowerCase().includes(f) || (p.category||'').toLowerCase().includes(f); })
+    : products.slice();
+
+  if (warehouseSort.key) {
+    var key = warehouseSort.key, dir = warehouseSort.dir;
+    list.sort(function(a, b){
+      var va = whSortValue(a, key), vb = whSortValue(b, key);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }
+
+  // KPIs across the whole catalog (not the current filter).
+  var total = products.length;
+  var outCnt = 0, lowCnt = 0, totalPkgs = 0;
+  products.forEach(function(p){
+    var pk = maxSalePackages(p) || 0;
+    totalPkgs += pk;
+    if (pk <= 0) outCnt++;
+    else if (pk <= 10) lowCnt++;
+  });
+  var kpiWrap = document.getElementById('warehouse-kpis');
+  if (kpiWrap) {
+    function card(label, val, color) {
+      return '<div style="flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;">' +
+        '<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;">' + label + '</div>' +
+        '<div style="font-size:24px;font-weight:700;color:' + (color || 'var(--green-dark)') + ';margin-top:4px;">' + val + '</div></div>';
+    }
+    kpiWrap.innerHTML =
+      card('Məhsul sayı', total) +
+      card('Cəmi stok (ədəd)', formatStockCount(totalPkgs)) +
+      card('Az qalıb (≤10)', lowCnt, lowCnt ? '#b9770e' : 'var(--green-dark)') +
+      card('Bitib', outCnt, outCnt ? '#c0392b' : 'var(--green-dark)');
+  }
+
+  updateWarehouseSortIndicators();
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text-light);">Məhsul tapılmadı.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(function(p){
+    var rawPack = packagingForProduct(p);
+    var packLbl = (p.unit && p.unit !== 'unit') ? p.unit : (rawPack || '—');
+    var img = p.image
+      ? '<img src="' + p.image + '" style="width:44px;height:36px;object-fit:cover;border-radius:5px;display:block;" loading="lazy"/>'
+      : '<div style="width:44px;height:36px;border-radius:5px;background:var(--green-dark);display:flex;align-items:center;justify-content:center;font-size:18px;">' + (CATEGORY_ICONS[p.category]||'📦') + '</div>';
+    return '<tr style="border-bottom:1px solid var(--border);">' +
+      '<td style="padding:8px;">' + img + '</td>' +
+      '<td style="padding:10px 8px;"><strong>' + escapeHtml(p.name || '—') + '</strong></td>' +
+      '<td style="padding:10px 8px;">' + (CATEGORY_ICONS[p.category]||'📦') + ' ' + escapeHtml(p.category || 'Other') + '</td>' +
+      '<td style="padding:10px 8px;">' + escapeHtml(packLbl) + '</td>' +
+      '<td style="padding:10px 8px;">' + adminStockCellHtml(p) + '</td>' +
+      '<td style="padding:10px 8px;">' + adminStatusBadge(p) + '</td>' +
+      '<td style="padding:10px 8px;text-align:center;"><button class="btn-edit" style="background:#2d6cb5;" onclick="openProductSalesHistory(' + p.id + ')" title="Satış tarixçəsi">📜 Satışlar</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
 function renderAdminDash() {
   renderAdminKPIs();
   renderAdminTable();
@@ -6062,6 +6251,8 @@ function startSalesAutoSync() {
         renderSaleProducts();
         renderWarehouseOrders();
         renderCustomers();
+      } else if (currentView === 'warehouse') {
+        renderWarehouse();
       }
     });
   }, SALES_AUTO_SYNC_MS);
@@ -6083,6 +6274,7 @@ function manualSyncSales(btn) {
     renderActivityLog();
     renderWarehouseOrders();
     renderMySales();
+    if (typeof renderWarehouse === 'function' && currentView === 'warehouse') renderWarehouse();
     showToast(ok ? 'Bütün cihazlardan sinxronlaşdırıldı.' : 'Sinxronizasiya alınmadı — internet bağlantısını yoxlayın.', !ok);
     if (btn) { btn.disabled = false; btn.textContent = originalText; }
   });
@@ -6928,16 +7120,18 @@ async function manageUsersCall(payload) {
 }
 
 function roleLabelAz(role) {
-  if(role === 'sales_finance') return 'Satış + Maliyyə';
-  return role === 'finance' ? 'Maliyyə' : 'Satış';
+  if(role === 'admin') return 'Admin';
+  var map = { sales: 'Satış', finance: 'Maliyyə', warehouse: 'Anbar' };
+  var parts = String(role || '').split('_').map(function(p){ return map[p]; }).filter(Boolean);
+  return parts.length ? parts.join(' + ') : (role || '');
 }
 
-// Whether an account role may enter a given portal. 'admin' may enter any;
-// 'sales_finance' may enter both sales and finance portals.
+// Whether an account role may enter a given portal. 'admin' may enter any.
+// Roles are underscore-joined capability sets, e.g. 'sales_finance_warehouse'.
 function roleAllows(role, target) {
   if(role === 'admin') return true;
-  if(role === 'sales_finance') return target === 'sales' || target === 'finance';
-  return role === target;
+  if(!role) return false;
+  return String(role).split('_').indexOf(target) >= 0;
 }
 
 async function refreshAppUsers() {
@@ -6969,7 +7163,7 @@ function renderSalesUsers() {
   }
   wrap.innerHTML = users.map((u) => `
     <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;opacity:${u.active ? '1' : '0.55'};">
-      <div style="width:36px;height:36px;border-radius:50%;background:${u.role==='sales_finance'?'#2d6cb5':(u.role==='finance'?'#8e44ad':'var(--green-dark)')};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:${(u.role||'').indexOf('warehouse')>=0?'#b9770e':(u.role==='sales_finance'?'#2d6cb5':(u.role==='finance'?'#8e44ad':'var(--green-dark)'))};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${escapeHtml((u.name||u.username||'?').charAt(0).toUpperCase())}</div>
       <div>
         <div style="font-weight:600;color:var(--green-dark);">${escapeHtml(u.name || u.username)} <span style="font-size:11px;color:var(--text-light);font-weight:500;">· ${roleLabelAz(u.role)}</span></div>
         <div style="font-size:12px;color:var(--text-light);">@${escapeHtml(u.username)}${u.active ? '' : ' · deaktiv'}</div>
@@ -6986,11 +7180,14 @@ function renderSalesUsers() {
 // Build the canonical role string from the two role checkboxes. Returns null
 // if neither is ticked (caller shows an error).
 function salesUserRoleFromChecks() {
-  const wantSales   = !!(document.getElementById('su-role-sales')   || {}).checked;
-  const wantFinance = !!(document.getElementById('su-role-finance') || {}).checked;
-  if(!wantSales && !wantFinance) return null;
-  if(wantSales && wantFinance) return 'sales_finance';
-  return wantFinance ? 'finance' : 'sales';
+  const wantSales     = !!(document.getElementById('su-role-sales')     || {}).checked;
+  const wantFinance   = !!(document.getElementById('su-role-finance')   || {}).checked;
+  const wantWarehouse = !!(document.getElementById('su-role-warehouse') || {}).checked;
+  const parts = [];
+  if(wantSales)     parts.push('sales');
+  if(wantFinance)   parts.push('finance');
+  if(wantWarehouse) parts.push('warehouse');
+  return parts.length ? parts.join('_') : null;
 }
 
 function openSalesUserModal() {
@@ -7003,6 +7200,7 @@ function openSalesUserModal() {
   document.getElementById('su-password').value = '';
   document.getElementById('su-role-sales').checked = true;
   document.getElementById('su-role-finance').checked = false;
+  var whChk = document.getElementById('su-role-warehouse'); if(whChk) whChk.checked = false;
   // Show name/username/password (create mode).
   document.getElementById('su-create-fields').style.display = '';
   document.getElementById('su-edit-id').value = '';
@@ -7018,8 +7216,10 @@ function appUserEditRoles(id, username, role) {
   document.getElementById('su-title').textContent = 'Rollar — @' + username;
   document.getElementById('su-create-fields').style.display = 'none';
   document.getElementById('su-edit-id').value = id;
-  document.getElementById('su-role-sales').checked   = (role === 'sales' || role === 'sales_finance');
-  document.getElementById('su-role-finance').checked = (role === 'finance' || role === 'sales_finance');
+  var parts = String(role || '').split('_');
+  document.getElementById('su-role-sales').checked   = parts.indexOf('sales') >= 0;
+  document.getElementById('su-role-finance').checked = parts.indexOf('finance') >= 0;
+  var whChk = document.getElementById('su-role-warehouse'); if(whChk) whChk.checked = parts.indexOf('warehouse') >= 0;
   document.getElementById('su-submit').textContent = 'Yadda saxla';
   m.classList.add('open');
 }
@@ -7031,7 +7231,7 @@ function closeSalesUserModal() {
 
 async function submitSalesUser() {
   const role = salesUserRoleFromChecks();
-  if(!role) { showToast('Ən azı bir rol seçin (Satış və ya Maliyyə).', true); return; }
+  if(!role) { showToast('Ən azı bir rol seçin (Satış, Maliyyə və ya Anbar).', true); return; }
   const editId = (document.getElementById('su-edit-id').value || '').trim();
   const btn = document.getElementById('su-submit');
   if(btn) btn.disabled = true;
