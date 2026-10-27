@@ -2967,7 +2967,7 @@
           <!-- Customer -->
           <div class="form-group" style="margin-top:16px;">
             <label class="form-label" data-en="Customer Name (Optional)" data-az="Müştəri adı (istəyə bağlı)">Müştəri adı (istəyə bağlı)</label>
-            <input class="form-input" id="sale-customer" list="vt-customer-list" autocomplete="off" placeholder="Müştəri və ya şirkət adı" data-ph-en="Customer or company name" data-ph-az="Müştəri və ya şirkət adı"/>
+            <input class="form-input" id="sale-customer" list="vt-customer-list" autocomplete="off" oninput="refreshCartTotals()" placeholder="Müştəri və ya şirkət adı" data-ph-en="Customer or company name" data-ph-az="Müştəri və ya şirkət adı"/>
             <datalist id="vt-customer-list"></datalist>
             <!-- Quick preset for Aygun: sell to the Qusar shop. Confirming adds the
                  items to the Dükan stock automatically. Hidden for other users. -->
@@ -4971,6 +4971,19 @@ function productAllowsDiscount(p) {
   if (!p) return true;
   if (NO_DISCOUNT_PRODUCT_IDS.indexOf(p.id) >= 0) return false;
   return NO_DISCOUNT_PRODUCT_NAMES.indexOf(String(p.name || '').trim().toLowerCase()) < 0;
+}
+
+// Customers who always buy at list price: the order discount is ignored for
+// them. "Saatlı Bağı" is the same customer as ID Aqropark.
+var NO_DISCOUNT_CUSTOMERS = ['id aqropark', 'saatlı bağı'];
+
+function customerAllowsDiscount(name) {
+  return NO_DISCOUNT_CUSTOMERS.indexOf(String(name || '').trim().toLowerCase()) < 0;
+}
+
+function saleCustomerAllowsDiscount() {
+  var el = document.getElementById('sale-customer');
+  return customerAllowsDiscount(el ? el.value : '');
 }
 
 function vatAmountOnNet(net) {
@@ -7304,6 +7317,13 @@ function adminEditSale(ts) {
   const newCustomer = prompt('Müştəri adı:', s.customer || '');
   if(newCustomer == null) return;
 
+  if(!customerAllowsDiscount(newCustomer)) {
+    const listP = loadRawProducts().find(p => p.id === s.productId);
+    const listPrice = listP ? +salePackPriceAZN(listP).toFixed(2) : 0;
+    if(newPrice < listPrice &&
+       !confirm(`Bu müştəriyə endirim verilmir. Qiymət (${formatAzn(newPrice)}) siyahı qiymətindən (${formatAzn(listPrice)}) aşağıdır. Yenə də saxlayaq?`)) return;
+  }
+
   // Adjust stock by the qty delta (oldQty - newQty) atomically on the server, so
   // reducing qty restores stock and increasing it deducts — race-free.
   const products = loadRawProducts();
@@ -8682,9 +8702,11 @@ function refreshCartTotals() {
   // "Ümumi" shows the VAT-excl. (net) value; ƏDV is added on top of it to
   // reach the gross subtotal, which the discount is then applied to, giving
   // the VAT-inclusive "Yekun Qiymət".
+  const custAllows  = saleCustomerAllowsDiscount();
+  const effDiscount = custAllows ? cartDiscount : 0;
   const vatAmt      = vatGross * VAT_RATE / (100 + VAT_RATE);
   const subtotalNet = subtotal - vatAmt;
-  const discountAmt = discountable * (cartDiscount / 100);
+  const discountAmt = discountable * (effDiscount / 100);
   const grandTotal  = subtotal - discountAmt;
 
   const subEl       = document.getElementById('sale-subtotal-display');
@@ -8705,9 +8727,12 @@ function refreshCartTotals() {
   if(subLabelEl)   subLabelEl.textContent   = vatGross > 0 ? 'Ümumi (ƏDV-siz)' : 'Ümumi';
   if(totalLabelEl) totalLabelEl.textContent = vatGross > 0 ? 'Yekun Qiymət (ƏDV daxil)' : 'Yekun məbləğ';
 
-  if(cartDiscount > 0 && subtotal > 0) {
+  const discInput = document.getElementById('cart-discount-pct');
+  if(discInput) discInput.disabled = !custAllows;
+
+  if(effDiscount > 0 && subtotal > 0) {
     if(lineEl) lineEl.style.display = 'flex';
-    if(pctEl)  pctEl.textContent    = String(cartDiscount);
+    if(pctEl)  pctEl.textContent    = String(effDiscount);
     if(amtEl)  amtEl.textContent    = '-' + formatAzn(discountAmt);
   } else if(lineEl) {
     lineEl.style.display = 'none';
@@ -8715,7 +8740,10 @@ function refreshCartTotals() {
 
   const exemptEl = document.getElementById('sale-discount-exempt-note');
   if(exemptEl) {
-    if(cartDiscount > 0 && exemptNames.length) {
+    if(!custAllows) {
+      exemptEl.style.display = 'block';
+      exemptEl.innerHTML = '⚠️ Bu müştəriyə endirim tətbiq olunmur — bütün məhsullar tam qiymətlə satılır.';
+    } else if(cartDiscount > 0 && exemptNames.length) {
       exemptEl.style.display = 'block';
       exemptEl.innerHTML = '⚠️ Endirim tətbiq olunmur: <strong>' +
         exemptNames.map(escapeHtml).join(', ') + '</strong> — bu məhsullar tam qiymətlə satılır.';
@@ -8859,6 +8887,7 @@ async function confirmSale() {
   var discountPct = cartDiscount;
   if(!isFinite(discountPct) || discountPct < 0) discountPct = 0;
   if(discountPct > MAX_CART_DISCOUNT) discountPct = MAX_CART_DISCOUNT;
+  if(!customerAllowsDiscount(customer)) discountPct = 0;
   const discountMul = 1 - (discountPct / 100);
 
   // Build the intended sale rows first (clamped to available stock), but do NOT
@@ -9489,12 +9518,22 @@ function saveEditSale() {
   }
 
   const oldQty = s.qty, oldCustomer = s.customer, oldTotal = s.total;
+  const patch = { qty: newQty, customer: newCustomer, edited: true };
+  if(!customerAllowsDiscount(newCustomer) && s.discountPct > 0 && s.unitPriceOriginal) {
+    sales[idx].unitPrice = +s.unitPriceOriginal;
+    delete sales[idx].discountPct;
+    delete sales[idx].unitPriceOriginal;
+    patch.unit_price = sales[idx].unitPrice;
+    patch.discount_pct = null;
+    patch.unit_price_original = null;
+  }
   sales[idx].qty      = newQty;
-  sales[idx].total    = s.unitPrice * newQty;
+  sales[idx].total    = +(sales[idx].unitPrice * newQty).toFixed(2);
   sales[idx].customer = newCustomer;
   sales[idx].edited   = true;
+  patch.total = sales[idx].total;
   saveSales(sales);
-  supabaseUpdateSaleByTs(s.ts, { qty: newQty, total: sales[idx].total, customer: newCustomer, edited: true });
+  supabaseUpdateSaleByTs(s.ts, patch);
   logActivity('sale_edited', {
     saleTs: s.ts, productId: s.productId, productName: s.productName,
     oldQty, newQty, oldCustomer, newCustomer,
