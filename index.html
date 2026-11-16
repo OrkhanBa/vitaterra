@@ -14399,8 +14399,8 @@ function financeExportInventoryXlsx() {
 function financeExportCustomersXlsx() {
   if(typeof XLSX === 'undefined') { showToast('Excel kitabxanası yüklənməyib.', true); return; }
 
-  const customers = buildCustomerSummaries().slice().sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
-  if(!customers.length) { showToast('Hələ müştəri yoxdur, ixrac ediləcək məlumat yoxdur.', true); return; }
+  const customers = buildCustomerSummaries().filter(c => c.salesCount > 0 || c.paymentCount > 0).sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
+  if(!customers.length) { showToast('Satışı və ya ödənişi olan müştəri yoxdur, ixrac ediləcək məlumat yoxdur.', true); return; }
 
   const round2 = n => +(+n || 0).toFixed(2);
   const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('az') : '';
