@@ -14457,48 +14457,86 @@ function financeExportCustomersXlsx() {
     if(s.ts > line.lastTs) line.lastTs = s.ts;
   });
 
-  const productRows = [];
-  customers.forEach(c => {
-    const lines = byCustomer[custKey(c.name)];
-    if(!lines) return;
-    const list = Object.keys(lines).map(k => lines[k]).sort((a, b) => b.total - a.total);
-    list.forEach(l => {
-      productRows.push({
-        'Müştəri': displayName[custKey(c.name)],
-        'Məhsul': l.productName,
-        'Kateqoriya': l.category,
-        'Qablaşma': l.packLabel,
-        'Miqdar (ədəd)': round2(l.qty),
-        'Miqdar (kq/l)': l.mult ? +(l.qty * l.mult).toFixed(3) : '',
-        'Vahid': l.baseLabel,
-        'Orta qiymət/ədəd AZN': l.qty ? round2(l.total / l.qty) : '',
-        'Məbləğ AZN': round2(l.total),
-        'Satış sətri sayı': l.count,
-        'İlk alış': fmtDate(l.firstTs),
-        'Son alış': fmtDate(l.lastTs)
-      });
-    });
-    productRows.push({
-      'Müştəri': c.name + ' — CƏMİ',
-      'Məbləğ AZN': round2(list.reduce((s, l) => s + l.total, 0))
-    });
-  });
-
+  const methodLabel = m => (FINANCE_PAYMENT_METHODS.find(x => x.value === (m || 'cash')) || {}).label || m || '';
   const payments = getCustomerPayments().slice().sort((a, b) => (a.customer || '').localeCompare(b.customer || '') || a.ts - b.ts);
   const paymentRows = payments.map(p => ({
     'Müştəri': displayName[custKey(p.customer)] || p.customer || '',
     'Tarix': fmtDate(p.ts),
     'Məbləğ AZN': round2(p.amount),
-    'Üsul': (FINANCE_PAYMENT_METHODS.find(x => x.value === (p.method || 'cash')) || {}).label || p.method || '',
+    'Üsul': methodLabel(p.method),
     'Qeyd': p.note || '',
     'Qeyd edən': p.recordedBy || ''
   }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Müştərilər');
-  if(productRows.length) {
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productRows), 'Məhsullar üzrə');
-  }
+
+  // Excel sheet names: max 31 chars, no : \ / ? * [ ], unique case-insensitively.
+  const usedSheetNames = { 'müştərilər': 1, 'ödənişlər': 1 };
+  const sheetNameFor = name => {
+    const base = (name || 'Müştəri').replace(/[:\\\/?*\[\]]/g, ' ').replace(/^'+|'+$/g, '').trim().slice(0, 31) || 'Müştəri';
+    let candidate = base;
+    for(let n = 2; usedSheetNames[candidate.toLowerCase()]; n++) {
+      const suffix = ' (' + n + ')';
+      candidate = base.slice(0, 31 - suffix.length) + suffix;
+    }
+    usedSheetNames[candidate.toLowerCase()] = 1;
+    return candidate;
+  };
+
+  const productHeader = ['Məhsul', 'Kateqoriya', 'Qablaşma', 'Miqdar (ədəd)', 'Miqdar (kq/l)', 'Vahid',
+    'Orta qiymət/ədəd AZN', 'Məbləğ AZN', 'Satış sətri sayı', 'İlk alış', 'Son alış'];
+
+  customers.forEach(c => {
+    const ck = custKey(c.name);
+    const lines = byCustomer[ck] || {};
+    const list = Object.keys(lines).map(k => lines[k]).sort((a, b) => b.total - a.total);
+    const custPayments = payments.filter(p => custKey(p.customer) === ck);
+
+    const aoa = [
+      ['Müştəri', c.name],
+      ['Telefon', c.phone || ''],
+      ['Ünvan', c.address || ''],
+      ['Ümumi satış AZN', round2(c.totalSold)],
+      ['Ödənilən AZN', round2(c.paid)],
+      ['Qalıq borc AZN', round2(c.balance)],
+      [],
+      ['ALINAN MƏHSULLAR'],
+      productHeader
+    ];
+    if(list.length) {
+      list.forEach(l => aoa.push([
+        l.productName,
+        l.category,
+        l.packLabel,
+        round2(l.qty),
+        l.mult ? +(l.qty * l.mult).toFixed(3) : '',
+        l.baseLabel,
+        l.qty ? round2(l.total / l.qty) : '',
+        round2(l.total),
+        l.count,
+        fmtDate(l.firstTs),
+        fmtDate(l.lastTs)
+      ]));
+      aoa.push(['CƏMİ', '', '', '', '', '', '', round2(list.reduce((s, l) => s + l.total, 0))]);
+    } else {
+      aoa.push(['Satış yoxdur']);
+    }
+
+    aoa.push([], ['ÖDƏNİŞLƏR'], ['Tarix', 'Məbləğ AZN', 'Üsul', 'Qeyd', 'Qeyd edən']);
+    if(custPayments.length) {
+      custPayments.forEach(p => aoa.push([fmtDate(p.ts), round2(p.amount), methodLabel(p.method), p.note || '', p.recordedBy || '']));
+      aoa.push(['CƏMİ', round2(custPayments.reduce((s, p) => s + ((+p.amount) || 0), 0))]);
+    } else {
+      aoa.push(['Ödəniş yoxdur']);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 8 },
+      { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, sheetNameFor(c.name));
+  });
+
   if(paymentRows.length) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentRows), 'Ödənişlər');
   }
