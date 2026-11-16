@@ -3451,6 +3451,7 @@
           <div class="finance-panel-title">Müştərilər və debitor borcları</div>
           <div style="font-size:12px;color:var(--text-light);margin-top:4px;">Ödənişlər maliyyə gəlirinə təsir etmir — gəlir satış anında sayılır.</div>
         </div>
+        <button type="button" class="btn-add" style="padding:8px 14px;font-size:13px;" onclick="financeExportCustomersXlsx()">📥 Excel-ə ixrac et</button>
       </div>
       <div id="customers-list-finance" style="padding:4px 2px;"></div>
     </div>
@@ -14391,6 +14392,119 @@ function financeExportInventoryXlsx() {
   const stamp = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, 'VitaTerra-Anbar-Qaligi-' + modeLabel + '-' + stamp + '.xlsx');
   showToast('✅ Anbar qalığı Excel faylı yükləndi');
+}
+
+// Customers workbook: per-customer debt/payment summary, a customer × product
+// breakdown of what each one bought, and the raw payment history.
+function financeExportCustomersXlsx() {
+  if(typeof XLSX === 'undefined') { showToast('Excel kitabxanası yüklənməyib.', true); return; }
+
+  const customers = buildCustomerSummaries().slice().sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
+  if(!customers.length) { showToast('Hələ müştəri yoxdur, ixrac ediləcək məlumat yoxdur.', true); return; }
+
+  const round2 = n => +(+n || 0).toFixed(2);
+  const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('az') : '';
+
+  const summaryRows = customers.map(c => ({
+    'Müştəri': c.name,
+    'Telefon': c.phone || '',
+    'Ünvan': c.address || '',
+    'Satış sayı': c.salesCount,
+    'Ümumi satış AZN': round2(c.totalSold),
+    'Ödənilən AZN': round2(c.paid),
+    'Qalıq borc AZN': round2(c.balance),
+    'Ödəniş sayı': c.paymentCount,
+    'Son fəaliyyət': fmtDate(c.lastTs)
+  }));
+  summaryRows.push({
+    'Müştəri': 'CƏMİ',
+    'Satış sayı': customers.reduce((s, c) => s + c.salesCount, 0),
+    'Ümumi satış AZN': round2(customers.reduce((s, c) => s + c.totalSold, 0)),
+    'Ödənilən AZN': round2(customers.reduce((s, c) => s + c.paid, 0)),
+    'Qalıq borc AZN': round2(customers.reduce((s, c) => s + Math.max(0, c.balance), 0))
+  });
+
+  const productsById = {};
+  getProducts().forEach(p => { productsById[p.id] = p; });
+  const displayName = {};
+  customers.forEach(c => { displayName[custKey(c.name)] = c.name; });
+
+  // customerKey → productKey → aggregated line
+  const byCustomer = {};
+  getSales().forEach(s => {
+    const name = (s.customer || '').trim();
+    if(!name || s.voided) return;
+    const ck = custKey(name);
+    const pk = s.productId != null ? 'id:' + s.productId : 'name:' + (s.productName || '');
+    if(!byCustomer[ck]) byCustomer[ck] = {};
+    if(!byCustomer[ck][pk]) {
+      const p = productsById[s.productId];
+      const packStr = p ? packagingForProduct(p) : '';
+      byCustomer[ck][pk] = {
+        productName: s.productName || (p && p.name) || '',
+        category: (p && p.category) || '',
+        packLabel: packStr ? formatPackAz(packStr) : '',
+        mult: packStr ? (packMultiplier(packStr) || 1) : 0,
+        baseLabel: packStr ? baseUnitLabelFromPack(packStr) : '',
+        qty: 0, total: 0, count: 0, firstTs: 0, lastTs: 0
+      };
+    }
+    const line = byCustomer[ck][pk];
+    line.qty += parseFloat(s.qty) || 0;
+    line.total += (+s.total) || 0;
+    line.count++;
+    if(s.ts && (!line.firstTs || s.ts < line.firstTs)) line.firstTs = s.ts;
+    if(s.ts > line.lastTs) line.lastTs = s.ts;
+  });
+
+  const productRows = [];
+  customers.forEach(c => {
+    const lines = byCustomer[custKey(c.name)];
+    if(!lines) return;
+    const list = Object.keys(lines).map(k => lines[k]).sort((a, b) => b.total - a.total);
+    list.forEach(l => {
+      productRows.push({
+        'Müştəri': displayName[custKey(c.name)],
+        'Məhsul': l.productName,
+        'Kateqoriya': l.category,
+        'Qablaşma': l.packLabel,
+        'Miqdar (ədəd)': round2(l.qty),
+        'Miqdar (kq/l)': l.mult ? +(l.qty * l.mult).toFixed(3) : '',
+        'Vahid': l.baseLabel,
+        'Orta qiymət/ədəd AZN': l.qty ? round2(l.total / l.qty) : '',
+        'Məbləğ AZN': round2(l.total),
+        'Satış sətri sayı': l.count,
+        'İlk alış': fmtDate(l.firstTs),
+        'Son alış': fmtDate(l.lastTs)
+      });
+    });
+    productRows.push({
+      'Müştəri': c.name + ' — CƏMİ',
+      'Məbləğ AZN': round2(list.reduce((s, l) => s + l.total, 0))
+    });
+  });
+
+  const payments = getCustomerPayments().slice().sort((a, b) => (a.customer || '').localeCompare(b.customer || '') || a.ts - b.ts);
+  const paymentRows = payments.map(p => ({
+    'Müştəri': displayName[custKey(p.customer)] || p.customer || '',
+    'Tarix': fmtDate(p.ts),
+    'Məbləğ AZN': round2(p.amount),
+    'Üsul': (FINANCE_PAYMENT_METHODS.find(x => x.value === (p.method || 'cash')) || {}).label || p.method || '',
+    'Qeyd': p.note || '',
+    'Qeyd edən': p.recordedBy || ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Müştərilər');
+  if(productRows.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productRows), 'Məhsullar üzrə');
+  }
+  if(paymentRows.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentRows), 'Ödənişlər');
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, 'VitaTerra-Musteriler-' + stamp + '.xlsx');
+  showToast('✅ Müştərilər Excel faylı yükləndi');
 }
 </script>
 <div class="hero-bg-preview" id="hero-bg-preview" hidden>
